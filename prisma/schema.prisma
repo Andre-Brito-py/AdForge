@@ -14,6 +14,8 @@ model User {
   image               String?
   role                String    @default("USER") // USER ou SUPERADMIN
   onboardingCompleted Boolean   @default(false)
+  twoFactorSecret     String?
+  twoFactorEnabled    Boolean   @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -159,10 +161,15 @@ model UsageRecord {
 }
 
 model SystemConfig {
-  id            String   @id @default("global") // Single row pattern
-  geminiKey     String?
-  oviKey        String?
-  aiCostsJson   String?  // Armazena custos em moedas (ex: image: 3, video: 10)
-  plansJson     String?  // Armazena os planos em R$ e qual é destaque
-  updatedAt     DateTime @updatedAt
+  id                       String   @id @default("global") // Single row pattern
+  geminiKey                String?
+  openAiKey                String?  // Chave da OpenAI para backup de texto/imagem
+  oviKey                   String?
+  stripeSecretKey          String?
+  stripeWebhookSecret      String?
+  mercadoPagoAccessToken   String?
+  mercadoPagoWebhookSecret String?
+  aiCostsJson              String?  // Armazena custos em moedas (ex: image: 3, video: 10)
+  plansJson                String?  // Armazena os planos em R$ e qual é destaque
+  updatedAt                DateTime @updatedAt
 }

@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { ThemeProvider } from "@/components/theme-provider";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -37,16 +39,23 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50`}
       >
-        <NextIntlClientProvider messages={messages}>
-          <Providers>
-            {children}
-          </Providers>
-          <Toaster />
-        </NextIntlClientProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NextIntlClientProvider messages={messages}>
+            <Providers>
+              {children}
+            </Providers>
+            <Toaster />
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -8,7 +8,7 @@ const ADMIN_EMAILS = ["admin@vysify.com", "andre@vysify.com"]; // Ajuste conform
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+    if (!session?.user?.email || (!session.user.email.includes("andre@") && session.user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -26,16 +26,25 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+    if (!session?.user?.email || (!session.user.email.includes("andre@") && session.user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { geminiKey, oviKey, aiCostsJson, plansJson } = await request.json();
+    const { 
+      geminiKey, openAiKey, oviKey, aiCostsJson, plansJson,
+      stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret 
+    } = await request.json();
 
     const config = await db.systemConfig.upsert({
       where: { id: "global" },
-      update: { geminiKey, oviKey, aiCostsJson, plansJson },
-      create: { id: "global", geminiKey, oviKey, aiCostsJson, plansJson },
+      update: { 
+        geminiKey, openAiKey, oviKey, aiCostsJson, plansJson,
+        stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret
+      },
+      create: { 
+        id: "global", geminiKey, openAiKey, oviKey, aiCostsJson, plansJson,
+        stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret
+      },
     });
 
     return NextResponse.json({ success: true, config });

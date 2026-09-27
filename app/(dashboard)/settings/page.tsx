@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { User, Bell, Shield, LogOut, Globe } from "lucide-react";
@@ -50,7 +50,7 @@ export default function SettingsPage() {
             </button>
           ))}
           <div className="pt-4 mt-4 border-t border-zinc-200">
-            <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
+            <button onClick={() => signOut({ callbackUrl: '/' })} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
               <LogOut className="h-4 w-4" /> Sair da Conta
             </button>
           </div>
@@ -82,20 +82,28 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "security" && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold text-zinc-900 mb-6">Segurança da Conta</h2>
-              <div className="grid gap-6 max-w-md">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-900">Senha Atual</label>
-                  <Input type="password" placeholder="••••••••" className="h-12 bg-zinc-50" />
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-xl font-bold text-zinc-900 mb-6">Segurança da Conta</h2>
+                <div className="grid gap-6 max-w-md">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-zinc-900">Senha Atual</label>
+                    <Input type="password" placeholder="••••••••" className="h-12 bg-zinc-50" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-zinc-900">Nova Senha</label>
+                    <Input type="password" placeholder="••••••••" className="h-12 bg-zinc-50" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-900">Nova Senha</label>
-                  <Input type="password" placeholder="••••••••" className="h-12 bg-zinc-50" />
+                <div className="pt-6">
+                  <Button onClick={handleSave} className="rounded-full bg-zinc-900 h-12 px-8">Atualizar Senha</Button>
                 </div>
               </div>
-              <div className="pt-6">
-                <Button onClick={handleSave} className="rounded-full bg-zinc-900 h-12 px-8">Atualizar Senha</Button>
+              
+              <div className="pt-8 border-t border-zinc-200">
+                <h2 className="text-xl font-bold text-zinc-900 mb-2">Autenticação de Dois Fatores (2FA)</h2>
+                <p className="text-sm text-zinc-500 mb-6">Aumente a segurança da sua conta usando o Google Authenticator.</p>
+                <TwoFactorSection />
               </div>
             </div>
           )}
@@ -118,7 +126,6 @@ export default function SettingsPage() {
                     <p className="text-sm text-zinc-500">Aviso quando uma geração assíncrona for concluída.</p>
                   </div>
                 </label>
-              </div>
               </div>
             </div>
           )}
@@ -168,6 +175,106 @@ export default function SettingsPage() {
         </div>
 
       </div>
+    </div>
+  );
+}
+
+function TwoFactorSection() {
+  const [loading, setLoading] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [secret, setSecret] = useState("");
+  const [token, setToken] = useState("");
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [step, setStep] = useState<"IDLE" | "SETUP">("IDLE");
+
+  useEffect(() => {
+    fetch("/api/user/2fa/status")
+      .then(res => res.json())
+      .then(data => setIsEnabled(data.enabled))
+      .catch(() => {});
+  }, []);
+
+  const generate2FA = async () => {
+    setLoading(true);
+    const res = await fetch("/api/user/2fa/generate", { method: "POST" });
+    const data = await res.json();
+    setQrCode(data.qrCodeUrl);
+    setSecret(data.secret);
+    setStep("SETUP");
+    setLoading(false);
+  };
+
+  const verify2FA = async () => {
+    setLoading(true);
+    const res = await fetch("/api/user/2fa/verify", {
+      method: "POST",
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success("2FA habilitado com sucesso!");
+      setIsEnabled(true);
+      setStep("IDLE");
+    } else {
+      toast.error("Código inválido. Tente novamente.");
+    }
+    setLoading(false);
+  };
+
+  const disable2FA = async () => {
+    setLoading(true);
+    await fetch("/api/user/2fa/verify", {
+      method: "POST",
+      body: JSON.stringify({ disable: true })
+    });
+    toast.success("2FA desabilitado.");
+    setIsEnabled(false);
+    setLoading(false);
+  };
+
+  if (isEnabled) {
+    return (
+      <div className="p-4 border border-emerald-200 bg-emerald-50 rounded-xl flex items-center justify-between">
+        <div>
+          <h3 className="font-bold text-emerald-900">2FA Ativado</h3>
+          <p className="text-sm text-emerald-700">Sua conta está mais segura.</p>
+        </div>
+        <Button onClick={disable2FA} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" disabled={loading}>
+          Desabilitar
+        </Button>
+      </div>
+    );
+  }
+
+  if (step === "SETUP") {
+    return (
+      <div className="p-6 border border-zinc-200 rounded-xl max-w-md space-y-4">
+        <h3 className="font-bold text-zinc-900">Configure o Google Authenticator</h3>
+        <p className="text-sm text-zinc-500">1. Escaneie o QR Code abaixo com seu aplicativo.</p>
+        {qrCode && <img src={qrCode} alt="QR Code 2FA" className="w-48 h-48 border rounded-lg" />}
+        <p className="text-sm text-zinc-500 mt-2">2. Digite o código de 6 dígitos gerado no app.</p>
+        <div className="flex gap-2">
+          <Input 
+            value={token} 
+            onChange={e => setToken(e.target.value)} 
+            placeholder="000000" 
+            maxLength={6}
+            className="tracking-widest text-center"
+          />
+          <Button onClick={verify2FA} disabled={loading || token.length < 6} className="bg-zinc-900">
+            Verificar
+          </Button>
+        </div>
+        <Button variant="ghost" onClick={() => setStep("IDLE")} className="w-full text-zinc-500 mt-2">Cancelar</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Button onClick={generate2FA} disabled={loading} className="bg-zinc-900 text-white rounded-full px-6">
+        Configurar Autenticador
+      </Button>
     </div>
   );
 }

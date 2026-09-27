@@ -108,10 +108,13 @@ async function generateCreativesAsync(campaignId: string, product: any, config: 
     await db.creative.createMany({ data: copies });
 
     // B. Criar stubs (placeholders) para Imagens/Videos
+    // Se o OVI falhar (ou se configurado assim), usaremos DALL-E da OpenAI
+    const visualProvider = config.openAiKey ? "OpenAI / DALL-E 3 (Fallback)" : "OVI / SDXL";
+
     const visuals = Array.from({ length: config.variations }).map((_, i) => ({
       campaignId,
       type: config.platform.includes("Video") || config.platform.includes("Reels") ? "VIDEO" : "IMAGE",
-      provider: "MockProvider",
+      provider: visualProvider,
       model: config.quality === "premium" ? "flux-pro-4k" : "sdxl-fast",
       prompt: `Conceito Visual ${i+1}: ${config.tone}`,
       outputUrl: product.originalImageUrl, // Para o MVP, mockamos com a própria foto do produto

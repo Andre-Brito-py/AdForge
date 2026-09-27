@@ -27,7 +27,7 @@ export default function OnboardingPage() {
     });
     
     if (res.ok) {
-      await update(); // Atualiza a sessão
+      await update({ onboardingCompleted: true }); // Atualiza a sessão
       router.push("/products/new"); // Direto para criar produto
     }
   };
@@ -51,10 +51,7 @@ export default function OnboardingPage() {
       
       <div className="w-full max-w-2xl mb-8 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-zinc-900">Vysify</span>
+          <img src="/logo-full.png" alt="Vysify Logo" className="h-6 object-contain" />
         </div>
         <div className="flex gap-2">
           <div className={`h-2 w-12 rounded-full ${step >= 1 ? "bg-zinc-900" : "bg-zinc-200"} transition-colors duration-500`} />
