@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name                String?
+  image               String?
+  role                String    @default("USER") // USER ou SUPERADMIN
+  onboardingCompleted Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  workspaces        WorkspaceMember[]
+  creditBalances    CreditBalance[]
+  creditTransactions CreditTransaction[]
+  usageRecords      UsageRecord[]
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     WorkspaceMember[]
+  products    Product[]
+  campaigns   Campaign[]
+  creditBalance CreditBalance?
+}
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        String    @default("MEMBER")
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
+}
+
+model Product {
+  id               String   @id @default(uuid())
+  workspaceId      String
+  name             String
+  description      String?
+  price            Float?
+  currency         String   @default("BRL")
+  category         String?
+  targetAudience   String?
+  brandName        String?
+  originalImageUrl String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace        Workspace @relation(fields: [workspaceId], references: [id])
+  campaigns        Campaign[]
+}
+
+model Campaign {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  productId      String
+  name           String
+  objective      String   // SELL, PROMOTION, LAUNCH, AWARENESS, ENGAGEMENT
+  tone           String   // Profissional, Minimalista, etc.
+  targetAudience String?
+  offer          String?
+  platform       String?
+  format         String?
+  style          String?
+  variations     Int      @default(3)
+  status         String   // DRAFT, GENERATING, COMPLETED, FAILED
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+  product        Product   @relation(fields: [productId], references: [id])
+  creatives      Creative[]
+}
+
+model Creative {
+  id           String   @id @default(uuid())
+  campaignId   String
+  type         String   // IMAGE, VIDEO, COPY
+  provider     String   // Gemini, OVI, etc.
+  model        String   // Nome técnico do modelo
+  prompt       String?
+  outputUrl    String?
+  thumbnailUrl String?
+  aspectRatio  String?  // 1:1, 9:16, 4:5
+  width        Int?
+  height       Int?
+  duration     Int?
+  creditsUsed  Int      @default(0)
+  status       String   // QUEUED, PROCESSING, COMPLETED, FAILED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaign     Campaign @relation(fields: [campaignId], references: [id])
+  job          GenerationJob?
+}
+
+model CreditBalance {
+  id          String   @id @default(uuid())
+  workspaceId String   @unique
+  userId      String?  // Opcional, caso queira amarrar ao user no MVP ao invés do workspace
+  balance     Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
+}
+
+model CreditTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  workspaceId String
+  amount      Int      // Positivo (compra/refund) ou Negativo (consumo)
+  type        String   // CONSUME, REFUND, PURCHASE, BONUS
+  description String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model GenerationJob {
+  id          String   @id @default(uuid())
+  creativeId  String   @unique
+  status      String   // PENDING, PROCESSING, COMPLETED, FAILED
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  creative    Creative @relation(fields: [creativeId], references: [id])
+}
+
+model UsageRecord {
+  id            String   @id @default(uuid())
+  userId        String
+  operation     String   // IMAGE_STANDARD, VIDEO_OVI_5S
+  provider      String
+  model         String
+  credits       Int
+  estimatedCost Float  // Custo em USD
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model SystemConfig {
+  id            String   @id @default("global") // Single row pattern
+  geminiKey     String?
+  oviKey        String?
+  aiCostsJson   String?  // Armazena custos em moedas (ex: image: 3, video: 10)
+  plansJson     String?  // Armazena os planos em R$ e qual é destaque
+  updatedAt     DateTime @updatedAt
+}
