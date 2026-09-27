@@ -46,7 +46,18 @@ export default withAuth(
       }
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next();
+    
+    // Set locale se não existir
+    if (!req.cookies.has('NEXT_LOCALE')) {
+      const acceptLang = req.headers.get('accept-language');
+      let locale = 'pt';
+      if (acceptLang?.includes('en')) locale = 'en';
+      if (acceptLang?.includes('es')) locale = 'es';
+      response.cookies.set('NEXT_LOCALE', locale, { path: '/' });
+    }
+
+    return response;
   },
   {
     callbacks: {

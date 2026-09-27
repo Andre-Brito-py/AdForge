@@ -161,7 +161,7 @@ export default function AdminPage() {
                 value={config.plansJson} 
                 onChange={e => setConfig({...config, plansJson: e.target.value})}
                 className="min-h-[300px] font-mono text-sm bg-zinc-900 text-emerald-400 p-4 rounded-xl leading-relaxed"
-                placeholder='[ { "id": "pro", "name": "Profissional", "price": 99, "credits": 800, "isFeatured": true } ]'
+                placeholder='[ { "id": "pro", "name": "Profissional", "price_brl": 99, "price_usd": 19, "price_eur": 18, "credits": 800, "isFeatured": true } ]'
               />
 
               <Button onClick={handleSave} disabled={loading} size="lg" className="rounded-full bg-red-600 hover:bg-red-700 px-8">

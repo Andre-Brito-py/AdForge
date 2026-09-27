@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
 
-    const { productId, objective, targetAudience, offer, platform, format, style, variations, name } = await request.json();
+    const { productId, objective, targetAudience, offer, platform, format, style, quality, variations, name } = await request.json();
 
     const product = await db.product.findUnique({ where: { id: productId } });
     if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -32,8 +32,9 @@ export async function POST(request: Request) {
       try { costs = { ...costs, ...JSON.parse(config.aiCostsJson) }; } catch(e){}
     }
 
-    // O custo total da campanha será o custo da variação multiplicada (Vamos assumir que geramos Imagens por padrão agora)
-    const costPerVariation = platform.includes("Video") ? costs.video : costs.image;
+    // O custo total da campanha será o custo da variação multiplicada
+    const baseCost = platform.includes("Video") || platform.includes("Reels") ? costs.video : costs.image;
+    const costPerVariation = quality === "premium" ? baseCost * 2 : baseCost;
     const totalCost = variations * costPerVariation;
 
     // 2. Deduzir Créditos (Isso já joga erro se não tiver saldo)
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     // Em PROD usaríamos um webhook ou fila. Vamos manter simples para o MVP.)
     
     // Dispara e esquece
-    generateCreativesAsync(campaign.id, product, { objective, tone: style, targetAudience, variations, format, platform }).catch(console.error);
+    generateCreativesAsync(campaign.id, product, { objective, tone: style, targetAudience, variations, format, platform, quality, costPerVariation }).catch(console.error);
 
     return NextResponse.json({ success: true, id: campaign.id });
   } catch (error) {
@@ -109,13 +110,13 @@ async function generateCreativesAsync(campaignId: string, product: any, config: 
     // B. Criar stubs (placeholders) para Imagens/Videos
     const visuals = Array.from({ length: config.variations }).map((_, i) => ({
       campaignId,
-      type: config.platform.includes("Video") ? "VIDEO" : "IMAGE",
+      type: config.platform.includes("Video") || config.platform.includes("Reels") ? "VIDEO" : "IMAGE",
       provider: "MockProvider",
-      model: "sdxl/ovi",
+      model: config.quality === "premium" ? "flux-pro-4k" : "sdxl-fast",
       prompt: `Conceito Visual ${i+1}: ${config.tone}`,
       outputUrl: product.originalImageUrl, // Para o MVP, mockamos com a própria foto do produto
       status: "COMPLETED",
-      creditsUsed: 3,
+      creditsUsed: config.costPerVariation,
       aspectRatio: config.format
     }));
     await db.creative.createMany({ data: visuals });

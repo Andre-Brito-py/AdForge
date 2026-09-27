@@ -1,0 +1,31 @@
+{
+  "Dashboard": {
+    "title": "Visão Geral",
+    "subtitle": "Pronto para criar sua próxima campanha, {name}?",
+    "newCampaign": "Criar Nova Campanha",
+    "balance": "Saldo Disponível",
+    "activeCampaigns": "Campanhas Ativas",
+    "generatedCreatives": "Criativos Gerados",
+    "recentCampaigns": "Campanhas Recentes",
+    "draft": "Rascunho",
+    "completed": "Concluído",
+    "processing": "Processando",
+    "failed": "Falhou"
+  },
+  "Navigation": {
+    "dashboard": "Painel",
+    "products": "Produtos",
+    "campaigns": "Campanhas",
+    "brandKit": "Brand Kit",
+    "credits": "Créditos",
+    "plans": "Planos",
+    "settings": "Config"
+  },
+  "Plans": {
+    "title": "Planos e Faturamento",
+    "subtitle": "Faça upgrade para escalar suas campanhas.",
+    "currentPlan": "Plano Atual",
+    "mostPopular": "Mais Popular",
+    "subscribe": "Assinar {name}"
+  }
+}

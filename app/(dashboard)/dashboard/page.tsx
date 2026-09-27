@@ -7,12 +7,14 @@ import { PlusCircle, Wallet, LayoutGrid, Image as ImageIcon, ArrowRight, CircleD
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/pt-br";
+import { getTranslations } from "next-intl/server";
 
 dayjs.extend(relativeTime);
 dayjs.locale("pt-br");
 
 export default async function Dashboard() {
   const session = await getServerSession(authOptions);
+  const t = await getTranslations("Dashboard");
   
   let balance = 0;
   let campaignsCount = 0;
@@ -56,11 +58,11 @@ export default async function Dashboard() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "COMPLETED": return <span className="text-emerald-700 font-medium bg-emerald-50 px-2 py-1 rounded-full text-xs">Concluído</span>;
+      case "COMPLETED": return <span className="text-emerald-700 font-medium bg-emerald-50 px-2 py-1 rounded-full text-xs">{t("completed")}</span>;
       case "GENERATING":
-      case "PROCESSING": return <span className="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded-full text-xs">Processando</span>;
-      case "FAILED": return <span className="text-red-700 font-medium bg-red-50 px-2 py-1 rounded-full text-xs">Falhou</span>;
-      default: return <span className="text-zinc-700 font-medium bg-zinc-100 px-2 py-1 rounded-full text-xs">Rascunho</span>;
+      case "PROCESSING": return <span className="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded-full text-xs">{t("processing")}</span>;
+      case "FAILED": return <span className="text-red-700 font-medium bg-red-50 px-2 py-1 rounded-full text-xs">{t("failed")}</span>;
+      default: return <span className="text-zinc-700 font-medium bg-zinc-100 px-2 py-1 rounded-full text-xs">{t("draft")}</span>;
     }
   };
 
@@ -69,13 +71,13 @@ export default async function Dashboard() {
       
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">Visão Geral</h1>
-          <p className="text-zinc-500 mt-2 text-lg">Pronto para criar sua próxima campanha, {session?.user?.name || "Usuário"}?</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">{t("title")}</h1>
+          <p className="text-zinc-500 mt-2 text-lg">{t("subtitle", { name: session?.user?.name || "Usuário" })}</p>
         </div>
         <Link href="/campaigns/new">
           <Button size="lg" className="rounded-full shadow-sm hover:shadow-md transition-all gap-2 h-12 px-6">
             <PlusCircle className="h-5 w-5" />
-            Criar Nova Campanha
+            {t("newCampaign")}
           </Button>
         </Link>
       </header>
@@ -87,7 +89,7 @@ export default async function Dashboard() {
             <div className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <Wallet className="h-5 w-5 text-zinc-600" />
             </div>
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-zinc-500">Saldo Disponível</h3>
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-zinc-500">{t("balance")}</h3>
             <p className="text-4xl font-extrabold mt-3 text-zinc-900 tracking-tight">{balance} <span className="text-xl text-zinc-400 font-medium">CR</span></p>
           </div>
           <Link href="/billing" className="text-sm font-semibold text-zinc-500 hover:text-zinc-900 mt-6 inline-flex items-center group-hover:translate-x-1 transition-transform">
@@ -100,7 +102,7 @@ export default async function Dashboard() {
             <div className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <LayoutGrid className="h-5 w-5 text-zinc-600" />
             </div>
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-zinc-500">Campanhas Ativas</h3>
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-zinc-500">{t("activeCampaigns")}</h3>
             <p className="text-4xl font-extrabold mt-3 text-zinc-900 tracking-tight">{campaignsCount}</p>
           </div>
         </div>
@@ -110,7 +112,7 @@ export default async function Dashboard() {
             <div className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <ImageIcon className="h-5 w-5 text-zinc-600" />
             </div>
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-zinc-500">Criativos Gerados</h3>
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-zinc-500">{t("generatedCreatives")}</h3>
             <p className="text-4xl font-extrabold mt-3 text-zinc-900 tracking-tight">{creativesCount}</p>
           </div>
         </div>

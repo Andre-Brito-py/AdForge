@@ -1,0 +1,31 @@
+{
+  "Dashboard": {
+    "title": "Overview",
+    "subtitle": "Ready to create your next campaign, {name}?",
+    "newCampaign": "Create New Campaign",
+    "balance": "Available Balance",
+    "activeCampaigns": "Active Campaigns",
+    "generatedCreatives": "Generated Creatives",
+    "recentCampaigns": "Recent Campaigns",
+    "draft": "Draft",
+    "completed": "Completed",
+    "processing": "Processing",
+    "failed": "Failed"
+  },
+  "Navigation": {
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "campaigns": "Campaigns",
+    "brandKit": "Brand Kit",
+    "credits": "Credits",
+    "plans": "Plans",
+    "settings": "Settings"
+  },
+  "Plans": {
+    "title": "Plans & Billing",
+    "subtitle": "Upgrade to scale your campaigns.",
+    "currentPlan": "Current Plan",
+    "mostPopular": "Most Popular",
+    "subscribe": "Subscribe to {name}"
+  }
+}

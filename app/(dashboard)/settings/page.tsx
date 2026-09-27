@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, Bell, Shield, LogOut } from "lucide-react";
+import { User, Bell, Shield, LogOut, Globe } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -17,6 +17,7 @@ export default function SettingsPage() {
     { id: "profile", label: "Meu Perfil", icon: User },
     { id: "security", label: "Segurança", icon: Shield },
     { id: "notifications", label: "Notificações", icon: Bell },
+    { id: "preferences", label: "Idioma e Região", icon: Globe },
   ];
 
   const handleSave = () => {
@@ -118,6 +119,46 @@ export default function SettingsPage() {
                   </div>
                 </label>
               </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "preferences" && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-zinc-900 mb-6">Idioma e Região</h2>
+              
+              <div className="grid gap-6 max-w-md">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-900">Idioma da Interface</label>
+                  <select 
+                    className="w-full h-12 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    onChange={(e) => {
+                      document.cookie = `NEXT_LOCALE=${e.target.value}; path=/`;
+                      window.location.reload();
+                    }}
+                  >
+                    <option value="pt">Português (Brasil)</option>
+                    <option value="en">English (US)</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-900">Moeda de Cobrança</label>
+                  <select 
+                    className="w-full h-12 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    onChange={(e) => {
+                      document.cookie = `CURRENCY=${e.target.value}; path=/`;
+                      window.location.reload();
+                    }}
+                  >
+                    <option value="BRL">Real (R$)</option>
+                    <option value="USD">Dólar ($)</option>
+                    <option value="EUR">Euro (€)</option>
+                  </select>
+                  <p className="text-xs text-zinc-500">Isto altera a exibição de preços na página de Planos.</p>
+                </div>
+              </div>
+
               <div className="pt-6">
                 <Button onClick={handleSave} className="rounded-full bg-zinc-900 h-12 px-8">Salvar Preferências</Button>
               </div>

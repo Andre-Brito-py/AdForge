@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Sparkles, ArrowRight, Wallet } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 export default async function BillingPage() {
   const session = await getServerSession(authOptions);
@@ -52,19 +53,29 @@ export default async function BillingPage() {
     }
   ];
 
+  const cookieStore = cookies();
+  const currency = cookieStore.get('CURRENCY')?.value || 'BRL';
+  
+  const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'R$';
+
   if (config?.plansJson) {
     try {
       const parsed = JSON.parse(config.plansJson);
-      // Mesclar a estrutura se vier só price/name do painel admin antigo
-      plans = parsed.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || "O plano perfeito para impulsionar suas vendas com IA.",
-        price: `R$ ${p.price}`,
-        credits: p.credits,
-        features: ["Geração de Copy Inclusa", "Estúdios Ilimitados", "Download em Alta Resolução"],
-        isFeatured: p.isFeatured
-      }));
+      plans = parsed.map((p: any) => {
+        let priceValue = p.price_brl || p.price; // fallback for legacy
+        if (currency === 'USD' && p.price_usd) priceValue = p.price_usd;
+        if (currency === 'EUR' && p.price_eur) priceValue = p.price_eur;
+
+        return {
+          id: p.id,
+          name: p.name,
+          description: p.description || "O plano perfeito para impulsionar suas vendas com IA.",
+          price: `${currencySymbol} ${priceValue}`,
+          credits: p.credits,
+          features: ["Geração de Copy Inclusa", "Estúdios Ilimitados", "Download em Alta Resolução"],
+          isFeatured: p.isFeatured
+        };
+      });
     } catch(e) {}
   }
 

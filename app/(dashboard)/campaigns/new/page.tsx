@@ -30,6 +30,7 @@ export default function NewCampaignWizard() {
   const [platform, setPlatform] = useState("");
   const [format, setFormat] = useState("");
   const [style, setStyle] = useState("");
+  const [quality, setQuality] = useState("standard");
   const [variations, setVariations] = useState(3);
 
   useEffect(() => {
@@ -39,7 +40,8 @@ export default function NewCampaignWizard() {
       .catch(console.error);
   }, []);
 
-  const costPerVariation = 3; // Mocked cost
+  const baseCost = platform.includes("Video") || platform.includes("Reels") ? 10 : 3;
+  const costPerVariation = quality === "premium" ? baseCost * 2 : baseCost;
   const totalCost = variations * costPerVariation;
 
   const handleNext = () => setStep(prev => prev + 1);
@@ -59,6 +61,7 @@ export default function NewCampaignWizard() {
           platform,
           format,
           style,
+          quality,
           variations,
           name: `Campanha de ${objective || "Marketing"}`
         })
@@ -87,8 +90,9 @@ export default function NewCampaignWizard() {
     { num: 3, label: "Público" },
     { num: 4, label: "Oferta" },
     { num: 5, label: "Formato" },
-    { num: 6, label: "Estilo" },
-    { num: 7, label: "Variações" },
+    { num: 6, label: "Qualidade" },
+    { num: 7, label: "Estilo" },
+    { num: 8, label: "Variações" },
   ];
 
   const variants = {
@@ -106,7 +110,7 @@ export default function NewCampaignWizard() {
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-zinc-200 rounded-full z-0 overflow-hidden">
             <div 
               className="h-full bg-zinc-900 transition-all duration-500"
-              style={{ width: `${((step - 1) / (7 - 1)) * 100}%` }}
+              style={{ width: `${((step - 1) / (8 - 1)) * 100}%` }}
             />
           </div>
           {stepsHeader.map(s => (
@@ -298,6 +302,45 @@ export default function NewCampaignWizard() {
           {step === 6 && (
             <motion.div key="step6" variants={variants} initial="initial" animate="animate" exit="exit" className="flex-1 flex flex-col">
               <div className="mb-8">
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Qual a qualidade desejada?</h1>
+                <p className="text-zinc-500 mt-2">Escolha a resolução ideal para o seu objetivo. Valores mais altos consomem mais créditos.</p>
+              </div>
+              
+              <div className="grid gap-4">
+                <button
+                  onClick={() => setQuality("standard")}
+                  className={`p-6 border rounded-2xl flex flex-col gap-2 transition-all text-left ${quality === "standard" ? "border-zinc-900 ring-2 ring-zinc-900/10 bg-zinc-50" : "hover:border-zinc-300"}`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-lg text-zinc-900">Standard (HD)</span>
+                    <span className="text-sm font-semibold text-zinc-500 bg-zinc-100 px-3 py-1 rounded-full">{baseCost} Créditos / un</span>
+                  </div>
+                  <span className="text-sm text-zinc-500">Excelente para testar múltiplos criativos rapidamente e validar ofertas.</span>
+                </button>
+                <button
+                  onClick={() => setQuality("premium")}
+                  className={`p-6 border rounded-2xl flex flex-col gap-2 transition-all text-left relative overflow-hidden ${quality === "premium" ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50" : "hover:border-blue-300"}`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-lg text-blue-900 flex items-center gap-2">Premium (4K) <Sparkles className="h-4 w-4 text-blue-500"/></span>
+                    <span className="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">{baseCost * 2} Créditos / un</span>
+                  </div>
+                  <span className="text-sm text-blue-600/80">Máxima retenção visual. Perfeito para campanhas de conversão pesada e escala.</span>
+                </button>
+              </div>
+
+              <div className="mt-auto pt-8 flex justify-between">
+                <Button variant="ghost" onClick={handlePrev} className="rounded-full">Voltar</Button>
+                <Button size="lg" onClick={handleNext} disabled={!quality} className="rounded-full px-8">
+                  Continuar <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 7 && (
+            <motion.div key="step7" variants={variants} initial="initial" animate="animate" exit="exit" className="flex-1 flex flex-col">
+              <div className="mb-8">
                 <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Qual o estilo visual?</h1>
                 <p className="text-zinc-500 mt-2">A direção de arte que a IA irá seguir.</p>
               </div>
@@ -323,8 +366,8 @@ export default function NewCampaignWizard() {
             </motion.div>
           )}
 
-          {step === 7 && (
-            <motion.div key="step7" variants={variants} initial="initial" animate="animate" exit="exit" className="flex-1 flex flex-col">
+          {step === 8 && (
+            <motion.div key="step8" variants={variants} initial="initial" animate="animate" exit="exit" className="flex-1 flex flex-col">
               <div className="mb-8 text-center">
                 <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Quantas variações?</h1>
                 <p className="text-zinc-500 mt-2">Quanto mais variações, maior a chance de encontrar o criativo vencedor.</p>
