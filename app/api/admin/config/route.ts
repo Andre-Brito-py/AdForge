@@ -31,18 +31,18 @@ export async function PUT(request: Request) {
     }
 
     const { 
-      geminiKey, openAiKey, oviKey, aiCostsJson, plansJson,
+      geminiKey, openAiKey, oviKey, wanKey, elevenLabsKey, aiCostsJson, plansJson,
       stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret 
     } = await request.json();
 
     const config = await db.systemConfig.upsert({
       where: { id: "global" },
       update: { 
-        geminiKey, openAiKey, oviKey, aiCostsJson, plansJson,
+        geminiKey, openAiKey, oviKey, wanKey, elevenLabsKey, aiCostsJson, plansJson,
         stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret
       },
       create: { 
-        id: "global", geminiKey, openAiKey, oviKey, aiCostsJson, plansJson,
+        id: "global", geminiKey, openAiKey, oviKey, wanKey, elevenLabsKey, aiCostsJson, plansJson,
         stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret
       },
     });

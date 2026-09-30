@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [token2fa, setToken2fa] = useState("");
   const [step, setStep] = useState<"EMAIL" | "2FA">("EMAIL");
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,7 @@ export default function LoginPage() {
     
     const res = await signIn("credentials", {
       email,
+      password,
       token2fa: step === "2FA" ? token2fa : undefined,
       redirect: false,
     });
@@ -86,17 +88,31 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             {step === "EMAIL" ? (
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-zinc-900 dark:text-zinc-300">Endereço de E-mail</label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="voce@exemplo.com"
-                  className="w-full p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none focus:border-violet-600 focus:ring-1 focus:ring-violet-600 transition-all bg-zinc-50/50 dark:bg-zinc-900/50 dark:text-white dark:placeholder-zinc-600"
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-sm font-medium text-zinc-900 dark:text-zinc-300">Endereço de E-mail</label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="voce@exemplo.com"
+                    className="w-full p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none focus:border-violet-600 focus:ring-1 focus:ring-violet-600 transition-all bg-zinc-50/50 dark:bg-zinc-900/50 dark:text-white dark:placeholder-zinc-600"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="password" className="text-sm font-medium text-zinc-900 dark:text-zinc-300">Senha</label>
+                  <input
+                    id="password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none focus:border-violet-600 focus:ring-1 focus:ring-violet-600 transition-all bg-zinc-50/50 dark:bg-zinc-900/50 dark:text-white dark:placeholder-zinc-600"
+                  />
+                </div>
               </div>
             ) : (
               <div className="space-y-2">

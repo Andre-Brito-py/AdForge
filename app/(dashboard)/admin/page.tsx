@@ -13,7 +13,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState({ 
-    geminiKey: "", openAiKey: "", oviKey: "", 
+    geminiKey: "", openAiKey: "", oviKey: "", wanKey: "", elevenLabsKey: "",
     stripeSecretKey: "", stripeWebhookSecret: "", 
     mercadoPagoAccessToken: "", mercadoPagoWebhookSecret: "", 
     aiCostsJson: "", plansJson: "" 
@@ -30,6 +30,8 @@ export default function AdminPage() {
           geminiKey: data.config.geminiKey || "",
           openAiKey: data.config.openAiKey || "",
           oviKey: data.config.oviKey || "",
+          wanKey: data.config.wanKey || "",
+          elevenLabsKey: data.config.elevenLabsKey || "",
           stripeSecretKey: data.config.stripeSecretKey || "",
           stripeWebhookSecret: data.config.stripeWebhookSecret || "",
           mercadoPagoAccessToken: data.config.mercadoPagoAccessToken || "",
@@ -143,8 +145,16 @@ export default function AdminPage() {
                   <Input type="password" value={config.openAiKey} onChange={e => setConfig({...config, openAiKey: e.target.value})} className="h-12 bg-zinc-50 font-mono" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-900 block">OVI API Key (Image/Video Gen)</label>
+                  <label className="text-sm font-semibold text-zinc-900 block">OVI API Key (Legado)</label>
                   <Input type="password" value={config.oviKey} onChange={e => setConfig({...config, oviKey: e.target.value})} className="h-12 bg-zinc-50 font-mono" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-900 block text-purple-600">Wan 2.1 (Video S2V / Fal.ai / Replicate)</label>
+                  <Input type="password" value={config.wanKey || ""} onChange={e => setConfig({...config, wanKey: e.target.value})} className="h-12 bg-zinc-50 font-mono border-purple-200" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-900 block text-blue-600">ElevenLabs API Key (TTS / Voz)</label>
+                  <Input type="password" value={config.elevenLabsKey || ""} onChange={e => setConfig({...config, elevenLabsKey: e.target.value})} className="h-12 bg-zinc-50 font-mono border-blue-200" />
                 </div>
               </div>
 

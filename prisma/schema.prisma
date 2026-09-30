@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -163,8 +164,10 @@ model UsageRecord {
 model SystemConfig {
   id                       String   @id @default("global") // Single row pattern
   geminiKey                String?
-  openAiKey                String?  // Chave da OpenAI para backup de texto/imagem
-  oviKey                   String?
+  openAiKey                String?  // Chave da OpenAI para backup de texto/imagem/voz
+  oviKey                   String?  // Legado
+  wanKey                   String?  // Chave para Wan 2.1 (Video Gen / S2V)
+  elevenLabsKey            String?  // Chave para ElevenLabs (TTS PT-BR)
   stripeSecretKey          String?
   stripeWebhookSecret      String?
   mercadoPagoAccessToken   String?

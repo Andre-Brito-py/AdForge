@@ -11,9 +11,10 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "placeholder_client_secret"
     }),
     CredentialsProvider({
-      name: "Development Login",
+      name: "Email e Senha",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "demo@vysify.com" },
+        email: { label: "Email", type: "email", placeholder: "andre@vysify.com" },
+        password: { label: "Senha", type: "password" },
         token2fa: { label: "2FA Token", type: "text" }
       },
       async authorize(credentials) {
@@ -22,6 +23,22 @@ export const authOptions = {
         let user = await db.user.findUnique({
           where: { email: credentials.email },
         })
+
+        // VERIFICAÇÃO HARDCODED / SEGURA DE ADMIN
+        const isAdminEmail = credentials.email === (process.env.ADMIN_EMAIL || "andre@vysify.com");
+        
+        if (isAdminEmail) {
+          // Se for o admin, PRECISA bater com a senha do .env
+          const adminPassword = process.env.ADMIN_PASSWORD || "AdminSeguro123!";
+          if (credentials.password !== adminPassword) {
+            throw new Error("Credenciais Inválidas");
+          }
+        } else {
+          // Se for um usuário normal, no futuro usaríamos bcrypt para checar o passwordHash do DB.
+          // Por enquanto, podemos exigir que o password tenha algo, ou barrar se não for admin (forçar Google Auth).
+          // Para o MVP, permitiremos login normal se o e-mail não for admin e ele informar alguma senha (mock).
+          if (!credentials.password) throw new Error("Senha obrigatória");
+        }
 
         if (user && user.twoFactorEnabled) {
           if (!credentials.token2fa) {
@@ -37,12 +54,11 @@ export const authOptions = {
         }
 
         if (!user) {
-          const isAdmin = credentials.email.includes("admin@") || credentials.email.includes("andre@");
           user = await db.user.create({
             data: {
               email: credentials.email,
               name: credentials.email.split("@")[0],
-              role: isAdmin ? "SUPERADMIN" : "USER",
+              role: isAdminEmail ? "SUPERADMIN" : "USER",
               onboardingCompleted: false
             },
           })

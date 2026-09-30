@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowRight, Loader2, Target, Users, Megaphone, MonitorPlay, Sparkles, LayoutGrid, Image as ImageIcon, Video, BoxSelect, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Loader2, Target, Users, Megaphone, MonitorPlay, Sparkles, LayoutGrid, Image as ImageIcon, Video, BoxSelect, CheckCircle2, PlusCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 

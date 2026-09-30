@@ -4,6 +4,11 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { db } from "@/lib/db";
 import { consumeCredits } from "@/services/credits";
 import { generateCampaignStrategy } from "@/services/ai/text";
+import { waitUntil } from "@vercel/functions";
+import { generateAudio } from "@/services/ai/audio";
+import { generateVideo } from "@/services/ai/video";
+
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
@@ -25,34 +30,30 @@ export async function POST(request: Request) {
     const product = await db.product.findUnique({ where: { id: productId } });
     if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
-    // 1. Calcular Custo Dinâmico
     const config = await db.systemConfig.findUnique({ where: { id: "global" } });
     let costs = { image: 3, video: 10, text: 1 };
     if (config?.aiCostsJson) {
       try { costs = { ...costs, ...JSON.parse(config.aiCostsJson) }; } catch(e){}
     }
 
-    // O custo total da campanha será o custo da variação multiplicada
     const baseCost = platform.includes("Video") || platform.includes("Reels") ? costs.video : costs.image;
     const costPerVariation = quality === "premium" ? baseCost * 2 : baseCost;
     const totalCost = variations * costPerVariation;
 
-    // 2. Deduzir Créditos (Isso já joga erro se não tiver saldo)
     try {
-      await consumeCredits({
-        userId: session.user.id,
-        workspaceId: workspaceMember.workspaceId,
-        operation: `CAMPAIGN_GENERATION_${variations}X`,
-        provider: "Internal",
-        model: "Multi",
-        creditsToConsume: totalCost,
-        estimatedCost: totalCost * 0.01
-      });
+      await consumeCredits(
+        workspaceMember.workspaceId,
+        session.user.id,
+        totalCost,
+        `CAMPAIGN_GENERATION_${variations}X`,
+        "Internal",
+        "Multi",
+        totalCost * 0.01
+      );
     } catch (e: any) {
       return NextResponse.json({ error: e.message || "Saldo Insuficiente" }, { status: 402 });
     }
 
-    // 3. Criar Campanha no banco (Status = GENERATING)
     const campaign = await db.campaign.create({
       data: {
         workspaceId: workspaceMember.workspaceId,
@@ -70,12 +71,10 @@ export async function POST(request: Request) {
       }
     });
 
-    // 4. Vamos iniciar o processamento de forma Assíncrona "falsa"
-    // (Em Next.js serverless, promises flutuantes podem morrer, mas localmente vai funcionar. 
-    // Em PROD usaríamos um webhook ou fila. Vamos manter simples para o MVP.)
+    // Inicia o processamento e permite que a Vercel aguarde até terminar (se dentro do maxDuration)
+    const aiPromise = generateCreativesAsync(campaign.id, product, { objective, tone: style, targetAudience, variations, format, platform, quality, costPerVariation });
     
-    // Dispara e esquece
-    generateCreativesAsync(campaign.id, product, { objective, tone: style, targetAudience, variations, format, platform, quality, costPerVariation }).catch(console.error);
+    waitUntil(aiPromise);
 
     return NextResponse.json({ success: true, id: campaign.id });
   } catch (error) {
@@ -86,7 +85,6 @@ export async function POST(request: Request) {
 
 async function generateCreativesAsync(campaignId: string, product: any, config: any) {
   try {
-    // A. Chamar Gemini para Textos
     const strategy = await generateCampaignStrategy(
       product.originalImageUrl,
       product.name,
@@ -95,7 +93,8 @@ async function generateCreativesAsync(campaignId: string, product: any, config: 
       config.targetAudience || "Público Geral"
     );
 
-    const copies = strategy.copies.slice(0, config.variations).map((copy: string) => ({
+    const copies = strategy.copies.slice(0, config.variations);
+    const copyCreatives = copies.map((copy: string) => ({
       campaignId,
       type: "COPY",
       provider: "gemini-2.5-flash",
@@ -105,26 +104,51 @@ async function generateCreativesAsync(campaignId: string, product: any, config: 
       status: "COMPLETED",
       creditsUsed: 1,
     }));
-    await db.creative.createMany({ data: copies });
+    await db.creative.createMany({ data: copyCreatives });
 
-    // B. Criar stubs (placeholders) para Imagens/Videos
-    // Se o OVI falhar (ou se configurado assim), usaremos DALL-E da OpenAI
-    const visualProvider = config.openAiKey ? "OpenAI / DALL-E 3 (Fallback)" : "OVI / SDXL";
+    const isVideo = config.platform.includes("Video") || config.platform.includes("Reels") || config.platform.includes("Stories");
+    const visualCreatives = [];
 
-    const visuals = Array.from({ length: config.variations }).map((_, i) => ({
-      campaignId,
-      type: config.platform.includes("Video") || config.platform.includes("Reels") ? "VIDEO" : "IMAGE",
-      provider: visualProvider,
-      model: config.quality === "premium" ? "flux-pro-4k" : "sdxl-fast",
-      prompt: `Conceito Visual ${i+1}: ${config.tone}`,
-      outputUrl: product.originalImageUrl, // Para o MVP, mockamos com a própria foto do produto
-      status: "COMPLETED",
-      creditsUsed: config.costPerVariation,
-      aspectRatio: config.format
-    }));
-    await db.creative.createMany({ data: visuals });
+    for (let i = 0; i < config.variations; i++) {
+      let finalMediaUrl = product.originalImageUrl;
+      let audioUrl = undefined;
+      const copyText = copies[i] || copies[0];
 
-    // C. Concluir Campanha
+      if (isVideo) {
+        try {
+          audioUrl = await generateAudio(copyText);
+        } catch (audioErr: any) {
+          console.warn(`[Audio Gen Warn] Falha ao gerar TTS para variação ${i}:`, audioErr.message);
+        }
+
+        try {
+          finalMediaUrl = await generateVideo({
+            imageUrl: product.originalImageUrl,
+            audioUrl: audioUrl,
+            prompt: `Estilo visual ${config.tone}. Objetivo: ${config.objective}. Audiência: ${config.targetAudience}`,
+            aspectRatio: config.format,
+            quality: config.quality
+          });
+        } catch (vidErr: any) {
+          console.error(`[Video Gen Error] Falha no Wan 2.1 para variação ${i}:`, vidErr.message);
+        }
+      }
+
+      visualCreatives.push({
+        campaignId,
+        type: isVideo ? "VIDEO" : "IMAGE",
+        provider: isVideo ? "Wan 2.1 / S2V" : "OpenAI / DALL-E 3 (Fallback)",
+        model: config.quality === "premium" ? "wan-pro-4k" : "wan-fast",
+        prompt: `Conceito Visual ${i+1}: ${config.tone}`,
+        outputUrl: finalMediaUrl,
+        status: "COMPLETED",
+        creditsUsed: config.costPerVariation,
+        aspectRatio: config.format
+      });
+    }
+
+    await db.creative.createMany({ data: visualCreatives });
+
     await db.campaign.update({
       where: { id: campaignId },
       data: { status: "COMPLETED" }

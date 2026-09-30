@@ -9,16 +9,17 @@ import { AI_COSTS } from "@/config/costs";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const campaign = await db.campaign.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { product: true }
     });
 

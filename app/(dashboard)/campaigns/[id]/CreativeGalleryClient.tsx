@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { 
   ArrowLeft, Download, RefreshCw, Copy, Image as ImageIcon, 
-  Video, FileText, CheckCircle2, CircleDashed, AlertCircle, LayoutGrid, Sparkles, Send, Facebook, Instagram, MessageCircle, Store
+  Video, FileText, CheckCircle2, CircleDashed, AlertCircle, LayoutGrid, Sparkles, Send, Share2, MonitorPlay, MessageCircle, Store
 } from "lucide-react";
 import Link from "next/link";
 import dayjs from "dayjs";
@@ -265,9 +265,11 @@ export default function CreativeGalleryClient({ campaign }: { campaign: any }) {
                   <Button variant="secondary" className="w-full rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">Criar 5 Variações</Button>
                 </div>
               </div>
-
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
       {/* PUBLISH MODAL */}
       <Dialog open={isPublishModalOpen} onOpenChange={setIsPublishModalOpen}>
         <DialogContent className="sm:max-w-[600px] bg-white dark:bg-zinc-950 rounded-3xl p-8">
@@ -307,10 +309,10 @@ export default function CreativeGalleryClient({ campaign }: { campaign: any }) {
               <div className="flex items-center gap-4">
                 <div className="flex -space-x-2">
                   <div className="h-12 w-12 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 rounded-full flex items-center justify-center text-white z-10 shadow-sm">
-                    <Instagram className="h-6 w-6" />
+                    <Share2 className="h-6 w-6" />
                   </div>
                   <div className="h-12 w-12 bg-blue-600 rounded-full flex items-center justify-center text-white relative shadow-sm">
-                    <Facebook className="h-6 w-6" />
+                    <MonitorPlay className="h-6 w-6" />
                   </div>
                 </div>
                 <div>
