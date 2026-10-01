@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Camera, Paintbrush, Megaphone, ArrowRight, PlayCircle, Zap, ShieldCheck, Globe, CheckCircle2 } from "lucide-react";
+import { Camera, Paintbrush, Megaphone, ArrowRight, PlayCircle, Zap, ShieldCheck, Globe, CheckCircle2, Video, Volume2, Target, BarChart3, Fingerprint } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -21,7 +21,7 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
     <div className="min-h-screen bg-[#fafafa] dark:bg-zinc-950 selection:bg-violet-600 selection:text-white font-sans transition-colors duration-300">
       
       {/* Navigation */}
-      <header className="fixed top-0 z-50 w-full border-b border-zinc-200/50 dark:border-zinc-800/50 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl">
+      <header className="fixed top-0 z-50 w-full border-b border-zinc-200/50 dark:border-zinc-800/50 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl">
         <div className="container mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
             <img src="/logo-full.png" alt="Vysify Logo" className="h-8 object-contain dark:hidden block" />
@@ -29,19 +29,20 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
           </Link>
           <nav className="hidden md:flex gap-10 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
             <Link href="#features" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Recursos" : "Features"}</Link>
-            <Link href="#pricing" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Preços" : "Pricing"}</Link>
+            <Link href="#how-it-works" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Como Funciona" : "How it Works"}</Link>
+            <Link href="#pricing" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Planos" : "Pricing"}</Link>
           </nav>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <button onClick={toggleLanguage} className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-2" title={isPt ? "Mudar para Inglês" : "Change to Portuguese"}>
+            <button onClick={toggleLanguage} className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-2" title={isPt ? "Mudar idioma" : "Change language"}>
               <Globe className="h-5 w-5" />
               <span className="text-sm font-bold hidden sm:block">{isPt ? "PT-BR" : "EN-US"}</span>
             </button>
-            <Link href="/api/auth/signin" className="text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:text-violet-600 dark:hover:text-violet-400 transition-colors hidden sm:block">
+            <Link href="/login" className="text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:text-violet-600 dark:hover:text-violet-400 transition-colors hidden sm:block">
               {isPt ? "Entrar" : "Sign In"}
             </Link>
-            <Link href="/api/auth/signin">
-              <Button className="rounded-full shadow-lg hover:shadow-xl shadow-violet-600/20 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-bold h-11 px-6 border-0 transition-all">
+            <Link href="/login">
+              <Button className="rounded-full shadow-lg hover:shadow-violet-600/25 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-bold h-11 px-6 border-0 transition-all">
                 {isPt ? "Começar Grátis" : "Start Free"}
               </Button>
             </Link>
@@ -52,17 +53,17 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
       <main className="flex flex-col items-center">
         
         {/* Hero Section */}
-        <section className="relative w-full pt-40 pb-20 md:pt-48 md:pb-32 overflow-hidden flex flex-col items-center text-center px-6">
-          <div className="absolute top-0 left-1/2 -z-10 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-r from-blue-400/30 to-violet-500/30 dark:from-blue-600/20 dark:to-violet-800/20 rounded-full blur-[120px] opacity-60" />
+        <section className="relative w-full pt-40 pb-20 md:pt-48 md:pb-24 overflow-hidden flex flex-col items-center text-center px-6">
+          <div className="absolute top-0 left-1/2 -z-10 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-b from-violet-200/50 to-transparent dark:from-violet-900/20 dark:to-transparent rounded-full blur-[100px] opacity-70" />
           
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center rounded-full border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 px-4 py-1.5 text-xs font-bold text-violet-700 dark:text-violet-300 mb-8 shadow-sm"
+            className="inline-flex items-center rounded-full border border-violet-200 dark:border-violet-800/50 bg-white/50 dark:bg-violet-900/10 px-4 py-1.5 text-xs font-bold text-violet-700 dark:text-violet-300 mb-8 backdrop-blur-sm"
           >
             <Zap className="h-3.5 w-3.5 mr-2 text-violet-600 dark:text-violet-400" />
-            {isPt ? "A revolução dos criativos chegou" : "The revolution of creatives has arrived"}
+            {isPt ? "Agora com Wan 2.1 e ElevenLabs Voice" : "Powered by Wan 2.1 & ElevenLabs Voice"}
           </motion.div>
           
           <motion.h1 
@@ -71,9 +72,9 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-5xl md:text-7xl font-black tracking-tighter text-zinc-900 dark:text-white max-w-5xl leading-[1.1]"
           >
-            {isPt ? "Sua foto crua vira" : "Your raw photo becomes"} <br className="hidden md:block" /> 
+            {isPt ? "Não crie anúncios." : "Don't create ads."} <br className="hidden md:block" /> 
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600 dark:from-blue-400 dark:via-violet-400 dark:to-purple-400">
-              {isPt ? "o anúncio que mais vende." : "the ad that sells the most."}
+              {isPt ? "Gere máquinas de conversão." : "Generate conversion machines."}
             </span>
           </motion.h1>
           
@@ -83,7 +84,7 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
             transition={{ duration: 0.5, delay: 0.2 }}
             className="mt-8 text-lg md:text-xl text-zinc-500 dark:text-zinc-400 max-w-2xl font-medium leading-relaxed"
           >
-            {isPt ? "Nossa Inteligência Artificial cria cenários premium, recorta seu produto perfeitamente e escreve os textos persuasivos (Copy) em menos de um minuto." : "Our Artificial Intelligence creates premium scenarios, crops your product perfectly, and writes persuasive ad copies in under a minute."}
+            {isPt ? "Da sua foto crua de produto até um vídeo cinematográfico com locução ultra-realista e roteiro persuasivo. Tudo em 60 segundos." : "From a raw product photo to a cinematic video with ultra-realistic voiceovers and persuasive scripts. All in 60 seconds."}
           </motion.p>
           
           <motion.div 
@@ -92,27 +93,17 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
             transition={{ duration: 0.5, delay: 0.3 }}
             className="mt-12 flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md"
           >
-            <Link href="/dashboard" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-base font-bold rounded-full shadow-xl shadow-violet-600/20 bg-gradient-to-r from-blue-600 to-violet-600 hover:scale-105 transition-all border-0 text-white group">
-                {isPt ? "Gerar minha 1ª Campanha" : "Generate my 1st Campaign"}
+            <Link href="/login" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-base font-bold rounded-full shadow-xl shadow-violet-600/20 bg-violet-600 hover:bg-violet-700 text-white transition-all border-0 group">
+                {isPt ? "Testar Gratuitamente" : "Start Free Trial"}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Link href="#demo" className="w-full sm:w-auto">
               <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-base font-bold rounded-full border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-white bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                <PlayCircle className="mr-2 h-5 w-5 text-zinc-400 dark:text-zinc-500" /> {isPt ? "Ver na prática" : "See in action"}
+                <PlayCircle className="mr-2 h-5 w-5 text-zinc-400 dark:text-zinc-500" /> {isPt ? "Ver como funciona" : "See how it works"}
               </Button>
             </Link>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-8 flex items-center justify-center gap-6 text-sm font-semibold text-zinc-400 dark:text-zinc-500"
-          >
-            <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-500"/> {isPt ? "Sem cartão para testar" : "No credit card required"}</span>
-            <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-500"/> {isPt ? "Cancele quando quiser" : "Cancel anytime"}</span>
           </motion.div>
         </section>
 
@@ -122,240 +113,192 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
-          className="w-full max-w-6xl px-6 mb-32 z-10"
+          className="w-full max-w-6xl px-6 mb-20 z-10"
+          id="demo"
         >
-          <div className="rounded-3xl border border-zinc-200/60 dark:border-zinc-800/60 bg-white/50 dark:bg-zinc-900/50 p-2 md:p-4 shadow-2xl backdrop-blur-md">
-            <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-900 aspect-[16/9] w-full flex items-center justify-center relative overflow-hidden group cursor-pointer">
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-900/40 to-black opacity-80 transition-opacity group-hover:opacity-60" />
-              <img src="/logo-icon.png" alt="Vysify" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 opacity-10 blur-xl mix-blend-overlay" />
-              <div className="z-10 text-center transition-transform group-hover:scale-110">
-                <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-violet-500/50 mb-4">
-                  <PlayCircle className="h-10 w-10 text-violet-600 ml-1" />
+          <div className="rounded-[2.5rem] border border-zinc-200/60 dark:border-zinc-800/60 bg-white/40 dark:bg-zinc-900/40 p-3 shadow-2xl shadow-violet-900/5 backdrop-blur-xl">
+            <div className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800 bg-zinc-950 aspect-[16/9] w-full flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer">
+              
+              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center opacity-40 mix-blend-overlay transition-transform duration-1000 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent opacity-80" />
+              
+              <div className="z-10 text-center transition-transform duration-500 group-hover:scale-110">
+                <div className="h-20 w-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-violet-500/20 mb-6">
+                  <PlayCircle className="h-10 w-10 text-white ml-1" />
                 </div>
-                <p className="text-white font-semibold tracking-wide">{isPt ? "ASSISTIR DEMONSTRAÇÃO" : "WATCH DEMO"}</p>
+                <h3 className="text-2xl font-bold text-white mb-2">{isPt ? "O fim do trabalho manual" : "The end of manual work"}</h3>
+                <p className="text-zinc-400 font-medium">{isPt ? "Assista ao Vysify gerando uma campanha" : "Watch Vysify generating a campaign"}</p>
               </div>
             </div>
           </div>
         </motion.section>
 
+        {/* Trusted By */}
+        <section className="w-full border-y border-zinc-100 dark:border-zinc-900 bg-white dark:bg-zinc-950/50 py-10 flex flex-col items-center overflow-hidden">
+          <p className="text-sm font-semibold text-zinc-400 dark:text-zinc-600 mb-8 uppercase tracking-widest">{isPt ? "Confiado pelas marcas mais inovadoras" : "Trusted by innovative brands"}</p>
+          <div className="flex gap-12 md:gap-24 items-center justify-center opacity-50 grayscale hover:grayscale-0 transition-all duration-500 flex-wrap px-6">
+            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200">ACME Corp</span>
+            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200 tracking-tighter">GlobalDrop</span>
+            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200">StellarAds</span>
+            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200 uppercase">Nexus</span>
+            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200 italic">Lumina</span>
+          </div>
+        </section>
+
+        {/* How it Works (Pipeline) */}
+        <section id="how-it-works" className="w-full max-w-7xl px-6 py-24 md:py-32">
+          <div className="mb-16 md:text-center max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
+              {isPt ? "Magia, explicada." : "Magic, explained."}
+            </h2>
+            <p className="text-lg md:text-xl text-zinc-500 dark:text-zinc-400 font-medium">
+              {isPt ? "Nosso pipeline integra as 3 IAs mais avançadas do mundo em um único fluxo invisível e perfeito." : "Our pipeline integrates the 3 most advanced AIs in the world into a single, invisible, and perfect flow."}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 relative">
+            <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-zinc-100 dark:bg-zinc-800 -z-10 -translate-y-1/2" />
+            
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative group hover:-translate-y-2 transition-transform duration-300">
+              <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-black text-xl mb-6 text-zinc-900 dark:text-white border-4 border-white dark:border-zinc-950">1</div>
+              <h3 className="text-xl font-bold mb-3">{isPt ? "Estratégia & Copy" : "Strategy & Copy"}</h3>
+              <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+                {isPt ? "O modelo Gemini analisa seu produto, entende seu público e escreve roteiros de vendas usando gatilhos mentais comprovados." : "The Gemini model analyzes your product, understands your audience, and writes sales scripts using proven mental triggers."}
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative group hover:-translate-y-2 transition-transform duration-300">
+              <div className="h-12 w-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center font-black text-xl mb-6 text-violet-600 dark:text-violet-400 border-4 border-white dark:border-zinc-950">2</div>
+              <h3 className="text-xl font-bold mb-3">{isPt ? "Locução Sincronizada" : "Synced Voiceover"}</h3>
+              <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+                {isPt ? "A ElevenLabs assume e transforma o roteiro em uma narração ultra-realista que prende a atenção e transmite confiança (Text-to-Speech)." : "ElevenLabs takes over and transforms the script into an ultra-realistic voiceover that grabs attention and conveys trust (Text-to-Speech)."}
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative group hover:-translate-y-2 transition-transform duration-300">
+              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center font-black text-xl mb-6 text-blue-600 dark:text-blue-400 border-4 border-white dark:border-zinc-950">3</div>
+              <h3 className="text-xl font-bold mb-3">{isPt ? "Geração Visual (Wan 2.1)" : "Visual Generation"}</h3>
+              <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+                {isPt ? "O estado-da-arte em Image-to-Video funde o áudio com animações de tirar o fôlego do seu produto, renderizando a campanha final." : "State-of-the-art Image-to-Video merges the audio with breathtaking animations of your product, rendering the final campaign."}
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Feature Bento Grid */}
-        <section id="features" className="w-full max-w-7xl px-6 py-24">
-          <div className="mb-16 md:text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
-              {isPt ? "O ecossistema perfeito" : "The perfect ecosystem"} <br className="hidden md:block"/> {isPt ? "para escalar seu tráfego." : "to scale your traffic."}
-            </h2>
-            <p className="text-lg md:text-xl text-zinc-500 dark:text-zinc-400 font-medium">
-              {isPt ? "Não pague dezenas de reais por criativos estáticos. Com o Vysify você tem uma agência inteira na sua tela." : "Don't pay dozens of dollars for static creatives. With Vysify you have a full agency on your screen."}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl p-8 md:p-12 border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-100 dark:shadow-none relative overflow-hidden group hover:border-violet-300 dark:hover:border-violet-700 transition-colors">
-              <div className="absolute right-0 top-0 w-64 h-64 bg-violet-100 dark:bg-violet-900/30 rounded-full blur-3xl opacity-50 -mr-10 -mt-10 group-hover:bg-violet-200 dark:group-hover:bg-violet-800/40 transition-colors" />
-              <div className="relative z-10 max-w-md">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/30 mb-8">
-                  <Paintbrush className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-3xl font-bold text-zinc-900 dark:text-white mb-4 tracking-tight">{isPt ? "Estúdios Fotográficos Virtuais" : "Virtual Photo Studios"}</h3>
-                <p className="text-zinc-500 dark:text-zinc-400 text-lg leading-relaxed font-medium">
-                  {isPt ? "Chega de fundo branco. Extraímos seu produto e aplicamos iluminação 3D, sombras realistas e cenários hiper-contextuais com a nossa AI visual de ponta." : "No more white backgrounds. We extract your product and apply 3D lighting, realistic shadows, and hyper-contextual scenarios with our state-of-the-art visual AI."}
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-zinc-900 dark:bg-zinc-950/50 rounded-3xl p-8 md:p-12 text-white border border-zinc-800 dark:border-zinc-800 relative overflow-hidden group hover:border-zinc-700 transition-colors">
-              <div className="absolute left-0 bottom-0 w-48 h-48 bg-blue-900/50 rounded-full blur-3xl opacity-30 -ml-10 -mb-10 group-hover:bg-violet-800/50 transition-colors" />
-              <div className="relative z-10">
-                <div className="h-14 w-14 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shadow-lg mb-8">
-                  <Megaphone className="h-6 w-6 text-blue-400" />
-                </div>
-                <h3 className="text-2xl font-bold mb-4 tracking-tight">{isPt ? "Copy de Alta Conversão" : "High-Converting Copy"}</h3>
-                <p className="text-zinc-400 leading-relaxed text-base">
-                  {isPt ? "A IA não escreve só textos bonitos. Ela analisa o visual do seu produto e gera gatilhos mentais provados para Facebook e Instagram." : "The AI doesn't just write pretty text. It analyzes the visuals of your product and generates proven mental triggers for Facebook and Instagram."}
-                </p>
-              </div>
+        <section id="features" className="w-full bg-zinc-50 dark:bg-zinc-900/20 py-24 border-y border-zinc-100 dark:border-zinc-900">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="mb-16 md:text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
+                {isPt ? "Tudo que uma agência faz." : "Everything an agency does."} <br className="hidden md:block"/> {isPt ? "Em uma tela." : "On one screen."}
+              </h2>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 md:p-12 border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-100 dark:shadow-none relative overflow-hidden group hover:border-violet-300 dark:hover:border-violet-700 transition-colors">
-              <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-100 dark:bg-emerald-900/20 rounded-full blur-3xl opacity-50 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/30 transition-colors" />
-              <div className="relative z-10">
-                <div className="h-14 w-14 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30 mb-8">
-                  <Zap className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4 tracking-tight">{isPt ? "Testes A/B em Segundos" : "A/B Testing in Seconds"}</h3>
-                <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed text-base">
-                  {isPt ? "Gere 5, 10 ou 20 variações de uma mesma campanha com um clique. Encontre o ângulo que escala suas vendas." : "Generate 5, 10 or 20 variations of the same campaign with one click. Find the angle that scales your sales."}
-                </p>
+            <div className="grid md:grid-cols-4 gap-4">
+              <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-700 transition-colors overflow-hidden relative">
+                <Video className="h-8 w-8 text-violet-500 mb-6" />
+                <h3 className="text-2xl font-bold mb-3">{isPt ? "Vídeos de Alta Retenção" : "High Retention Videos"}</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-8">{isPt ? "Gere materiais dinâmicos focados no primeiro segundo (Hook), retendo a audiência nos Reels e TikTok." : "Generate dynamic materials focused on the first second (Hook), retaining audiences on Reels and TikTok."}</p>
               </div>
-            </div>
+              
+              <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+                <Volume2 className="h-8 w-8 text-blue-500 mb-6" />
+                <h3 className="text-2xl font-bold mb-3">{isPt ? "Áudio Profissional" : "Professional Audio"}</h3>
+                <p className="text-zinc-500 dark:text-zinc-400">{isPt ? "Integração direta com os melhores modelos de TTS do mercado. Vozes reais, entonação perfeita." : "Direct integration with the best TTS models on the market. Real voices, perfect intonation."}</p>
+              </div>
 
-            <div className="md:col-span-2 bg-gradient-to-br from-zinc-900 to-zinc-950 dark:from-zinc-950 dark:to-black rounded-3xl p-8 md:p-12 text-white border border-zinc-800 relative overflow-hidden group hover:border-zinc-700 transition-colors">
-              <div className="absolute right-0 bottom-0 w-64 h-64 bg-violet-900 rounded-full blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity" />
-              <div className="relative z-10 max-w-md">
-                <div className="h-14 w-14 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shadow-lg mb-8">
-                  <Camera className="h-6 w-6 text-violet-400" />
-                </div>
-                <h3 className="text-3xl font-bold mb-4 tracking-tight">{isPt ? "Formatos Prontos (OVI Tech)" : "Ready Formats (OVI Tech)"}</h3>
-                <p className="text-zinc-400 text-lg leading-relaxed">
-                  {isPt ? "Seja para Feed Quadrado (1:1), Stories verticais (9:16) ou Banners (16:9), a IA redimensiona e expande a arte perfeitamente sem perder qualidade." : "Whether for Square Feed (1:1), vertical Stories (9:16) or Banners (16:9), the AI resizes and expands the art perfectly without losing quality."}
-                </p>
+              <div className="md:col-span-1 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800">
+                <Target className="h-8 w-8 text-emerald-500 mb-6" />
+                <h3 className="text-xl font-bold mb-3">{isPt ? "Direto ao Alvo" : "Right on Target"}</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">{isPt ? "Estratégias customizadas por objetivo (Vendas, Brand Awareness)." : "Custom strategies by objective (Sales, Awareness)."}</p>
+              </div>
+
+              <div className="md:col-span-2 bg-zinc-900 dark:bg-zinc-950 rounded-3xl p-8 border border-zinc-800 text-white relative overflow-hidden">
+                <div className="absolute right-0 bottom-0 w-32 h-32 bg-violet-600 rounded-full blur-3xl opacity-30" />
+                <BarChart3 className="h-8 w-8 text-violet-400 mb-6" />
+                <h3 className="text-2xl font-bold mb-3">{isPt ? "Testes A/B Ilimitados" : "Unlimited A/B Testing"}</h3>
+                <p className="text-zinc-400">{isPt ? "Gere dezenas de variações do mesmo produto para testar no Meta Ads e descobrir o criativo campeão." : "Generate dozens of variations to test on Meta Ads and find the winning creative."}</p>
+              </div>
+
+              <div className="md:col-span-1 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800">
+                <Fingerprint className="h-8 w-8 text-amber-500 mb-6" />
+                <h3 className="text-xl font-bold mb-3">{isPt ? "Segurança Legal" : "Legal Security"}</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">{isPt ? "Filtros de conteúdo e proteção de direitos (AI Guardrails)." : "Content filters and rights protection (AI Guardrails)."}</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Testimonials Section */}
-        <section className="w-full max-w-7xl px-6 py-24 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20">
+        {/* Pricing */}
+        <section id="pricing" className="w-full max-w-7xl px-6 py-24 md:py-32">
           <div className="mb-16 md:text-center max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
-              {isPt ? "Quem usa, escala." : "Those who use it, scale it."}
-            </h2>
-            <p className="text-lg md:text-xl text-zinc-500 dark:text-zinc-400 font-medium">
-              {isPt ? "Marcas que multiplicaram seu ROAS após implementar o Vysify." : "Brands that multiplied their ROAS after implementing Vysify."}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
-              <div className="absolute -top-4 -left-4 text-6xl text-violet-200 dark:text-violet-900/50 font-serif">"</div>
-              <p className="text-zinc-600 dark:text-zinc-300 font-medium italic relative z-10 mb-6">
-                {isPt ? "Antes eu gastava R$2000 por mês com designers que demoravam dias. Agora eu crio os anúncios da minha loja em 5 minutos pelo celular e o CPA caiu pela metade." : "I used to spend $500/mo on designers who took days. Now I create my store's ads in 5 minutes and my CPA dropped in half."}
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop" alt="User" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white">Ricardo M.</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">{isPt ? "Dono de E-commerce" : "E-commerce Owner"}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
-              <div className="absolute -top-4 -left-4 text-6xl text-blue-200 dark:text-blue-900/50 font-serif">"</div>
-              <p className="text-zinc-600 dark:text-zinc-300 font-medium italic relative z-10 mb-6">
-                {isPt ? "A copy gerada pela inteligência artificial do Vysify bateu nossos melhores copywriters humanos no teste A/B. A ferramenta se pagou no primeiro dia de uso." : "The copy generated by Vysify's AI beat our best human copywriters in A/B testing. The tool paid for itself on day one."}
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop" alt="User" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white">Amanda F.</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">{isPt ? "Gestora de Tráfego" : "Traffic Manager"}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
-              <div className="absolute -top-4 -left-4 text-6xl text-emerald-200 dark:text-emerald-900/50 font-serif">"</div>
-              <p className="text-zinc-600 dark:text-zinc-300 font-medium italic relative z-10 mb-6">
-                {isPt ? "Minha agência conseguiu absorver o triplo de clientes sem precisar contratar mais diretores de arte. O Vysify mudou totalmente o nosso fluxo de trabalho." : "My agency absorbed triple the clients without hiring more art directors. Vysify completely changed our workflow."}
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop" alt="User" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white">Carlos P.</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">{isPt ? "CEO, Agência Digital" : "CEO, Digital Agency"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing Section */}
-        <section id="pricing" className="w-full max-w-7xl px-6 py-24 border-t border-zinc-200 dark:border-zinc-800">
-          <div className="mb-16 md:text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
-              {isPt ? "Planos que cabem no seu bolso." : "Plans that fit your budget."}
+              {isPt ? "Invista no seu crescimento." : "Invest in your growth."}
             </h2>
             <p className="text-lg text-zinc-500 dark:text-zinc-400 font-medium">
-              {isPt ? "Escolha o pacote ideal para decolar as suas vendas." : "Choose the perfect package to skyrocket your sales."}
+              {isPt ? "Pague apenas pelos créditos que usar ou assine para escalar infinito." : "Pay only for the credits you use or subscribe to scale infinitely."}
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 justify-center">
-            {plans && plans.length > 0 ? plans.map(plan => (
-              <div key={plan.id} className={`p-8 rounded-3xl border transition-all ${plan.isFeatured ? 'border-violet-600 shadow-2xl shadow-violet-600/10 scale-105 relative bg-white dark:bg-zinc-900' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {plans.map((plan: any, i: number) => (
+              <div key={plan.id} className={`bg-white dark:bg-zinc-900 rounded-3xl p-8 border ${plan.isFeatured ? 'border-violet-500 dark:border-violet-500 ring-4 ring-violet-500/10' : 'border-zinc-200 dark:border-zinc-800'} relative flex flex-col`}>
                 {plan.isFeatured && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-violet-600 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
-                    {isPt ? "Mais Popular" : "Most Popular"}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    {isPt ? "MAIS POPULAR" : "MOST POPULAR"}
                   </div>
                 )}
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">{plan.name}</h3>
-                <div className="mt-6 flex items-baseline gap-2">
-                  <span className="text-5xl font-black text-zinc-900 dark:text-white tracking-tighter">
-                    {isPt ? `R$${plan.price_brl}` : `$${plan.price_usd}`}
-                  </span>
-                  <span className="text-zinc-500 dark:text-zinc-400 font-medium">{isPt ? "/mês" : "/mo"}</span>
+                <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
+                <div className="mb-6">
+                  <span className="text-4xl font-black">{isPt ? `R$${plan.price_brl}` : `$${plan.price_usd}`}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">/mês</span>
                 </div>
-                
-                <div className="mt-8 space-y-4">
-                  {(isPt ? plan.features_pt : plan.features_en)?.length > 0 ? (
-                    (isPt ? plan.features_pt : plan.features_en).map((feature, idx) => (
-                      feature.trim() !== "" && (
-                        <div key={idx} className="flex items-center gap-3">
-                          <CheckCircle2 className={`h-5 w-5 ${plan.isFeatured ? 'text-violet-600' : 'text-zinc-500'}`} />
-                          <span className="text-zinc-600 dark:text-zinc-300 font-medium">{feature}</span>
-                        </div>
-                      )
-                    ))
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className={`h-5 w-5 ${plan.isFeatured ? 'text-violet-600' : 'text-zinc-500'}`} />
-                        <span className="text-zinc-600 dark:text-zinc-300 font-medium">{plan.credits} {isPt ? "Créditos inclusos" : "Credits included"}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className={`h-5 w-5 ${plan.isFeatured ? 'text-violet-600' : 'text-zinc-500'}`} />
-                        <span className="text-zinc-600 dark:text-zinc-300 font-medium">{isPt ? "Geração de Copy IA" : "AI Copy Generation"}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className={`h-5 w-5 ${plan.isFeatured ? 'text-violet-600' : 'text-zinc-500'}`} />
-                        <span className="text-zinc-600 dark:text-zinc-300 font-medium">{isPt ? "Geração de Imagens HD" : "HD Image Generation"}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <Link href="/api/auth/signin">
-                  <Button className={`w-full mt-10 rounded-full h-14 font-bold text-base transition-all ${plan.isFeatured ? 'bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white shadow-lg' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
-                    {isPt ? "Assinar" : "Subscribe to"} {plan.name}
+                <ul className="space-y-4 mb-8 flex-1">
+                  <li className="flex items-center gap-3 text-sm font-medium">
+                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
+                    {plan.credits} {isPt ? "Créditos IA" : "AI Credits"}
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium">
+                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
+                    {isPt ? "Vídeos Wan 2.1 e Imagens" : "Wan 2.1 Videos & Images"}
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium">
+                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
+                    {isPt ? "Locução ElevenLabs" : "ElevenLabs Voiceover"}
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium">
+                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
+                    {isPt ? "Suporte Prioritário" : "Priority Support"}
+                  </li>
+                </ul>
+                <Link href="/login" className="w-full">
+                  <Button className={`w-full rounded-xl h-12 font-bold ${plan.isFeatured ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white'}`}>
+                    {isPt ? "Assinar Agora" : "Subscribe Now"}
                   </Button>
                 </Link>
               </div>
-            )) : (
-              <div className="col-span-3 text-center py-12">
-                <p className="text-zinc-500 dark:text-zinc-400 text-lg">
-                  {isPt ? "Nenhum plano configurado no momento." : "No plans configured at the moment."}
-                </p>
-              </div>
-            )}
+            ))}
           </div>
         </section>
 
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-zinc-200 dark:border-zinc-800 py-16 px-6 bg-white dark:bg-zinc-950">
+      <footer className="w-full bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-            <img src="/logo-icon.png" alt="Vysify Icon" className="h-6 object-contain dark:hidden block" />
-            <img src="/logo-icon-dark.png" alt="Vysify Icon" className="h-6 object-contain hidden dark:block" />
-            <span className="font-extrabold text-xl tracking-tight text-zinc-900 dark:text-white">Vysify</span>
+            <img src="/logo-icon.png" alt="Vysify Logo" className="h-8 opacity-80" />
+            <span className="font-bold text-lg">Vysify</span>
           </div>
-          <nav className="flex gap-8 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-            <Link href="#" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Termos" : "Terms"}</Link>
-            <Link href="#" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Privacidade" : "Privacy"}</Link>
-            <Link href="#" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Contato" : "Contact"}</Link>
-          </nav>
-          <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">
-            © {new Date().getFullYear()} Vysify AI. {isPt ? "CNPJ Fake 00.000/0001-00." : "All rights reserved."}
-          </p>
+          <div className="flex gap-6 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            <Link href="/legal/terms" className="hover:text-violet-600 transition-colors">Termos de Uso</Link>
+            <Link href="/legal/privacy" className="hover:text-violet-600 transition-colors">Privacidade (LGPD)</Link>
+            <a href="mailto:contato@vysify.com" className="hover:text-violet-600 transition-colors">Suporte</a>
+          </div>
+          <p className="text-zinc-400 text-sm">© {new Date().getFullYear()} Vysify AI. Todos os direitos reservados.</p>
         </div>
       </footer>
+
     </div>
   );
 }
