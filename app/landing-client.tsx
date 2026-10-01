@@ -17,6 +17,10 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
 
   const isPt = initialLocale === 'pt';
 
+  const visiblePlans = plans.filter(p => !p.isHidden);
+  const hasFreePlan = visiblePlans.some(p => p.isFree);
+  const ctaText = hasFreePlan ? (isPt ? "Começar Grátis" : "Start Free Trial") : (isPt ? "Começar Agora" : "Start Now");
+
   return (
     <div className="min-h-screen bg-[#fafafa] dark:bg-zinc-950 selection:bg-violet-600 selection:text-white font-sans transition-colors duration-300">
       
@@ -43,7 +47,7 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
             </Link>
             <Link href="/login">
               <Button className="rounded-full shadow-lg hover:shadow-violet-600/25 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-bold h-11 px-6 border-0 transition-all">
-                {isPt ? "Começar Grátis" : "Start Free"}
+                {ctaText}
               </Button>
             </Link>
           </div>
@@ -95,7 +99,7 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
           >
             <Link href="/login" className="w-full sm:w-auto">
               <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-base font-bold rounded-full shadow-xl shadow-violet-600/20 bg-violet-600 hover:bg-violet-700 text-white transition-all border-0 group">
-                {isPt ? "Testar Gratuitamente" : "Start Free Trial"}
+                {ctaText}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
@@ -241,8 +245,8 @@ export default function LandingPageClient({ plans, initialLocale }: { plans: any
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan: any, i: number) => (
-              <div key={plan.id} className={`bg-white dark:bg-zinc-900 rounded-3xl p-8 border ${plan.isFeatured ? 'border-violet-500 dark:border-violet-500 ring-4 ring-violet-500/10' : 'border-zinc-200 dark:border-zinc-800'} relative flex flex-col`}>
+            {visiblePlans.map((plan: any, i: number) => (
+              <div key={plan.id || i} className={`bg-white dark:bg-zinc-900 rounded-3xl p-8 border ${plan.isFeatured ? 'border-violet-500 dark:border-violet-500 ring-4 ring-violet-500/10' : 'border-zinc-200 dark:border-zinc-800'} relative flex flex-col`}>
                 {plan.isFeatured && (
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full">
                     {isPt ? "MAIS POPULAR" : "MOST POPULAR"}

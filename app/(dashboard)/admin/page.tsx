@@ -264,33 +264,56 @@ export default function AdminPage() {
                               />
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-4 items-end">
-                            <div>
-                              <label className="text-xs font-semibold text-zinc-500 block mb-1">Créditos Inclusos</label>
-                              <Input 
-                                type="number" 
-                                value={plan.credits || 0} 
-                                onChange={(e) => {
-                                  const newPlans = [...plans];
-                                  newPlans[index].credits = Number(e.target.value);
-                                  setConfig({ ...config, plansJson: JSON.stringify(newPlans, null, 2) });
-                                }}
-                              />
-                            </div>
-                            <div className="flex items-center h-10 gap-2">
+                          <div className="flex gap-4 flex-wrap mt-2">
+                            <label className="flex items-center gap-2 text-sm font-medium">
                               <input 
                                 type="checkbox" 
-                                id={`featured-${index}`}
-                                checked={plan.isFeatured || false}
+                                checked={plan.isFeatured || false} 
                                 onChange={(e) => {
                                   const newPlans = [...plans];
                                   newPlans[index].isFeatured = e.target.checked;
                                   setConfig({ ...config, plansJson: JSON.stringify(newPlans, null, 2) });
                                 }}
-                                className="h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-600"
                               />
-                              <label htmlFor={`featured-${index}`} className="text-sm font-semibold text-zinc-700 cursor-pointer">Destaque (Mais Popular)</label>
-                            </div>
+                              Destacado
+                            </label>
+                            <label className="flex items-center gap-2 text-sm font-medium text-emerald-600">
+                              <input 
+                                type="checkbox" 
+                                checked={plan.isFree || false} 
+                                onChange={(e) => {
+                                  const newPlans = [...plans];
+                                  newPlans[index].isFree = e.target.checked;
+                                  setConfig({ ...config, plansJson: JSON.stringify(newPlans, null, 2) });
+                                }}
+                              />
+                              Plano Grátis
+                            </label>
+                            <label className="flex items-center gap-2 text-sm font-medium text-blue-600">
+                              <input 
+                                type="checkbox" 
+                                checked={plan.isHidden || false} 
+                                onChange={(e) => {
+                                  const newPlans = [...plans];
+                                  newPlans[index].isHidden = e.target.checked;
+                                  setConfig({ ...config, plansJson: JSON.stringify(newPlans, null, 2) });
+                                }}
+                              />
+                              Congelado (Oculto)
+                            </label>
+                          </div>
+                          
+                          <div className="mt-4">
+                            <label className="text-xs font-semibold text-zinc-500 block mb-1">Créditos Inclusos</label>
+                            <Input 
+                              type="number" 
+                              value={plan.credits || 0} 
+                              onChange={(e) => {
+                                const newPlans = [...plans];
+                                newPlans[index].credits = Number(e.target.value);
+                                setConfig({ ...config, plansJson: JSON.stringify(newPlans, null, 2) });
+                              }}
+                            />
                           </div>
                         </div>
                         
