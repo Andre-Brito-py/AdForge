@@ -1,353 +1,277 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, Copy, Download, Loader2, MessageCircle, RefreshCw, Send, Sparkles, Volume2, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
-import { 
-  ArrowLeft, Download, RefreshCw, Copy, Image as ImageIcon, 
-  Video, FileText, CheckCircle2, CircleDashed, AlertCircle, LayoutGrid, Sparkles, Send, Share2, MonitorPlay, MessageCircle, Store
-} from "lucide-react";
-import Link from "next/link";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-import "dayjs/locale/pt-br";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PageHeader, StatusBadge, buttonClass } from "@/components/app/ui-bits";
+import { DeleteButton } from "@/components/app/delete-button";
+import { OBJECTIVES, PLATFORMS, STYLES, labelFor } from "@/lib/catalog";
+import { timeAgo } from "@/lib/format";
+import { setMascotMood } from "@/components/mascot/mascot-events";
+import { PublicationList, PublishDialog, type PublicationRow, type PublishingInfo } from "./publish-dialog";
 
-dayjs.extend(relativeTime);
-dayjs.locale("pt-br");
+interface Creative {
+  id: string; type: string; status: string; variantIndex: number; outputUrl: string | null; audioUrl: string | null;
+  headline: string | null; text: string | null; cta: string | null; aspectRatio: string | null; creditsUsed: number;
+}
+interface Campaign {
+  id: string; name: string; status: string; createdAt: string; objective: string; platform: string | null; style: string | null; quality: string;
+  product: { id: string; name: string; originalImageUrl: string };
+  creatives: Creative[];
+}
 
-export default function CreativeGalleryClient({ campaign }: { campaign: any }) {
-  const [filter, setFilter] = useState("ALL"); // ALL, IMAGE, VIDEO, COPY
-  const [selectedCreative, setSelectedCreative] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [editedPrompt, setEditedPrompt] = useState("");
+const RATIO_CLASS: Record<string, string> = { "1:1": "aspect-square", "4:5": "aspect-[4/5]", "9:16": "aspect-[9/16]", "16:9": "aspect-video" };
 
-  const visuals = campaign.creatives.filter((c: any) => c.type === "IMAGE" || c.type === "VIDEO");
-  const copies = campaign.creatives.filter((c: any) => c.type === "COPY");
+function copyText(c: Creative | undefined) {
+  if (!c) return "";
+  return [c.headline, c.text, c.cta].filter(Boolean).join("\n\n");
+}
 
-  // Paridade de visual com copy (para criar "Ad Sets" lógicos na UI)
-  const adSets = visuals.map((visual: any, index: number) => ({
-    visual,
-    copy: copies[index] || copies[0] || null
-  }));
+export default function CreativeGalleryClient({
+  campaign, strategy, unitCost, emailVerified, publishing, initialPublications,
+}: {
+  campaign: Campaign;
+  strategy: { analysis: string; hooks: string[] } | null;
+  unitCost: number | null;
+  emailVerified: boolean;
+  publishing: PublishingInfo;
+  initialPublications: PublicationRow[];
+}) {
+  const router = useRouter();
+  const [regenFor, setRegenFor] = useState<Creative | null | undefined>(undefined);
+  const [instructions, setInstructions] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
+  const [publishFor, setPublishFor] = useState<{ visual: Creative; copy?: Creative } | null>(null);
+  const [publications, setPublications] = useState<PublicationRow[]>(initialPublications);
+  const publishingNow = publications.some((p) => p.status === "PENDING" || p.status === "PROCESSING");
 
-  const filteredSets = filter === "ALL" 
-    ? adSets 
-    : adSets.filter((set: any) => set.visual.type === filter);
+  // Acompanha publicações em andamento (vídeos no Instagram levam alguns minutos).
+  useEffect(() => {
+    if (!publishingNow) return;
+    const t = setInterval(async () => {
+      const res = await fetch(`/api/publications?campaignId=${campaign.id}`, { cache: "no-store" }).catch(() => null);
+      if (res?.ok) setPublications(await res.json());
+    }, 5000);
+    return () => clearInterval(t);
+  }, [publishingNow, campaign.id]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "COMPLETED": return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-      case "GENERATING":
-      case "PROCESSING": return <CircleDashed className="h-4 w-4 text-blue-500 animate-spin" />;
-      case "FAILED": return <AlertCircle className="h-4 w-4 text-red-500" />;
-      default: return <CircleDashed className="h-4 w-4 text-zinc-400" />;
+  const sets = useMemo(() => {
+    const copies = new Map(campaign.creatives.filter((c) => c.type === "COPY").map((c) => [c.variantIndex, c]));
+    return campaign.creatives.filter((c) => c.type !== "COPY").map((visual) => ({ visual, copy: copies.get(visual.variantIndex) }));
+  }, [campaign.creatives]);
+
+  const pending = sets.some((s) => s.visual.status === "QUEUED" || s.visual.status === "PROCESSING");
+  const failedCount = sets.filter((s) => s.visual.status === "FAILED").length;
+
+  // Enquanto houver criativos em geração, atualiza a página periodicamente.
+  useEffect(() => {
+    if (!pending) return;
+    const t = setInterval(async () => {
+      await fetch(`/api/campaigns/${campaign.id}`, { cache: "no-store" }).catch(() => null);
+      router.refresh();
+    }, 5000);
+    return () => clearInterval(t);
+  }, [pending, campaign.id, router]);
+
+  const download = async (url: string, name: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(url, "_blank", "noopener");
     }
   };
 
-  const handleDownload = (url: string, filename: string) => {
-    toast.success("Download iniciado!");
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const copy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    toast.success("Texto copiado");
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Texto copiado para a área de transferência!");
-  };
-
-  const openEditor = (set: any) => {
-    setSelectedCreative(set);
-    setEditedPrompt(set.visual.prompt || "");
-    setIsModalOpen(true);
-  };
-
-  const openPublishModal = (set: any) => {
-    setSelectedCreative(set);
-    setIsPublishModalOpen(true);
-  };
-
-  const handleRegenerate = async () => {
-    setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
-      setIsModalOpen(false);
-      toast.success("Nova versão gerada e adicionada à campanha!");
-    }, 2000);
-  };
-
-  const handlePublish = async (platform: string) => {
-    setPublishing(true);
-    setTimeout(() => {
-      setPublishing(false);
-      setIsPublishModalOpen(false);
-      if (platform === "WhatsApp") {
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(selectedCreative?.copy?.outputUrl || "Olha essa novidade!")}`);
-      } else {
-        toast.success(`Anúncio enviado com sucesso para ${platform}!`);
-      }
-    }, 2000);
+  const regenerate = async () => {
+    setRegenerating(true);
+    const res = await fetch(`/api/campaigns/${campaign.id}/creatives`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ baseCreativeId: regenFor?.id || null, instructions: instructions || null }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setRegenerating(false);
+    if (!res.ok) return toast.error(data.error || "Não foi possível gerar a nova versão");
+    toast.success("Nova variação em geração. Ela aparece aqui em instantes.");
+    setMascotMood("working", 8000);
+    setRegenFor(undefined);
+    setInstructions("");
+    router.refresh();
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-[1400px] mx-auto space-y-8">
-      
-      {/* HEADER */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <Link href="/dashboard" className="inline-flex items-center text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para o Painel
-          </Link>
-          <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{campaign.name}</h1>
-            <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-1 rounded-full text-xs font-semibold shadow-sm">
-              {getStatusIcon(campaign.status)}
-              <span className="text-zinc-700 dark:text-zinc-300">{campaign.status}</span>
-            </div>
-          </div>
-          <p className="text-zinc-500 dark:text-zinc-400 text-lg flex items-center gap-2">
-            Produto: <span className="font-semibold text-zinc-900 dark:text-white">{campaign.product.name}</span>
-            <span className="text-zinc-300 dark:text-zinc-600">•</span>
-            Criada {dayjs(campaign.createdAt).fromNow()}
+    <>
+      <PageHeader
+        back={{ href: "/campaigns", label: "Campanhas" }}
+        title={campaign.name}
+        description={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <StatusBadge status={pending ? "GENERATING" : campaign.status} />
+            <span>{labelFor(OBJECTIVES, campaign.objective)} · {labelFor(PLATFORMS, campaign.platform)} · {labelFor(STYLES, campaign.style)} · criada {timeAgo(campaign.createdAt)}</span>
+          </span>
+        }
+        actions={
+          <>
+            {!pending && (
+              <DeleteButton endpoint={`/api/campaigns/${campaign.id}`} redirectTo="/campaigns" confirmText="Excluir esta campanha e todos os criativos? Esta ação não pode ser desfeita." />
+            )}
+            {unitCost !== null && (
+              <button onClick={() => setRegenFor(null)} disabled={!emailVerified} className={buttonClass("brand")}>
+                <Sparkles className="h-4 w-4" /> Nova variação
+              </button>
+            )}
+          </>
+        }
+      />
+
+      {failedCount > 0 && !pending && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <p>
+            {failedCount === 1 ? "1 variação não pôde ser gerada" : `${failedCount} variações não puderam ser geradas`}. Os créditos correspondentes já voltaram para o seu saldo.
           </p>
         </div>
-        
-        <div className="flex gap-3">
-          <Button variant="outline" className="rounded-full shadow-sm dark:bg-zinc-900 dark:border-zinc-800 dark:text-white">
-            <Copy className="mr-2 h-4 w-4" /> Duplicar
-          </Button>
-          <Button className="rounded-full shadow-sm bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100">
-            <Sparkles className="mr-2 h-4 w-4" /> Mais Variações
-          </Button>
-        </div>
-      </header>
+      )}
 
-      {/* FILTROS E CONTEÚDO */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[500px]">
-        
-        {/* TABS */}
-        <div className="border-b border-zinc-100 dark:border-zinc-800 p-4 flex gap-2 overflow-x-auto">
-          <button onClick={() => setFilter("ALL")} className={`px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${filter === "ALL" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800"}`}>
-            <LayoutGrid className="h-4 w-4" /> Todos ({adSets.length})
-          </button>
-          <button onClick={() => setFilter("IMAGE")} className={`px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${filter === "IMAGE" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800"}`}>
-            <ImageIcon className="h-4 w-4" /> Imagens ({visuals.filter((v:any) => v.type === "IMAGE").length})
-          </button>
-          <button onClick={() => setFilter("VIDEO")} className={`px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${filter === "VIDEO" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800"}`}>
-            <Video className="h-4 w-4" /> Vídeos ({visuals.filter((v:any) => v.type === "VIDEO").length})
-          </button>
-        </div>
-
-        {/* GRID */}
-        <div className="p-6 md:p-8">
-          {filteredSets.length === 0 ? (
-            <div className="text-center py-20 flex flex-col items-center">
-              <Sparkles className="h-10 w-10 text-zinc-300 dark:text-zinc-700 mb-4" />
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Nenhum criativo encontrado</h3>
-              <p className="text-zinc-500 dark:text-zinc-400">Tente alterar os filtros ou gere novas variações.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredSets.map((set: any, idx: number) => (
-                <div key={set.visual.id} className="group flex flex-col">
-                  {/* VISUAL CARD */}
-                  <div className="relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 aspect-[4/5] shadow-sm group-hover:shadow-lg transition-all">
-                    {set.visual.type === "IMAGE" ? (
-                      <img src={set.visual.outputUrl || campaign.product.originalImageUrl} alt="Creative" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-zinc-900 dark:bg-black text-white">
-                        <Video className="h-12 w-12 opacity-50" />
-                        <span className="absolute bottom-4 left-4 text-xs font-bold bg-black/50 px-2 py-1 rounded backdrop-blur">VÍDEO MOCK</span>
-                      </div>
-                    )}
-                    
-                    {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-zinc-900/60 dark:bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-4 backdrop-blur-[2px]">
-                      <div className="flex justify-between">
-                        <span className="bg-white/90 dark:bg-black/80 text-zinc-900 dark:text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                          {set.visual.aspectRatio || "1:1"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleDownload(set.visual.outputUrl || campaign.product.originalImageUrl, `creative-${idx}.jpg`)} className="flex-1 bg-white text-zinc-900 hover:bg-zinc-100 shadow-xl">
-                            <Download className="mr-2 h-4 w-4" /> Baixar
-                          </Button>
-                          <Button size="sm" onClick={() => openEditor(set)} className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800 shadow-xl border border-zinc-700">
-                            <RefreshCw className="mr-2 h-4 w-4" /> Editar
-                          </Button>
-                        </div>
-                        <Button size="sm" onClick={() => openPublishModal(set)} className="w-full bg-blue-600 text-white hover:bg-blue-700 shadow-xl">
-                          <Send className="mr-2 h-4 w-4" /> Distribuir / Publicar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* COPY TEXT BELOW */}
-                  {set.copy && (
-                    <div className="mt-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed relative group/copy">
-                      <p className="line-clamp-4">{set.copy.outputUrl}</p>
-                      <button onClick={() => handleCopy(set.copy.outputUrl)} className="absolute top-2 right-2 p-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 opacity-0 group-hover/copy:opacity-100 transition-opacity hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white">
-                        <Copy className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+      {strategy && (strategy.analysis || strategy.hooks.length > 0) && (
+        <details className="surface group mb-6 p-5">
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-medium">
+            <Lightbulb className="h-4 w-4 text-brand" /> Estratégia criada pela IA
+            <span className="ml-auto text-xs text-muted-foreground group-open:hidden">Mostrar</span>
+          </summary>
+          {strategy.analysis && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{strategy.analysis}</p>}
+          {strategy.hooks.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {strategy.hooks.map((h, i) => (
+                <button key={i} onClick={() => copy(h)} className="rounded-full bg-muted px-3 py-1.5 text-left text-xs hover:bg-accent" title="Copiar gancho">
+                  “{h}”
+                </button>
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </details>
+      )}
 
-      {/* CREATIVE EDITOR MODAL */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[900px] p-0 overflow-hidden bg-zinc-50 rounded-3xl">
-          <div className="grid md:grid-cols-2 h-full min-h-[500px]">
-            
-            {/* Esquerda: Preview */}
-            <div className="bg-zinc-100 border-r border-zinc-200 p-8 flex items-center justify-center relative">
-              {selectedCreative?.visual?.type === "IMAGE" ? (
-                <img src={selectedCreative.visual.outputUrl || campaign.product.originalImageUrl} className="rounded-xl shadow-2xl max-h-full object-contain" />
-              ) : (
-                 <div className="w-full aspect-[9/16] max-h-full bg-zinc-900 rounded-xl flex items-center justify-center shadow-2xl">
-                    <Video className="h-12 w-12 text-white/50" />
-                 </div>
-              )}
-            </div>
-
-            {/* Direita: Controles estilo Linear */}
-            <div className="p-8 flex flex-col bg-white">
-              <DialogHeader className="mb-6">
-                <DialogTitle className="text-2xl font-bold tracking-tight text-zinc-900">Editar Criativo</DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-6 flex-1">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-900">Prompt / Direção de Arte</label>
-                  <Textarea 
-                    value={editedPrompt}
-                    onChange={e => setEditedPrompt(e.target.value)}
-                    className="min-h-[100px] bg-zinc-50"
-                  />
-                  <p className="text-xs text-zinc-500">Altere as instruções para gerar uma variação com a mesma base estrutural.</p>
-                </div>
-                
-                {selectedCreative?.copy && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-zinc-900 flex items-center justify-between">
-                      Copy Sugerido
-                      <button onClick={() => handleCopy(selectedCreative.copy.outputUrl)} className="text-blue-600 hover:underline">Copiar</button>
-                    </label>
-                    <div className="p-4 bg-zinc-50 border border-zinc-100 rounded-xl text-sm text-zinc-700 h-32 overflow-y-auto">
-                      {selectedCreative.copy.outputUrl}
-                    </div>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {sets.map(({ visual, copy: c }, i) => {
+          const ratio = RATIO_CLASS[visual.aspectRatio || "1:1"] || "aspect-square";
+          const ext = visual.type === "VIDEO" ? "mp4" : (visual.outputUrl?.split(".").pop() || "png").slice(0, 4);
+          return (
+            <article key={visual.id} className="surface flex flex-col overflow-hidden">
+              <div className={`relative ${ratio} max-h-[520px] w-full bg-muted`}>
+                {visual.status === "COMPLETED" && visual.outputUrl ? (
+                  visual.type === "VIDEO" ? (
+                    <video src={visual.outputUrl} controls playsInline preload="metadata" className="h-full w-full object-cover" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={visual.outputUrl} alt={c?.headline || `Variação ${i + 1}`} className="h-full w-full object-cover" />
+                  )
+                ) : visual.status === "FAILED" ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+                    <AlertCircle className="h-6 w-6 text-destructive" />
+                    Não foi possível gerar esta variação.<br />Os {visual.creditsUsed} créditos foram estornados.
+                  </div>
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                    {visual.status === "QUEUED" ? "Na fila..." : visual.type === "VIDEO" ? "Gerando vídeo..." : "Gerando imagem..."}
                   </div>
                 )}
+                <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium backdrop-blur">#{i + 1}</span>
               </div>
 
-              <div className="pt-6 mt-6 border-t border-zinc-100 flex flex-col gap-3">
-                <Button size="lg" onClick={handleRegenerate} disabled={generating} className="w-full rounded-xl bg-zinc-900 hover:bg-zinc-800 shadow-md">
-                  {generating ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
-                  {generating ? "Recriando com IA..." : "Gerar Nova Versão (3 CR)"}
-                </Button>
-                <div className="flex gap-3">
-                  <Button variant="outline" className="w-full rounded-xl" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button variant="secondary" className="w-full rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">Criar 5 Variações</Button>
+              {visual.audioUrl && (
+                <div className="flex items-center gap-2 border-t border-border px-4 py-2">
+                  <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <audio src={visual.audioUrl} controls preload="none" className="h-8 w-full" />
                 </div>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+              )}
 
-      {/* PUBLISH MODAL */}
-      <Dialog open={isPublishModalOpen} onOpenChange={setIsPublishModalOpen}>
-        <DialogContent className="sm:max-w-[600px] bg-white dark:bg-zinc-950 rounded-3xl p-8">
-          <DialogHeader className="mb-6">
-            <DialogTitle className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Distribuição Omnichannel
-            </DialogTitle>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-2">Escolha o canal de destino para publicar o anúncio gerado instantaneamente.</p>
+              {c && (
+                <div className="flex-1 space-y-2 border-t border-border p-4">
+                  {c.headline && <p className="font-semibold leading-snug">{c.headline}</p>}
+                  {c.text && <p className="whitespace-pre-line text-sm text-muted-foreground">{c.text}</p>}
+                  {c.cta && <p className="text-xs font-medium uppercase tracking-wide text-brand">{c.cta}</p>}
+                </div>
+              )}
+
+              <PublicationList items={publications.filter((p) => p.creativeId === visual.id)} />
+
+              <div className="flex flex-wrap gap-1.5 border-t border-border p-3">
+                {visual.status === "COMPLETED" && visual.outputUrl && (
+                  <button onClick={() => setPublishFor({ visual, copy: c })} className={buttonClass("brand", "sm")}>
+                    <Send className="h-3.5 w-3.5" /> Publicar
+                  </button>
+                )}
+                {visual.status === "COMPLETED" && visual.outputUrl && (
+                  <button onClick={() => download(visual.outputUrl!, `vysify-${campaign.id.slice(0, 6)}-${i + 1}.${ext}`)} className={buttonClass("outline", "sm")}>
+                    <Download className="h-3.5 w-3.5" /> Baixar
+                  </button>
+                )}
+                {c && (
+                  <button onClick={() => copy(copyText(c))} className={buttonClass("outline", "sm")}>
+                    <Copy className="h-3.5 w-3.5" /> Copiar texto
+                  </button>
+                )}
+                {c && (
+                  <a href={`https://wa.me/?text=${encodeURIComponent(copyText(c))}`} target="_blank" rel="noopener noreferrer" className={buttonClass("ghost", "sm")}>
+                    <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                  </a>
+                )}
+                {unitCost !== null && visual.status !== "QUEUED" && visual.status !== "PROCESSING" && (
+                  <button onClick={() => setRegenFor(visual)} disabled={!emailVerified} className={`${buttonClass("ghost", "sm")} ml-auto`}>
+                    <RefreshCw className="h-3.5 w-3.5" /> Nova versão
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <PublishDialog
+        key={publishFor?.visual.id || "none"}
+        open={!!publishFor}
+        onClose={() => setPublishFor(null)}
+        creative={publishFor ? { id: publishFor.visual.id, type: publishFor.visual.type, aspectRatio: publishFor.visual.aspectRatio } : null}
+        defaultCaption={copyText(publishFor?.copy)}
+        info={publishing}
+        onPublished={(p) => setPublications((list) => [p, ...list])}
+      />
+
+      <Dialog open={regenFor !== undefined} onOpenChange={(open) => !open && setRegenFor(undefined)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{regenFor ? "Nova versão deste criativo" : "Nova variação"}</DialogTitle>
+            <DialogDescription>
+              Gera mais um criativo nesta campanha por <strong>{unitCost} créditos</strong>. Se falhar, os créditos voltam automaticamente.
+            </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4">
-            
-            {/* WhatsApp */}
-            <button 
-              onClick={() => handlePublish("WhatsApp")}
-              disabled={publishing}
-              className="w-full flex items-center justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-300 dark:hover:border-emerald-800 transition-all text-left"
-            >
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-emerald-100 dark:bg-emerald-900/50 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                  <MessageCircle className="h-6 w-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white">WhatsApp Status</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Smart share: Envia a imagem e copy para o seu WhatsApp Web.</p>
-                </div>
-              </div>
-              <Send className="h-5 w-5 text-zinc-300 dark:text-zinc-600" />
-            </button>
-
-            {/* Meta Ads / IG */}
-            <button 
-              onClick={() => handlePublish("Meta (Instagram/FB)")}
-              disabled={publishing}
-              className="w-full flex items-center justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-300 dark:hover:border-blue-800 transition-all text-left"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  <div className="h-12 w-12 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 rounded-full flex items-center justify-center text-white z-10 shadow-sm">
-                    <Share2 className="h-6 w-6" />
-                  </div>
-                  <div className="h-12 w-12 bg-blue-600 rounded-full flex items-center justify-center text-white relative shadow-sm">
-                    <MonitorPlay className="h-6 w-6" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white">Meta (Instagram / FB)</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Publicar no feed/stories ou criar rascunho de anúncio via Graph API.</p>
-                </div>
-              </div>
-              <Send className="h-5 w-5 text-zinc-300 dark:text-zinc-600" />
-            </button>
-
-            {/* Mercado Livre / Shopify */}
-            <button 
-              onClick={() => handlePublish("Shopify/Mercado Livre")}
-              disabled={publishing}
-              className="w-full flex items-center justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-yellow-50 dark:hover:bg-yellow-950/30 hover:border-yellow-300 dark:hover:border-yellow-800 transition-all text-left"
-            >
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-yellow-100 dark:bg-yellow-900/50 rounded-full flex items-center justify-center text-yellow-600 dark:text-yellow-400">
-                  <Store className="h-6 w-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white">Atualizar Loja Virtual</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Substitui a imagem principal do produto no Meli ou Shopify.</p>
-                </div>
-              </div>
-              <Send className="h-5 w-5 text-zinc-300 dark:text-zinc-600" />
-            </button>
-
+          <div className="space-y-2">
+            <label htmlFor="instr" className="label-base">Instruções extras (opcional)</label>
+            <textarea id="instr" className="input-base min-h-24 py-3" maxLength={500} value={instructions} onChange={(e) => setInstructions(e.target.value)}
+              placeholder="Ex.: fundo de mármore claro, luz de fim de tarde, produto em close" />
           </div>
-
-          <div className="mt-8 flex justify-end">
-            <Button variant="outline" className="rounded-full" onClick={() => setIsPublishModalOpen(false)}>Cancelar</Button>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setRegenFor(undefined)} className={buttonClass("ghost")}>Cancelar</button>
+            <button onClick={regenerate} disabled={regenerating} className={buttonClass("brand")}>
+              {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Gerar
+            </button>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Scripts utilitários locais (CommonJS), fora do app.
+    "make-logos.js",
+    "remove-bg.js",
   ]),
 ]);
 

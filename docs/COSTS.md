@@ -1,18 +1,27 @@
-# Custos e Sistema de Créditos
+# Créditos e custos
 
-O Vysify utiliza um sistema interno de moedas (Créditos) para abstrair as flutuações de preços em dólar das APIs da OVI, OpenAI e Google.
+Os créditos abstraem a variação de preço (em dólar) dos provedores de IA. Os valores são editáveis em **Admin › IA e custos**.
 
-## Tabela de Conversão
+| Operação | Créditos (padrão) | Observação |
+| --- | --- | --- |
+| Estratégia e textos | 0 | Inclusos em toda campanha |
+| Imagem | 3 | Por variação |
+| Vídeo + locução | 10 | Por variação |
+| Qualidade Premium | ×2 | Multiplicador sobre imagem ou vídeo |
+| Cadastro | 0 | Só dá créditos se o admin ativar **Admin › Teste grátis** (quantidade configurável) |
 
-| Funcionalidade | Modelo Usado | Custo em USD (Estimado) | Custo no Vysify (Créditos) |
-| :--- | :--- | :--- | :--- |
-| **Geração de Textos** | Gemini 2.5 Flash | `$0.001` | Gratuito na criação da Campanha |
-| **Imagem (Fast)** | - | `$0.034` | 1 🪙 |
-| **Imagem (Standard)** | Placeholder/Mock | `$0.067` | 3 🪙 |
-| **Imagem (Premium)** | Flux / Imagen 3 | `$0.151` | 6 🪙 |
-| **Vídeo (5 Segundos)** | OVI Image-to-Video | `$0.22` | 10 🪙 |
+## Ofertas grátis (opt-in)
 
-## Lógica Interna
-- No cadastro (NextAuth), cada `Workspace` recém-criado recebe um `CreditBalance` de **100 Créditos** gratuitamente para testar o sistema.
-- A função `consumeCredits` em `services/credits/index.ts` é a fonte da verdade para descontar saldo. Ela funciona de forma transacional usando o Prisma ORM, evitando que requisições simultâneas burlem o sistema de saldos.
-- Cada operação bem-sucedida cria um `UsageRecord` e um `CreditTransaction` contendo o ID do provedor, modelo e custo para auditoria futura.
+Ficam **desligadas por padrão**. Em **Admin › Teste grátis**:
+
+- **Créditos grátis no cadastro:** cada conta nova recebe N créditos. Só com essa opção ligada aparecem o selo "créditos grátis", o botão "Começar grátis" e o texto de boas-vindas com créditos.
+- **Plano "Grátis" na landing:** mostra um card de R$ 0 ao lado dos pacotes. Só pode ser ligado junto com a opção anterior, para nunca anunciar uma oferta que não existe.
+
+## Regras
+
+- O débito é **atômico** (`UPDATE ... WHERE balance >= custo`): requisições simultâneas não gastam o mesmo saldo e o saldo nunca fica negativo.
+- Quantidades negativas ou fracionadas são rejeitadas na validação e no serviço de créditos.
+- A estratégia é gerada **antes** da cobrança: se a IA falhar ou o pedido violar a política, nada é cobrado.
+- Cada variação que falha é **estornada automaticamente** (transação `REFUND`, idempotente).
+- Compras são registradas na tabela `Payment` com chave única por gateway e pagamento: reenvios de webhook não creditam duas vezes.
+- Todo movimento aparece no extrato do cliente (`/credits`) e o custo estimado em dólar fica em `UsageRecord`, visível no painel admin.

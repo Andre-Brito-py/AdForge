@@ -1,54 +1,81 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { z } from "zod";
 import { db } from "@/lib/db";
+import { handler, HttpError, parseBody } from "@/lib/api";
+import { requireApiAdmin } from "@/lib/auth";
+import { encryptSecret, maskSecret, decryptSecret } from "@/lib/crypto";
+import { DEFAULT_MODELS, getAppConfig, invalidateConfigCache, SECRET_FIELDS } from "@/lib/config";
+import { costsSchema, modelsSchema, plansSchema } from "@/lib/validation";
 
-const ADMIN_EMAILS = ["admin@vysify.com", "andre@vysify.com"]; // Ajuste conforme necessário
+// Nunca devolvemos os segredos: só se estão configurados e os 4 últimos caracteres.
+export const GET = handler(async () => {
+  await requireApiAdmin();
+  const row = await db.systemConfig.findUnique({ where: { id: "global" } });
+  const config = await getAppConfig();
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email || (!session.user.email.includes("andre@") && session.user.role !== "SUPERADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+  const secrets = Object.fromEntries(
+    SECRET_FIELDS.map((f) => {
+      const fromDb = decryptSecret(row?.[f]);
+      return [f, { ...maskSecret(config.secrets[f]), source: fromDb ? "painel" : config.secrets[f] ? "env" : null }];
+    })
+  );
 
-    let config = await db.systemConfig.findUnique({ where: { id: "global" } });
-    if (!config) {
-      config = await db.systemConfig.create({ data: { id: "global" } });
-    }
+  return NextResponse.json({
+    secrets,
+    costs: config.costs,
+    models: config.models,
+    defaultModels: DEFAULT_MODELS,
+    plans: config.plans.filter((p) => !p.isFree),
+    freeTrial: {
+      enabled: config.freeTrial.enabled,
+      credits: config.freeTrial.credits,
+      planVisible: !!row?.freePlanVisible,
+    },
+  });
+});
 
-    return NextResponse.json({ config });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch config" }, { status: 500 });
+const secretValue = z.union([z.string().trim().min(1).max(500), z.null()]).optional();
+
+const putSchema = z.object({
+  // string = novo valor; null = remover; ausente = manter o atual
+  secrets: z.object(Object.fromEntries(SECRET_FIELDS.map((f) => [f, secretValue])) as Record<(typeof SECRET_FIELDS)[number], typeof secretValue>).partial().optional(),
+  costs: costsSchema.optional(),
+  models: modelsSchema.optional(),
+  plans: plansSchema.optional(),
+  freeTrial: z
+    .object({
+      enabled: z.boolean(),
+      credits: z.number().int().min(1, "Informe ao menos 1 crédito").max(10_000),
+      planVisible: z.boolean(),
+    })
+    .optional(),
+});
+
+export const PUT = handler(async (request: Request) => {
+  await requireApiAdmin();
+  const body = await parseBody(request, putSchema);
+
+  if (body.plans) {
+    const ids = new Set(body.plans.map((p) => p.id));
+    if (ids.size !== body.plans.length) throw new HttpError(400, "Cada pacote precisa de um ID único");
   }
-}
 
-export async function PUT(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email || (!session.user.email.includes("andre@") && session.user.role !== "SUPERADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { 
-      geminiKey, openAiKey, oviKey, wanKey, elevenLabsKey, aiCostsJson, plansJson,
-      stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret 
-    } = await request.json();
-
-    const config = await db.systemConfig.upsert({
-      where: { id: "global" },
-      update: { 
-        geminiKey, openAiKey, oviKey, wanKey, elevenLabsKey, aiCostsJson, plansJson,
-        stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret
-      },
-      create: { 
-        id: "global", geminiKey, openAiKey, oviKey, wanKey, elevenLabsKey, aiCostsJson, plansJson,
-        stripeSecretKey, stripeWebhookSecret, mercadoPagoAccessToken, mercadoPagoWebhookSecret
-      },
-    });
-
-    return NextResponse.json({ success: true, config });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update config" }, { status: 500 });
+  const data: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(body.secrets || {})) {
+    if (value === undefined) continue;
+    data[field] = value === null ? null : encryptSecret(value);
   }
-}
+  if (body.costs) data.aiCostsJson = JSON.stringify(body.costs);
+  if (body.models) data.modelsJson = JSON.stringify(body.models);
+  if (body.plans) data.plansJson = JSON.stringify(body.plans);
+  if (body.freeTrial) {
+    data.freeTrialEnabled = body.freeTrial.enabled;
+    data.signupCredits = body.freeTrial.credits;
+    // Sem créditos grátis não existe "plano grátis" para mostrar.
+    data.freePlanVisible = body.freeTrial.enabled && body.freeTrial.planVisible;
+  }
+
+  await db.systemConfig.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
+  invalidateConfigCache();
+  return NextResponse.json({ success: true });
+});

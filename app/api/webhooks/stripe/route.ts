@@ -1,74 +1,58 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import Stripe from "stripe";
-import { db } from "@/lib/db";
+import { getAppConfig } from "@/lib/config";
+import { recordPurchase } from "@/lib/payments";
 
 export async function POST(request: Request) {
+  const signature = request.headers.get("stripe-signature");
+  if (!signature) return NextResponse.json({ error: "Assinatura ausente" }, { status: 400 });
+
+  const config = await getAppConfig();
+  const { stripeSecretKey, stripeWebhookSecret } = config.secrets;
+  if (!stripeSecretKey || !stripeWebhookSecret) {
+    return NextResponse.json({ error: "Stripe não configurado" }, { status: 503 });
+  }
+
+  const stripe = new Stripe(stripeSecretKey);
+  const body = await request.text();
+
+  let event: Stripe.Event;
   try {
-    const body = await request.text();
-    const headersList = await headers();
-    const signature = headersList.get("stripe-signature");
+    event = stripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
+  } catch {
+    return NextResponse.json({ error: "Assinatura inválida" }, { status: 400 });
+  }
 
-    if (!signature) {
-      return NextResponse.json({ error: "No signature" }, { status: 400 });
-    }
-
-    const config = await db.systemConfig.findUnique({ where: { id: "global" } });
-    if (!config?.stripeSecretKey || !config?.stripeWebhookSecret) {
-      return NextResponse.json({ error: "Stripe not configured" }, { status: 400 });
-    }
-
-    const stripe = new Stripe(config.stripeSecretKey, { apiVersion: "2024-10-28.acacia" });
-
-    let event: Stripe.Event;
-
-    try {
-      event = stripe.webhooks.constructEvent(body, signature, config.stripeWebhookSecret);
-    } catch (error: any) {
-      console.error("Webhook Error:", error.message);
-      return NextResponse.json({ error: `Webhook Error: ${error.message}` }, { status: 400 });
-    }
-
-    if (event.type === "checkout.session.completed") {
+  try {
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const session = event.data.object as Stripe.Checkout.Session;
-      
-      const userId = session.metadata?.userId;
-      const workspaceId = session.metadata?.workspaceId;
-      const credits = parseInt(session.metadata?.credits || "0", 10);
-      const planId = session.metadata?.planId;
+      // Boleto/Pix via Stripe chegam primeiro como "unpaid"; só creditamos quando pago.
+      if (session.payment_status !== "paid") return NextResponse.json({ received: true, pending: true });
 
-      if (userId && workspaceId && credits > 0) {
-        // 1. Criar transação de crédito
-        await db.creditTransaction.create({
-          data: {
-            userId,
-            workspaceId,
-            amount: credits,
-            type: "PURCHASE",
-            description: `Compra do Plano ${planId} via Stripe`
-          }
-        });
-
-        // 2. Atualizar saldo (Upsert)
-        await db.creditBalance.upsert({
-          where: { workspaceId },
-          update: { balance: { increment: credits } },
-          create: { workspaceId, userId, balance: credits }
-        });
-
-        // 3. Enviar E-mail de Recibo
-        const user = await db.user.findUnique({ where: { id: userId }});
-        if (user && user.email) {
-          import("@/services/email").then(({ sendPurchaseReceipt }) => {
-            sendPurchaseReceipt(user.email, user.name || "", planId || "Premium", credits);
-          }).catch(console.error);
-        }
+      const m = session.metadata || {};
+      const credits = parseInt(m.credits || "0", 10);
+      if (!m.userId || !m.workspaceId || !credits) {
+        console.error("[stripe] sessão sem metadata esperada", session.id);
+        return NextResponse.json({ received: true, ignored: true });
       }
-    }
 
+      const result = await recordPurchase({
+        provider: "STRIPE",
+        externalId: session.id,
+        userId: m.userId,
+        workspaceId: m.workspaceId,
+        planId: m.planId || null,
+        planName: m.planName || m.planId || "Créditos",
+        credits,
+        amount: (session.amount_total || 0) / 100,
+        currency: session.currency || "usd",
+      });
+      return NextResponse.json({ received: true, result });
+    }
     return NextResponse.json({ received: true });
-  } catch (error: any) {
-    console.error("Stripe Webhook Failed:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (error) {
+    console.error("[stripe] falha ao processar webhook", error);
+    // 500 faz a Stripe reenviar mais tarde (o processamento é idempotente).
+    return NextResponse.json({ error: "Falha ao processar" }, { status: 500 });
   }
 }

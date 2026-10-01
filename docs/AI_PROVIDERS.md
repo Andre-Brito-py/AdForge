@@ -1,21 +1,30 @@
-# Integração com Provedores de IA
+# Provedores de IA
 
-O Vysify utiliza três camadas diferentes de IA para gerar campanhas publicitárias completas.
+As chaves podem ser cadastradas no painel **Admin › IA e custos** (ficam criptografadas no banco) ou por variáveis de ambiente (`GEMINI_API_KEY`, `FAL_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`). O painel tem prioridade.
 
-## 1. Geração de Texto & Estratégia
-**Provedor Atual:** Google Gen AI (`gemini-2.5-flash`)
-- **Arquivos:** `services/ai/text.ts` e `app/api/campaigns/route.ts`
-- **Fluxo:** O sistema lê a imagem original (`originalImageUrl`) codificada em Base64, e envia para a API Vision do Gemini junto com as instruções (Objetivo, Tom, Público).
-- O Gemini devolve um objeto JSON perfeitamente estruturado que quebramos no backend para preencher a entidade `Creative` do tipo `COPY`.
+## 1. Estratégia e textos: Gemini (`services/ai/text.ts`)
 
-## 2. Geração de Imagens
-**Provedor Atual:** Mock (Preparado para Gemini Imagen 3 / Flux)
-- **Arquivos:** `services/ai/image.ts`
-- **Fluxo:** Recebe o ID do Produto, as opções da campanha e o cenário ideal. Em um ambiente de produção real, usaríamos técnicas de Inpainting/Composição para manter a foto do produto inalterada e alterar apenas o fundo/estilo.
+- Recebe a foto do produto e os dados da campanha e devolve análise, ganchos e N variações (headline, copy, CTA e conceito visual em inglês).
+- Também modera: pedidos fora da política retornam `422` **antes** de qualquer cobrança.
+- Os dados digitados pelo usuário vão num bloco isolado e marcados como dados, o que reduz o risco de prompt injection.
+- A OpenAI (`gpt-4o-mini`) é usada como reserva real se o Gemini falhar.
 
-## 3. Geração de Vídeo
-**Provedor Atual:** Mock OVI API
-- **Arquivos:** `app/api/campaigns/[id]/generate-video/route.ts`
-- **Fluxo:** Devido à latência de geração de vídeo, a requisição apenas cria o `Creative` com status `PROCESSING` e retorna para a interface imediatamente.
-- O sistema simula um Webhook/Worker de background esperando 10 segundos antes de atualizar o banco de dados via `setTimeout` para `COMPLETED`, imitando o comportamento real de uma fila.
-- **Expansão Futura:** Para contornar o limite de 5s da OVI, criaremos Workers em Cloud Run que extraem o último frame (via FFmpeg) e concatenam chamadas em série para gerar vídeos de 15s.
+## 2. Imagens: Gemini Image (`services/ai/image.ts`)
+
+- Usa a foto do produto como referência e o conceito visual da estratégia.
+- Modelo padrão: `gemini-2.5-flash-image`. No Premium usa `gemini-3-pro-image-preview` em 2K, com queda automática para o modelo padrão se o premium não estiver disponível na conta.
+
+## 3. Vídeos: fal.ai / Wan (`services/ai/video.ts`)
+
+- Image-to-video assíncrono: o pedido entra na fila da fal.ai e o `GenerationJob` guarda `request_id`, `status_url` e `response_url`.
+- `advanceCampaign()` (chamado pelo polling da tela e pelo cron) consulta o status, baixa o MP4 e salva no S3.
+- Resolução: 480p no padrão e 720p no Premium.
+
+## 4. Locução: ElevenLabs ou OpenAI TTS (`services/ai/audio.ts`)
+
+- Gera o MP3 do texto da variação e entrega junto com o vídeo.
+- Se nenhuma chave estiver configurada, o vídeo é entregue sem locução (não há falha).
+
+## Testes sem custo
+
+`GEMINI_BASE_URL` e `FAL_QUEUE_URL` permitem apontar para um gateway ou para um servidor simulado. Foi assim que o pipeline completo (estratégia → imagens/vídeo → falha → estorno) foi validado localmente.

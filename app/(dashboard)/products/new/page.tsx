@@ -2,179 +2,95 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, ImagePlus } from "lucide-react";
-import Link from "next/link";
+import { PageHeader, buttonClass } from "@/components/app/ui-bits";
+import { ImageDropzone, uploadImage } from "@/components/app/image-dropzone";
 
 export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [brandName, setBrandName] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [price, setPrice] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [form, setForm] = useState({ name: "", description: "", category: "", brandName: "", targetAudience: "", price: "" });
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !file) {
-      toast.error("Nome e Imagem são obrigatórios.");
-      return;
-    }
+    if (!file) return toast.error("Adicione a foto do produto.");
+    if (!form.name.trim()) return toast.error("Informe o nome do produto.");
 
     setLoading(true);
     try {
-      // 1. Upload mockado localmente
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!uploadRes.ok) throw new Error("Erro no upload");
-      const uploadData = await uploadRes.json();
-      
-      // 2. Salvar Produto no Banco
-      const prodRes = await fetch("/api/products", {
+      const imageUrl = await uploadImage(file);
+      const price = form.price ? Number(form.price.replace(",", ".")) : null;
+      const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          description,
-          category,
-          brandName,
-          targetAudience,
-          price: price ? parseFloat(price) : null,
-          imageUrl: uploadData.url
-        })
+        body: JSON.stringify({ ...form, price: Number.isFinite(price) ? price : null, imageUrl }),
       });
-
-      if (!prodRes.ok) throw new Error("Erro ao salvar produto");
-      
-      const prodData = await prodRes.json();
-      toast.success("Produto cadastrado com sucesso!");
-      router.push(`/products/${prodData.id}`);
-
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Não foi possível salvar o produto");
+      toast.success("Produto cadastrado!");
+      router.push(`/products/${data.id}`);
+      router.refresh();
     } catch (err) {
-      console.error(err);
-      toast.error("Ocorreu um erro ao cadastrar o produto.");
-    } finally {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-8">
-      
-      <header>
-        <Link href="/products" className="inline-flex items-center text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para Biblioteca
-        </Link>
-        <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">Adicionar Novo Produto</h1>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-2 text-lg">Quanto mais detalhes você fornecer, melhores serão os criativos gerados pela IA.</p>
-      </header>
+    <>
+      <PageHeader
+        back={{ href: "/products", label: "Produtos" }}
+        title="Adicionar produto"
+        description="Quanto mais contexto você der, melhores ficam os anúncios."
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-8 bg-white dark:bg-zinc-900 p-8 md:p-10 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-        
-        {/* Basic Info */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-white border-b border-zinc-100 dark:border-zinc-800 pb-4">Informações Básicas</h2>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-300">Nome do Produto <span className="text-red-500">*</span></label>
-              <Input 
-                required 
-                value={name} 
-                onChange={e => setName(e.target.value)} 
-                placeholder="Ex: Tênis Nike Air Max"
-                className="h-12 bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800"
-              />
-            </div>
+      <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="space-y-3">
+          <span className="label-base">Foto do produto *</span>
+          <ImageDropzone file={file} onChange={(f, err) => { if (err) toast.error(err); setFile(f); }} />
+          <p className="text-xs text-muted-foreground">
+            Dica: fundo simples, produto inteiro no quadro e boa iluminação. Envie apenas imagens de produtos que você tem direito de usar.
+          </p>
+        </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-300">Foto do Produto <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Input 
-                  type="file" 
-                  required 
-                  accept="image/*"
-                  onChange={e => setFile(e.target.files?.[0] || null)} 
-                  className="h-12 pt-3 pl-10 cursor-pointer bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800"
-                />
-                <ImagePlus className="absolute left-3 top-3 h-5 w-5 text-zinc-400" />
-              </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Uma foto clara e bem iluminada do seu produto.</p>
-            </div>
-          </div>
-
+        <div className="surface space-y-5 p-5 sm:p-6">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-300">Descrição</label>
-            <Textarea 
-              value={description} 
-              onChange={e => setDescription(e.target.value)} 
-              placeholder="Descreva o que é o produto, seus principais benefícios e características..."
-              className="min-h-[120px] bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800"
-            />
+            <label htmlFor="name" className="label-base">Nome do produto *</label>
+            <input id="name" className="input-base" value={form.name} onChange={set("name")} maxLength={120} placeholder="Ex.: Garrafa térmica inox 750 ml" required />
           </div>
-        </div>
-
-        {/* Advanced Info */}
-        <div className="space-y-6 pt-6">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-white border-b border-zinc-100 dark:border-zinc-800 pb-4">Detalhes para IA (Opcional)</h2>
-          
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label htmlFor="description" className="label-base">Descrição e benefícios</label>
+            <textarea id="description" className="input-base min-h-28 py-3" value={form.description} onChange={set("description")} maxLength={2000} placeholder="O que é, para quem serve, diferenciais, materiais..." />
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-300">Categoria</label>
-              <Input 
-                value={category} 
-                onChange={e => setCategory(e.target.value)} 
-                placeholder="Ex: Moda, Beleza, Eletrônicos"
-                className="h-12 bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800"
-              />
+              <label htmlFor="category" className="label-base">Categoria</label>
+              <input id="category" className="input-base" value={form.category} onChange={set("category")} maxLength={80} placeholder="Ex.: Casa e cozinha" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-300">Marca (Brand)</label>
-              <Input 
-                value={brandName} 
-                onChange={e => setBrandName(e.target.value)} 
-                placeholder="Ex: Nike"
-                className="h-12 bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800"
-              />
+              <label htmlFor="brand" className="label-base">Marca</label>
+              <input id="brand" className="input-base" value={form.brandName} onChange={set("brandName")} maxLength={80} placeholder="Ex.: Termix" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-300">Público-Alvo</label>
-              <Input 
-                value={targetAudience} 
-                onChange={e => setTargetAudience(e.target.value)} 
-                placeholder="Ex: Jovens esportistas, 18-35 anos"
-                className="h-12 bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800"
-              />
+              <label htmlFor="audience" className="label-base">Público-alvo</label>
+              <input id="audience" className="input-base" value={form.targetAudience} onChange={set("targetAudience")} maxLength={300} placeholder="Ex.: quem treina e trabalha fora" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-300">Preço (R$)</label>
-              <Input 
-                type="number"
-                step="0.01"
-                value={price} 
-                onChange={e => setPrice(e.target.value)} 
-                placeholder="Ex: 299.90"
-                className="h-12 bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800"
-              />
+              <label htmlFor="price" className="label-base">Preço (R$)</label>
+              <input id="price" className="input-base" inputMode="decimal" value={form.price} onChange={set("price")} placeholder="Ex.: 89,90" />
             </div>
           </div>
-        </div>
-
-        <div className="pt-6 flex justify-end">
-          <Button type="submit" size="lg" disabled={loading} className="rounded-full px-8 h-12 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100">
-            {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-            {loading ? "Salvando..." : "Salvar Produto"}
-          </Button>
+          <div className="flex justify-end pt-2">
+            <button type="submit" disabled={loading} className={buttonClass("brand", "lg")}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "Salvando..." : "Salvar produto"}
+            </button>
+          </div>
         </div>
       </form>
-    </div>
+    </>
   );
 }

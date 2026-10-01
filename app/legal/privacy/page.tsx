@@ -1,45 +1,89 @@
+import { COMPANY, LEGAL_UPDATED_AT } from "@/lib/company";
+
+export const metadata = { title: "Política de Privacidade" };
+
 export default function PrivacyPage() {
   return (
-    <div className="max-w-4xl mx-auto py-16 px-6">
-      <h1 className="text-4xl font-bold mb-8">Política de Privacidade</h1>
-      
-      <div className="prose dark:prose-invert max-w-none space-y-6">
-        <p><strong>Última atualização:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
-        
-        <h2>1. Compromisso com a LGPD</h2>
-        <p>A privacidade dos seus dados é prioridade para o Vysify. Esta política descreve como coletamos, usamos e protegemos suas informações em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018).</p>
-        
-        <h2>2. Dados Coletados</h2>
-        <ul>
-          <li><strong>Dados de Conta:</strong> Nome, e-mail e foto do perfil (via Google OAuth ou login manual).</li>
-          <li><strong>Dados de Faturamento:</strong> Endereço e dados fiscais repassados de forma criptografada para nossos gateways de pagamento (Stripe/MercadoPago). Não armazenamos números de cartão de crédito em nossos servidores.</li>
-          <li><strong>Mídia e Prompts:</strong> Imagens de produtos e instruções de texto que você envia para gerar as campanhas.</li>
-          <li><strong>Cookies e Uso:</strong> Dados de navegação e desempenho da plataforma.</li>
-        </ul>
+    <>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Política de Privacidade</h1>
+      <p className="mt-2 text-sm">Última atualização: {LEGAL_UPDATED_AT}</p>
 
-        <h2>3. Como Usamos Seus Dados</h2>
-        <p>Utilizamos os dados estritamente para:</p>
-        <ul>
-          <li>Prestar o serviço de geração de anúncios via inteligência artificial.</li>
-          <li>Processar pagamentos e gerar notas fiscais.</li>
-          <li>Enviar e-mails transacionais (como recibos de compra e recuperação de senha).</li>
-          <li>Melhorar os filtros de segurança e evitar abusos na plataforma.</li>
-        </ul>
+      <p className="mt-6">
+        Esta política explica como <strong>{COMPANY.name}</strong> (CNPJ {COMPANY.cnpj}), controladora dos dados, trata informações pessoais na Vysify, em
+        conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018, “LGPD”).
+      </p>
 
-        <h2>4. Compartilhamento de Dados com Terceiros</h2>
-        <p>Para o funcionamento do SaaS, seus prompts de texto, imagens e áudios gerados podem trafegar pelos servidores dos nossos provedores de IA (Google Gemini, ElevenLabs, OpenAI). Estes provedores possuem cláusulas rigorosas de confidencialidade e **não utilizam os dados do Vysify para treinar seus modelos de fundação** publicamente.</p>
-        
-        <h2>5. Seus Direitos (Art. 18 da LGPD)</h2>
-        <p>A qualquer momento, você pode solicitar:</p>
-        <ul>
-          <li>A confirmação e acesso aos seus dados.</li>
-          <li>A correção de dados incompletos ou inexatos.</li>
-          <li>A exclusão definitiva da sua conta e de todas as mídias geradas dos nossos servidores.</li>
-        </ul>
+      <h2>1. Dados que coletamos</h2>
+      <ul>
+        <li><strong>Conta:</strong> nome, e-mail, senha (armazenada apenas como hash irreversível) e, se ativado, o segredo do 2FA.</li>
+        <li><strong>Conteúdo:</strong> fotos e descrições de produtos, Brand Kit e os Criativos gerados.</li>
+        <li><strong>Pagamentos:</strong> pacote comprado, valor, data e identificador da transação. Dados de cartão ficam com o Mercado Pago ou a Stripe.</li>
+        <li>
+          <strong>Contas conectadas (Facebook/Instagram):</strong> se você conectar sua conta da Meta, guardamos o identificador e o nome da conta,
+          a lista das Páginas e contas do Instagram que você autorizou e um token de acesso (criptografado). Usamos esses dados <strong>somente</strong> para
+          publicar os criativos que você mandar publicar e mostrar o link do post. Não lemos mensagens, seguidores nem métricas.
+        </li>
+        <li><strong>Uso e segurança:</strong> histórico de créditos, registros técnicos (endereço IP, data e hora) para prevenção de fraude e abuso.</li>
+      </ul>
 
-        <h2>6. Contato do Encarregado (DPO)</h2>
-        <p>Para exercer seus direitos, solicitar exclusão de conta ou tirar dúvidas sobre privacidade, envie um e-mail para dpo@vysify.com.</p>
-      </div>
-    </div>
+      <h2>2. Para que usamos e com qual base legal</h2>
+      <ul>
+        <li>Prestar o serviço e processar pagamentos: execução de contrato (art. 7º, V).</li>
+        <li>Segurança, prevenção de fraude e limites de uso: legítimo interesse (art. 7º, IX).</li>
+        <li>Guardar registros de acesso e documentos fiscais: obrigação legal (art. 7º, II; Marco Civil da Internet, art. 15).</li>
+        <li>Enviar novidades e dicas: consentimento (art. 7º, I), que você pode retirar a qualquer momento em Configurações.</li>
+      </ul>
+      <p>Não vendemos seus dados e não usamos suas fotos para treinar modelos próprios.</p>
+
+      <h2>3. Com quem compartilhamos</h2>
+      <p>Somente com operadores necessários para o serviço funcionar, sob contrato:</p>
+      <ul>
+        <li>Provedores de IA: Google (Gemini), fal.ai, ElevenLabs e OpenAI, que recebem as fotos e textos necessários para cada geração;</li>
+        <li>Pagamentos: Mercado Pago e Stripe;</li>
+        <li>Meta Platforms (Facebook e Instagram): recebe a imagem ou o vídeo e a legenda que você decidir publicar, na conta que você escolher;</li>
+        <li>Infraestrutura: Vercel (hospedagem), Supabase (banco de dados e armazenamento) e Resend (e-mails transacionais).</li>
+      </ul>
+      <p>
+        Alguns desses provedores processam dados fora do Brasil. Nesses casos, a transferência ocorre com base em cláusulas contratuais e nas garantias
+        previstas no art. 33 da LGPD.
+      </p>
+
+      <h2>4. Por quanto tempo guardamos</h2>
+      <ul>
+        <li>Dados da conta e conteúdo: enquanto a conta existir. Ao excluir a conta, apagamos conta, produtos, campanhas e arquivos.</li>
+        <li>Registros de pagamento: 5 anos, por obrigação fiscal.</li>
+        <li>
+          Tokens da Meta: até você desconectar a conta em Integrações, remover a Vysify nas configurações do Facebook ou excluir sua conta. Nesses casos,
+          apagamos o token e a lista de Páginas imediatamente (veja também <a href="/meta-data-deletion">exclusão de dados da Meta</a>).
+        </li>
+        <li>Registros de acesso: 6 meses (Marco Civil da Internet).</li>
+      </ul>
+
+      <h2>5. Seus direitos</h2>
+      <p>Você pode, a qualquer momento:</p>
+      <ul>
+        <li><strong>Baixar seus dados</strong> (portabilidade) e <strong>excluir sua conta</strong> diretamente em Configurações › Privacidade;</li>
+        <li>corrigir dados, saber com quem compartilhamos, revogar consentimentos e pedir informações pelo e-mail <a href={`mailto:${COMPANY.privacyEmail}`}>{COMPANY.privacyEmail}</a>;</li>
+        <li>apresentar reclamação à Autoridade Nacional de Proteção de Dados (ANPD).</li>
+      </ul>
+      <p>Respondemos solicitações em até 15 dias.</p>
+
+      <h2>6. Cookies</h2>
+      <p>
+        Usamos apenas cookies essenciais: sessão de login, idioma, moeda e tema. Não usamos cookies de publicidade nem de rastreamento de terceiros. Se isso
+        mudar, pediremos seu consentimento antes.
+      </p>
+
+      <h2>7. Segurança</h2>
+      <p>
+        Usamos conexão criptografada (HTTPS), senhas com hash bcrypt, chaves de API criptografadas, verificação em duas etapas opcional, limites de tentativas
+        de login e controle de acesso por conta. Nenhum sistema é 100% seguro; se ocorrer um incidente relevante, avisaremos você e a ANPD conforme a lei.
+      </p>
+
+      <h2>8. Encarregado (DPO)</h2>
+      <p>
+        Fale com nosso encarregado pelo e-mail <a href={`mailto:${COMPANY.privacyEmail}`}>{COMPANY.privacyEmail}</a>.
+      </p>
+    </>
   );
 }

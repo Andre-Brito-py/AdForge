@@ -1,308 +1,345 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Camera, Paintbrush, Megaphone, ArrowRight, PlayCircle, Zap, ShieldCheck, Globe, CheckCircle2, Video, Volume2, Target, BarChart3, Fingerprint } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+  ArrowRight, Check, Coins, Globe, Image as ImageIcon, Palette, PenLine, RotateCcw, ShieldCheck, Sparkles, Upload, Video, Wand2,
+} from "lucide-react";
+import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PixelMascot } from "@/components/mascot/PixelMascot";
+import { buttonClass } from "@/components/app/ui-bits";
 
-export default function LandingPageClient({ plans, initialLocale }: { plans: any[], initialLocale: string }) {
+interface Plan {
+  id: string; name: string; description?: string | null; price_brl: number; price_usd: number; credits: number;
+  isFeatured?: boolean; features_pt: string[]; features_en: string[];
+}
+
+const COPY = {
+  pt: {
+    nav: ["Como funciona", "Recursos", "Preços", "Dúvidas"],
+    signIn: "Entrar", dashboard: "Abrir painel",
+    badge: (n: number) => (n > 0 ? `${n} créditos grátis para testar · sem cartão` : "Comece em menos de um minuto"),
+    h1a: "Da foto do produto", h1b: "ao anúncio pronto.",
+    sub: "Envie uma foto, escolha o objetivo e receba estratégia, textos, imagens publicitárias e vídeos com locução, prontos para Instagram, TikTok e Facebook.",
+    ctaFree: "Começar grátis", cta: "Criar conta", how: "Ver como funciona",
+    howTitle: "Três passos. Nenhum designer de plantão.",
+    steps: [
+      { t: "Envie a foto do produto", d: "Uma foto nítida já basta. Adicione descrição e público se quiser mais precisão." },
+      { t: "Escolha objetivo e formato", d: "Vendas, lançamento ou engajamento; feed, stories ou Reels/TikTok; o estilo visual e a qualidade." },
+      { t: "Baixe e publique", d: "Receba as variações com headline, copy e CTA. Gere novas versões com instruções extras quando quiser." },
+    ],
+    featTitle: "Tudo o que um anúncio precisa",
+    feats: [
+      { icon: PenLine, t: "Estratégia e copy", d: "Ganchos, headlines e textos em português, com ângulos diferentes para teste A/B." },
+      { icon: ImageIcon, t: "Imagens publicitárias", d: "Seu produto em cenários profissionais, fiel à foto original, nos formatos 1:1, 4:5 e 9:16." },
+      { icon: Video, t: "Vídeos com locução", d: "A foto vira um vídeo curto vertical, com narração do roteiro em áudio separado." },
+      { icon: Palette, t: "Brand Kit", d: "Cor e tom de voz da sua marca aplicados automaticamente em todas as gerações." },
+      { icon: RotateCcw, t: "Estorno automático", d: "Se uma variação falhar, os créditos dela voltam sozinhos para a sua conta." },
+      { icon: ShieldCheck, t: "Uso responsável", d: "Moderação automática bloqueia conteúdo enganoso ou proibido antes de cobrar." },
+    ],
+    priceTitle: "Pague só pelo que usar",
+    priceSub: (img: number, vid: number) => `Pacotes avulsos, sem assinatura. Créditos não expiram. Imagem = ${img} créditos · vídeo = ${vid} créditos.`,
+    credits: "créditos", buy: "Começar", popular: "Mais escolhido",
+    free: {
+      name: "Grátis", price: "R$ 0", cta: "Começar grátis",
+      description: "Para conhecer a Vysify antes de comprar.",
+      features: (n: number, img: number) => [`${n} créditos para testar (~${Math.floor(n / img)} imagens)`, "Sem cartão de crédito", "Todos os formatos e estilos"],
+    },
+    faqTitle: "Perguntas frequentes",
+    faq: [
+      ["Os créditos expiram?", "Não. Você compra um pacote uma vez e usa quando quiser. Não há renovação automática."],
+      ["E se a geração der errado?", "Se uma variação falhar por qualquer motivo técnico, os créditos dela são devolvidos automaticamente. Você também pode pedir uma nova versão com instruções extras."],
+      ["Quem é dono dos criativos?", "Você. O conteúdo gerado a partir das suas fotos pode ser usado comercialmente, desde que você tenha os direitos sobre o produto e a imagem enviada."],
+      ["Que tipo de foto funciona melhor?", "Foto nítida, com o produto inteiro no quadro, boa iluminação e fundo simples. Fotos de celular funcionam bem."],
+      ["Posso pedir reembolso?", "Sim. Em até 7 dias após a compra, você pode desistir e receber o valor de volta pelos créditos não utilizados (art. 49 do CDC)."],
+      ["Quais formas de pagamento?", "Pix, cartão e boleto pelo Mercado Pago, ou cartão internacional pela Stripe."],
+    ],
+    finalTitle: "Seu próximo anúncio começa com uma foto.",
+    footer: { terms: "Termos de Uso", privacy: "Privacidade", support: "Suporte", rights: "Todos os direitos reservados." },
+  },
+  en: {
+    nav: ["How it works", "Features", "Pricing", "FAQ"],
+    signIn: "Sign in", dashboard: "Open dashboard",
+    badge: (n: number) => (n > 0 ? `${n} free credits to try · no card required` : "Get started in under a minute"),
+    h1a: "From product photo", h1b: "to ready-to-run ad.",
+    sub: "Upload a photo, pick a goal and get strategy, copy, ad images and voiced-over videos ready for Instagram, TikTok and Facebook.",
+    ctaFree: "Start free", cta: "Create account", how: "See how it works",
+    howTitle: "Three steps. No designer on call.",
+    steps: [
+      { t: "Upload a product photo", d: "One sharp photo is enough. Add a description and audience for more precision." },
+      { t: "Choose goal and format", d: "Sales, launch or engagement; feed, stories or Reels/TikTok; visual style and quality." },
+      { t: "Download and publish", d: "Get variations with headline, copy and CTA. Generate new versions with extra instructions anytime." },
+    ],
+    featTitle: "Everything an ad needs",
+    feats: [
+      { icon: PenLine, t: "Strategy & copy", d: "Hooks, headlines and copy with different angles for A/B testing." },
+      { icon: ImageIcon, t: "Ad images", d: "Your product in professional scenes, faithful to the original photo, in 1:1, 4:5 and 9:16." },
+      { icon: Video, t: "Voiced-over videos", d: "Your photo becomes a short vertical video, with the script narrated as a separate audio track." },
+      { icon: Palette, t: "Brand Kit", d: "Your brand color and tone of voice applied to every generation." },
+      { icon: RotateCcw, t: "Automatic refunds", d: "If a variation fails, its credits go straight back to your balance." },
+      { icon: ShieldCheck, t: "Responsible use", d: "Automatic moderation blocks misleading or prohibited content before charging." },
+    ],
+    priceTitle: "Pay only for what you use",
+    priceSub: (img: number, vid: number) => `One-off packs, no subscription. Credits never expire. Image = ${img} credits · video = ${vid} credits.`,
+    credits: "credits", buy: "Get started", popular: "Most popular",
+    free: {
+      name: "Free", price: "$0", cta: "Start free",
+      description: "Try Vysify before you buy.",
+      features: (n: number, img: number) => [`${n} credits to try (~${Math.floor(n / img)} images)`, "No credit card", "All formats and styles"],
+    },
+    faqTitle: "FAQ",
+    faq: [
+      ["Do credits expire?", "No. Buy a pack once and use it whenever you want. No auto-renewal."],
+      ["What if a generation fails?", "If a variation fails for any technical reason, its credits are refunded automatically."],
+      ["Who owns the creatives?", "You do, as long as you hold the rights to the product and the photo you upload."],
+      ["What photos work best?", "Sharp photos with the whole product in frame, good lighting and a simple background."],
+      ["Can I get a refund?", "Yes. Within 7 days of purchase you can get your money back for unused credits."],
+      ["Payment methods?", "Cards worldwide via Stripe; Pix, cards and boleto via Mercado Pago in Brazil."],
+    ],
+    finalTitle: "Your next ad starts with a photo.",
+    footer: { terms: "Terms of Use", privacy: "Privacy", support: "Support", rights: "All rights reserved." },
+  },
+};
+
+const fade = { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-60px" }, transition: { duration: 0.45 } };
+
+export default function LandingPageClient({
+  plans, signupCredits, freePlanVisible, costs, locale, loggedIn,
+}: {
+  plans: Plan[]; signupCredits: number; freePlanVisible: boolean; costs: { image: number; video: number }; locale: "pt" | "en"; loggedIn: boolean;
+}) {
+  const showFreePlan = freePlanVisible && signupCredits > 0;
+  const paidPlans = plans.filter((p) => (locale === "pt" ? p.price_brl : p.price_usd) > 0);
+  const cardCount = paidPlans.length + (showFreePlan ? 1 : 0);
+  const t = COPY[locale];
+  const isPt = locale === "pt";
+  const primaryHref = loggedIn ? "/dashboard" : "/signup";
+  const primaryLabel = loggedIn ? t.dashboard : signupCredits > 0 ? t.ctaFree : t.cta;
+
   const toggleLanguage = () => {
-    const newLocale = initialLocale === 'pt' ? 'en' : 'pt';
-    const newCurrency = newLocale === 'pt' ? 'BRL' : 'USD';
-    document.cookie = `NEXT_LOCALE=${newLocale}; path=/`;
-    document.cookie = `CURRENCY=${newCurrency}; path=/`;
+    const next = isPt ? "en" : "pt";
+    document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=31536000; samesite=lax`;
+    document.cookie = `CURRENCY=${next === "pt" ? "BRL" : "USD"}; path=/; max-age=31536000; samesite=lax`;
     window.location.reload();
   };
 
-  const isPt = initialLocale === 'pt';
-
-  const visiblePlans = plans.filter(p => !p.isHidden);
-  const hasFreePlan = visiblePlans.some(p => p.isFree);
-  const ctaText = hasFreePlan ? (isPt ? "Começar Grátis" : "Start Free Trial") : (isPt ? "Começar Agora" : "Start Now");
+  const money = (v: number) => new Intl.NumberFormat(isPt ? "pt-BR" : "en-US", { style: "currency", currency: isPt ? "BRL" : "USD", maximumFractionDigits: v % 1 ? 2 : 0 }).format(v);
+  const anchors = ["como-funciona", "recursos", "precos", "duvidas"];
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-zinc-950 selection:bg-violet-600 selection:text-white font-sans transition-colors duration-300">
-      
-      {/* Navigation */}
-      <header className="fixed top-0 z-50 w-full border-b border-zinc-200/50 dark:border-zinc-800/50 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl">
-        <div className="container mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-            <img src="/logo-full.png" alt="Vysify Logo" className="h-8 object-contain dark:hidden block" />
-            <img src="/logo-dark.png" alt="Vysify Logo" className="h-8 object-contain hidden dark:block" />
-          </Link>
-          <nav className="hidden md:flex gap-10 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-            <Link href="#features" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Recursos" : "Features"}</Link>
-            <Link href="#how-it-works" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Como Funciona" : "How it Works"}</Link>
-            <Link href="#pricing" className="hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{isPt ? "Planos" : "Pricing"}</Link>
+    <div className="min-h-screen overflow-x-hidden">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Logo />
+          <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
+            {t.nav.map((label, i) => <a key={label} href={`#${anchors[i]}`} className="transition hover:text-foreground">{label}</a>)}
           </nav>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 sm:gap-2">
             <ThemeToggle />
-            <button onClick={toggleLanguage} className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-2" title={isPt ? "Mudar idioma" : "Change language"}>
-              <Globe className="h-5 w-5" />
-              <span className="text-sm font-bold hidden sm:block">{isPt ? "PT-BR" : "EN-US"}</span>
+            <button onClick={toggleLanguage} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Mudar idioma / Change language">
+              <Globe className="h-4 w-4" /> {isPt ? "PT" : "EN"}
             </button>
-            <Link href="/login" className="text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:text-violet-600 dark:hover:text-violet-400 transition-colors hidden sm:block">
-              {isPt ? "Entrar" : "Sign In"}
-            </Link>
-            <Link href="/login">
-              <Button className="rounded-full shadow-lg hover:shadow-violet-600/25 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-bold h-11 px-6 border-0 transition-all">
-                {ctaText}
-              </Button>
-            </Link>
+            {!loggedIn && <Link href="/login" className="hidden px-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:block">{t.signIn}</Link>}
+            <Link href={primaryHref} className={buttonClass("primary", "sm")}>{primaryLabel}</Link>
           </div>
         </div>
       </header>
 
-      <main className="flex flex-col items-center">
-        
-        {/* Hero Section */}
-        <section className="relative w-full pt-40 pb-20 md:pt-48 md:pb-24 overflow-hidden flex flex-col items-center text-center px-6">
-          <div className="absolute top-0 left-1/2 -z-10 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-b from-violet-200/50 to-transparent dark:from-violet-900/20 dark:to-transparent rounded-full blur-[100px] opacity-70" />
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center rounded-full border border-violet-200 dark:border-violet-800/50 bg-white/50 dark:bg-violet-900/10 px-4 py-1.5 text-xs font-bold text-violet-700 dark:text-violet-300 mb-8 backdrop-blur-sm"
-          >
-            <Zap className="h-3.5 w-3.5 mr-2 text-violet-600 dark:text-violet-400" />
-            {isPt ? "Agora com Wan 2.1 e ElevenLabs Voice" : "Powered by Wan 2.1 & ElevenLabs Voice"}
-          </motion.div>
-          
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-5xl md:text-7xl font-black tracking-tighter text-zinc-900 dark:text-white max-w-5xl leading-[1.1]"
-          >
-            {isPt ? "Não crie anúncios." : "Don't create ads."} <br className="hidden md:block" /> 
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600 dark:from-blue-400 dark:via-violet-400 dark:to-purple-400">
-              {isPt ? "Gere máquinas de conversão." : "Generate conversion machines."}
-            </span>
-          </motion.h1>
-          
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-8 text-lg md:text-xl text-zinc-500 dark:text-zinc-400 max-w-2xl font-medium leading-relaxed"
-          >
-            {isPt ? "Da sua foto crua de produto até um vídeo cinematográfico com locução ultra-realista e roteiro persuasivo. Tudo em 60 segundos." : "From a raw product photo to a cinematic video with ultra-realistic voiceovers and persuasive scripts. All in 60 seconds."}
-          </motion.p>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-12 flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md"
-          >
-            <Link href="/login" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-base font-bold rounded-full shadow-xl shadow-violet-600/20 bg-violet-600 hover:bg-violet-700 text-white transition-all border-0 group">
-                {ctaText}
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Link href="#demo" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-base font-bold rounded-full border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-white bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                <PlayCircle className="mr-2 h-5 w-5 text-zinc-400 dark:text-zinc-500" /> {isPt ? "Ver como funciona" : "See how it works"}
-              </Button>
-            </Link>
-          </motion.div>
-        </section>
-
-        {/* Dashboard Preview / Mockup */}
-        <motion.section 
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          className="w-full max-w-6xl px-6 mb-20 z-10"
-          id="demo"
-        >
-          <div className="rounded-[2.5rem] border border-zinc-200/60 dark:border-zinc-800/60 bg-white/40 dark:bg-zinc-900/40 p-3 shadow-2xl shadow-violet-900/5 backdrop-blur-xl">
-            <div className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800 bg-zinc-950 aspect-[16/9] w-full flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer">
-              
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center opacity-40 mix-blend-overlay transition-transform duration-1000 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent opacity-80" />
-              
-              <div className="z-10 text-center transition-transform duration-500 group-hover:scale-110">
-                <div className="h-20 w-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-violet-500/20 mb-6">
-                  <PlayCircle className="h-10 w-10 text-white ml-1" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-2">{isPt ? "O fim do trabalho manual" : "The end of manual work"}</h3>
-                <p className="text-zinc-400 font-medium">{isPt ? "Assista ao Vysify gerando uma campanha" : "Watch Vysify generating a campaign"}</p>
-              </div>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Trusted By */}
-        <section className="w-full border-y border-zinc-100 dark:border-zinc-900 bg-white dark:bg-zinc-950/50 py-10 flex flex-col items-center overflow-hidden">
-          <p className="text-sm font-semibold text-zinc-400 dark:text-zinc-600 mb-8 uppercase tracking-widest">{isPt ? "Confiado pelas marcas mais inovadoras" : "Trusted by innovative brands"}</p>
-          <div className="flex gap-12 md:gap-24 items-center justify-center opacity-50 grayscale hover:grayscale-0 transition-all duration-500 flex-wrap px-6">
-            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200">ACME Corp</span>
-            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200 tracking-tighter">GlobalDrop</span>
-            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200">StellarAds</span>
-            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200 uppercase">Nexus</span>
-            <span className="text-xl md:text-2xl font-black text-zinc-800 dark:text-zinc-200 italic">Lumina</span>
-          </div>
-        </section>
-
-        {/* How it Works (Pipeline) */}
-        <section id="how-it-works" className="w-full max-w-7xl px-6 py-24 md:py-32">
-          <div className="mb-16 md:text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
-              {isPt ? "Magia, explicada." : "Magic, explained."}
-            </h2>
-            <p className="text-lg md:text-xl text-zinc-500 dark:text-zinc-400 font-medium">
-              {isPt ? "Nosso pipeline integra as 3 IAs mais avançadas do mundo em um único fluxo invisível e perfeito." : "Our pipeline integrates the 3 most advanced AIs in the world into a single, invisible, and perfect flow."}
+      <main>
+        {/* Hero */}
+        <section className="relative px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
+          <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[420px] w-[900px] max-w-[160vw] -translate-x-1/2 rounded-full bg-brand/15 blur-[110px]" />
+          <div className="mx-auto max-w-3xl text-center">
+            {/* Animação em CSS: o conteúdo já chega visível no HTML (bom para LCP/SEO, mesmo sem JS). */}
+            <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-muted-foreground animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <Sparkles className="h-3.5 w-3.5 text-brand" /> {t.badge(signupCredits)}
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 relative">
-            <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-zinc-100 dark:bg-zinc-800 -z-10 -translate-y-1/2" />
-            
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative group hover:-translate-y-2 transition-transform duration-300">
-              <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-black text-xl mb-6 text-zinc-900 dark:text-white border-4 border-white dark:border-zinc-950">1</div>
-              <h3 className="text-xl font-bold mb-3">{isPt ? "Estratégia & Copy" : "Strategy & Copy"}</h3>
-              <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
-                {isPt ? "O modelo Gemini analisa seu produto, entende seu público e escreve roteiros de vendas usando gatilhos mentais comprovados." : "The Gemini model analyzes your product, understands your audience, and writes sales scripts using proven mental triggers."}
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative group hover:-translate-y-2 transition-transform duration-300">
-              <div className="h-12 w-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center font-black text-xl mb-6 text-violet-600 dark:text-violet-400 border-4 border-white dark:border-zinc-950">2</div>
-              <h3 className="text-xl font-bold mb-3">{isPt ? "Locução Sincronizada" : "Synced Voiceover"}</h3>
-              <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
-                {isPt ? "A ElevenLabs assume e transforma o roteiro em uma narração ultra-realista que prende a atenção e transmite confiança (Text-to-Speech)." : "ElevenLabs takes over and transforms the script into an ultra-realistic voiceover that grabs attention and conveys trust (Text-to-Speech)."}
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative group hover:-translate-y-2 transition-transform duration-300">
-              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center font-black text-xl mb-6 text-blue-600 dark:text-blue-400 border-4 border-white dark:border-zinc-950">3</div>
-              <h3 className="text-xl font-bold mb-3">{isPt ? "Geração Visual (Wan 2.1)" : "Visual Generation"}</h3>
-              <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
-                {isPt ? "O estado-da-arte em Image-to-Video funde o áudio com animações de tirar o fôlego do seu produto, renderizando a campanha final." : "State-of-the-art Image-to-Video merges the audio with breathtaking animations of your product, rendering the final campaign."}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Feature Bento Grid */}
-        <section id="features" className="w-full bg-zinc-50 dark:bg-zinc-900/20 py-24 border-y border-zinc-100 dark:border-zinc-900">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="mb-16 md:text-center max-w-3xl mx-auto">
-              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
-                {isPt ? "Tudo que uma agência faz." : "Everything an agency does."} <br className="hidden md:block"/> {isPt ? "Em uma tela." : "On one screen."}
-              </h2>
-            </div>
-
-            <div className="grid md:grid-cols-4 gap-4">
-              <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-700 transition-colors overflow-hidden relative">
-                <Video className="h-8 w-8 text-violet-500 mb-6" />
-                <h3 className="text-2xl font-bold mb-3">{isPt ? "Vídeos de Alta Retenção" : "High Retention Videos"}</h3>
-                <p className="text-zinc-500 dark:text-zinc-400 mb-8">{isPt ? "Gere materiais dinâmicos focados no primeiro segundo (Hook), retendo a audiência nos Reels e TikTok." : "Generate dynamic materials focused on the first second (Hook), retaining audiences on Reels and TikTok."}</p>
-              </div>
-              
-              <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-                <Volume2 className="h-8 w-8 text-blue-500 mb-6" />
-                <h3 className="text-2xl font-bold mb-3">{isPt ? "Áudio Profissional" : "Professional Audio"}</h3>
-                <p className="text-zinc-500 dark:text-zinc-400">{isPt ? "Integração direta com os melhores modelos de TTS do mercado. Vozes reais, entonação perfeita." : "Direct integration with the best TTS models on the market. Real voices, perfect intonation."}</p>
-              </div>
-
-              <div className="md:col-span-1 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800">
-                <Target className="h-8 w-8 text-emerald-500 mb-6" />
-                <h3 className="text-xl font-bold mb-3">{isPt ? "Direto ao Alvo" : "Right on Target"}</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">{isPt ? "Estratégias customizadas por objetivo (Vendas, Brand Awareness)." : "Custom strategies by objective (Sales, Awareness)."}</p>
-              </div>
-
-              <div className="md:col-span-2 bg-zinc-900 dark:bg-zinc-950 rounded-3xl p-8 border border-zinc-800 text-white relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 w-32 h-32 bg-violet-600 rounded-full blur-3xl opacity-30" />
-                <BarChart3 className="h-8 w-8 text-violet-400 mb-6" />
-                <h3 className="text-2xl font-bold mb-3">{isPt ? "Testes A/B Ilimitados" : "Unlimited A/B Testing"}</h3>
-                <p className="text-zinc-400">{isPt ? "Gere dezenas de variações do mesmo produto para testar no Meta Ads e descobrir o criativo campeão." : "Generate dozens of variations to test on Meta Ads and find the winning creative."}</p>
-              </div>
-
-              <div className="md:col-span-1 bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800">
-                <Fingerprint className="h-8 w-8 text-amber-500 mb-6" />
-                <h3 className="text-xl font-bold mb-3">{isPt ? "Segurança Legal" : "Legal Security"}</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">{isPt ? "Filtros de conteúdo e proteção de direitos (AI Guardrails)." : "Content filters and rights protection (AI Guardrails)."}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing */}
-        <section id="pricing" className="w-full max-w-7xl px-6 py-24 md:py-32">
-          <div className="mb-16 md:text-center max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 dark:text-white mb-6">
-              {isPt ? "Invista no seu crescimento." : "Invest in your growth."}
-            </h2>
-            <p className="text-lg text-zinc-500 dark:text-zinc-400 font-medium">
-              {isPt ? "Pague apenas pelos créditos que usar ou assine para escalar infinito." : "Pay only for the credits you use or subscribe to scale infinitely."}
+            <h1 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl animate-in fade-in slide-in-from-bottom-3 duration-700">
+              {t.h1a}<br /><span className="text-brand">{t.h1b}</span>
+            </h1>
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground animate-in fade-in slide-in-from-bottom-3 duration-700 delay-100 fill-mode-backwards">
+              {t.sub}
             </p>
+            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row animate-in fade-in slide-in-from-bottom-3 duration-700 delay-150 fill-mode-backwards">
+              <Link href={primaryHref} className={buttonClass("brand", "lg")}>{primaryLabel} <ArrowRight className="h-4 w-4" /></Link>
+              <a href="#como-funciona" className={buttonClass("outline", "lg")}>{t.how}</a>
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {visiblePlans.map((plan: any, i: number) => (
-              <div key={plan.id || i} className={`bg-white dark:bg-zinc-900 rounded-3xl p-8 border ${plan.isFeatured ? 'border-violet-500 dark:border-violet-500 ring-4 ring-violet-500/10' : 'border-zinc-200 dark:border-zinc-800'} relative flex flex-col`}>
-                {plan.isFeatured && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                    {isPt ? "MAIS POPULAR" : "MOST POPULAR"}
-                  </div>
+          <div className="mx-auto mt-16 max-w-5xl animate-in fade-in slide-in-from-bottom-6 duration-700 delay-300 fill-mode-backwards">
+            <ProductPreview isPt={isPt} />
+          </div>
+        </section>
+
+        {/* Como funciona */}
+        <section id="como-funciona" className="scroll-mt-20 border-t border-border bg-muted/30 px-4 py-20 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <motion.h2 {...fade} className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">{t.howTitle}</motion.h2>
+            <div className="mt-12 grid gap-4 md:grid-cols-3">
+              {t.steps.map((s, i) => {
+                const Icon = [Upload, Wand2, Check][i];
+                return (
+                  <motion.div key={s.t} {...fade} transition={{ ...fade.transition, delay: i * 0.08 }} className="surface p-6">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-brand"><Icon className="h-4 w-4" /></span>
+                      <span className="text-sm font-medium text-muted-foreground">0{i + 1}</span>
+                    </div>
+                    <h3 className="mt-5 text-lg font-semibold">{s.t}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.d}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Recursos */}
+        <section id="recursos" className="scroll-mt-20 px-4 py-20 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <motion.h2 {...fade} className="text-3xl font-semibold tracking-tight sm:text-4xl">{t.featTitle}</motion.h2>
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {t.feats.map((f, i) => (
+                <motion.div key={f.t} {...fade} transition={{ ...fade.transition, delay: (i % 3) * 0.06 }} className="surface p-6 transition hover:border-brand/40">
+                  <f.icon className="h-5 w-5 text-brand" />
+                  <h3 className="mt-4 font-semibold">{f.t}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.d}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Preços */}
+        {cardCount > 0 && (
+          <section id="precos" className="scroll-mt-20 border-t border-border bg-muted/30 px-4 py-20 sm:px-6">
+            <div className="mx-auto max-w-6xl">
+              <motion.div {...fade} className="max-w-2xl">
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t.priceTitle}</h2>
+                <p className="mt-3 text-muted-foreground">{t.priceSub(costs.image, costs.video)}</p>
+              </motion.div>
+              <div className={`mt-12 grid gap-4 md:grid-cols-2 ${cardCount >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+                {showFreePlan && (
+                  <motion.div {...fade} className="surface relative flex flex-col p-6">
+                    <h3 className="text-lg font-semibold">{t.free.name}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{t.free.description}</p>
+                    <p className="mt-5 text-4xl font-semibold tracking-tight">{t.free.price}</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><Coins className="h-4 w-4" /> {signupCredits} {t.credits}</p>
+                    <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+                      {t.free.features(signupCredits, costs.image).map((f) => <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>)}
+                    </ul>
+                    <Link href={loggedIn ? "/dashboard" : "/signup"} className={`${buttonClass("outline", "lg")} mt-6 w-full`}>{t.free.cta}</Link>
+                  </motion.div>
                 )}
-                <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                <div className="mb-6">
-                  <span className="text-4xl font-black">{isPt ? `R$${plan.price_brl}` : `$${plan.price_usd}`}</span>
-                  <span className="text-zinc-500 dark:text-zinc-400">/mês</span>
-                </div>
-                <ul className="space-y-4 mb-8 flex-1">
-                  <li className="flex items-center gap-3 text-sm font-medium">
-                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
-                    {plan.credits} {isPt ? "Créditos IA" : "AI Credits"}
-                  </li>
-                  <li className="flex items-center gap-3 text-sm font-medium">
-                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
-                    {isPt ? "Vídeos Wan 2.1 e Imagens" : "Wan 2.1 Videos & Images"}
-                  </li>
-                  <li className="flex items-center gap-3 text-sm font-medium">
-                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
-                    {isPt ? "Locução ElevenLabs" : "ElevenLabs Voiceover"}
-                  </li>
-                  <li className="flex items-center gap-3 text-sm font-medium">
-                    <CheckCircle2 className="h-5 w-5 text-violet-500" />
-                    {isPt ? "Suporte Prioritário" : "Priority Support"}
-                  </li>
-                </ul>
-                <Link href="/login" className="w-full">
-                  <Button className={`w-full rounded-xl h-12 font-bold ${plan.isFeatured ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white'}`}>
-                    {isPt ? "Assinar Agora" : "Subscribe Now"}
-                  </Button>
-                </Link>
+                {paidPlans.map((p) => {
+                  const price = isPt ? p.price_brl : p.price_usd;
+                  const features = (isPt ? p.features_pt : p.features_en).filter((f) => f.trim());
+                  return (
+                    <motion.div key={p.id} {...fade} className={`surface relative flex flex-col p-6 ${p.isFeatured ? "border-brand ring-1 ring-brand" : ""}`}>
+                      {p.isFeatured && <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">{t.popular}</span>}
+                      <h3 className="text-lg font-semibold">{p.name}</h3>
+                      {p.description && <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>}
+                      <p className="mt-5 text-4xl font-semibold tracking-tight">{money(price)}</p>
+                      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><Coins className="h-4 w-4" /> {p.credits.toLocaleString(isPt ? "pt-BR" : "en-US")} {t.credits}</p>
+                      <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+                        {features.map((f) => <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>)}
+                      </ul>
+                      <Link href={loggedIn ? "/billing" : "/signup"} className={`${buttonClass(p.isFeatured ? "brand" : "primary", "lg")} mt-6 w-full`}>{t.buy}</Link>
+                    </motion.div>
+                  );
+                })}
               </div>
-            ))}
+            </div>
+          </section>
+        )}
+
+        {/* FAQ */}
+        <section id="duvidas" className="scroll-mt-20 px-4 py-20 sm:px-6">
+          <div className="mx-auto max-w-3xl">
+            <motion.h2 {...fade} className="text-3xl font-semibold tracking-tight sm:text-4xl">{t.faqTitle}</motion.h2>
+            <div className="mt-10 divide-y divide-border border-y border-border">
+              {t.faq.map(([q, a]) => (
+                <details key={q} className="group py-5">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
+                    {q}
+                    <span className="text-muted-foreground transition group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{a}</p>
+                </details>
+              ))}
+            </div>
           </div>
         </section>
 
+        {/* CTA final */}
+        <section className="px-4 pb-24 sm:px-6">
+          <motion.div {...fade} className="mx-auto flex max-w-4xl flex-col items-center rounded-3xl border border-border bg-card px-6 py-14 text-center">
+            <PixelMascot mood="happy" size={64} />
+            <h2 className="mt-6 max-w-xl text-3xl font-semibold tracking-tight">{t.finalTitle}</h2>
+            <Link href={primaryHref} className={`${buttonClass("brand", "lg")} mt-8`}>{primaryLabel} <ArrowRight className="h-4 w-4" /></Link>
+          </motion.div>
+        </section>
       </main>
 
-      {/* Footer */}
-      <footer className="w-full bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 py-12 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <img src="/logo-icon.png" alt="Vysify Logo" className="h-8 opacity-80" />
-            <span className="font-bold text-lg">Vysify</span>
+      <footer className="border-t border-border px-4 py-10 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-muted-foreground md:flex-row">
+          <Logo />
+          <div className="flex gap-6">
+            <Link href="/legal/terms" className="hover:text-foreground">{t.footer.terms}</Link>
+            <Link href="/legal/privacy" className="hover:text-foreground">{t.footer.privacy}</Link>
+            <a href="mailto:suporte@vysify.com" className="hover:text-foreground">{t.footer.support}</a>
           </div>
-          <div className="flex gap-6 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            <Link href="/legal/terms" className="hover:text-violet-600 transition-colors">Termos de Uso</Link>
-            <Link href="/legal/privacy" className="hover:text-violet-600 transition-colors">Privacidade (LGPD)</Link>
-            <a href="mailto:contato@vysify.com" className="hover:text-violet-600 transition-colors">Suporte</a>
-          </div>
-          <p className="text-zinc-400 text-sm">© {new Date().getFullYear()} Vysify AI. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} Vysify. {t.footer.rights}</p>
         </div>
       </footer>
-
     </div>
+  );
+}
+
+/** Ilustração do fluxo (sem screenshots ou marcas inventadas). */
+function ProductPreview({ isPt }: { isPt: boolean }) {
+  const cards = [
+    { ratio: "aspect-[4/5]", grad: "from-violet-500/30 via-fuchsia-400/20 to-amber-200/30", h: isPt ? "Seu café quente por 12h" : "Coffee hot for 12h", tag: "Feed 4:5" },
+    { ratio: "aspect-[9/16]", grad: "from-sky-500/30 via-violet-400/20 to-emerald-200/30", h: isPt ? "Leve para qualquer trilha" : "Take it on any trail", tag: "Reels 9:16", video: true },
+    { ratio: "aspect-square", grad: "from-amber-400/30 via-rose-300/20 to-violet-300/30", h: isPt ? "Oferta só até domingo" : "Sale ends Sunday", tag: "Ads 1:1" },
+  ];
+  return (
+    <div className="relative rounded-3xl border border-border bg-card/70 p-3 shadow-2xl shadow-brand/10 backdrop-blur sm:p-4">
+      <div className="absolute -top-[30px] right-10 hidden sm:block"><PixelMascot mood="working" size={40} /></div>
+      <div className="grid items-center gap-4 rounded-2xl bg-muted/50 p-4 sm:grid-cols-[180px_auto_1fr] sm:p-6">
+        <div className="mx-auto w-40 sm:w-full">
+          <div className="flex aspect-square items-center justify-center rounded-2xl border border-dashed border-border bg-background">
+            <ProductGlyph />
+          </div>
+          <p className="mt-2 text-center text-xs text-muted-foreground">{isPt ? "Sua foto" : "Your photo"}</p>
+        </div>
+        <ArrowRight className="mx-auto h-5 w-5 rotate-90 text-brand sm:rotate-0" />
+        <div className="grid grid-cols-3 items-end gap-3">
+          {cards.map((c) => (
+            <div key={c.tag} className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+              <div className={`relative ${c.ratio} bg-gradient-to-br ${c.grad} flex items-center justify-center`}>
+                <ProductGlyph small />
+                {c.video && <span className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">▶ 0:05</span>}
+              </div>
+              <div className="p-2 sm:p-3">
+                <p className="truncate text-[11px] font-semibold sm:text-xs">{c.h}</p>
+                <p className="text-[10px] text-muted-foreground">{c.tag}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductGlyph({ small }: { small?: boolean }) {
+  return (
+    <svg viewBox="0 0 40 64" className={small ? "h-1/2" : "h-24"} aria-hidden="true">
+      <rect x="12" y="2" width="16" height="7" rx="2" className="fill-zinc-700 dark:fill-zinc-300" />
+      <rect x="8" y="8" width="24" height="54" rx="7" className="fill-zinc-800 dark:fill-zinc-200" />
+      <rect x="8" y="26" width="24" height="12" className="fill-violet-500" />
+      <rect x="12" y="12" width="3" height="40" rx="1.5" className="fill-white/25" />
+    </svg>
   );
 }

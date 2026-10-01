@@ -1,13 +1,14 @@
-import { getRequestConfig } from 'next-intl/server';
-import { cookies } from 'next/headers';
+import { getRequestConfig } from "next-intl/server";
+import { cookies, headers } from "next/headers";
+import { isLocale, pickLocale } from "./lib/locale";
 
 export default getRequestConfig(async () => {
-  // Ler o idioma dos cookies. Se não tiver, usar 'pt' como fallback
-  const cookieStore = await cookies();
-  const locale = cookieStore.get('NEXT_LOCALE')?.value || 'pt';
+  const cookieLocale = (await cookies()).get("NEXT_LOCALE")?.value;
+  // Só aceitamos idiomas suportados: um cookie adulterado não consegue importar arquivos arbitrários.
+  const locale = isLocale(cookieLocale) ? cookieLocale : pickLocale((await headers()).get("accept-language"));
 
   return {
     locale,
-    messages: (await import(`./messages/${locale}.json`)).default
+    messages: (await import(`./messages/${locale}.json`)).default,
   };
 });

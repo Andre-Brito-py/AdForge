@@ -1,35 +1,17 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { db } from "@/lib/db";
 import speakeasy from "speakeasy";
 import qrcode from "qrcode";
+import { db } from "@/lib/db";
+import { handler, HttpError } from "@/lib/api";
+import { requireApiUser } from "@/lib/auth";
 
-export async function POST() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = handler(async () => {
+  const user = await requireApiUser();
+  // Não sobrescreve o segredo de um 2FA já ativo (isso trancaria o usuário fora da conta).
+  if (user.twoFactorEnabled) throw new HttpError(409, "O 2FA já está ativo. Desative antes de configurar de novo.");
 
-  const user = await db.user.findUnique({ where: { id: session.user.id } });
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-
-  // Gerar secret
-  const secret = speakeasy.generateSecret({
-    name: `Vysify (${user.email})`
-  });
-
-  // Salvar secret no banco (mas ainda NÃO habilitar o 2FA, aguardar verificação)
-  await db.user.update({
-    where: { id: user.id },
-    data: { twoFactorSecret: secret.base32 }
-  });
-
-  // Gerar QR Code
+  const secret = speakeasy.generateSecret({ name: `Vysify (${user.email})` });
+  await db.user.update({ where: { id: user.id }, data: { twoFactorSecret: secret.base32 } });
   const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url!);
-
-  return NextResponse.json({
-    qrCodeUrl,
-    secret: secret.base32
-  });
-}
+  return NextResponse.json({ qrCodeUrl, secret: secret.base32 });
+});

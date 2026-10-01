@@ -1,85 +1,63 @@
 import { NextResponse } from "next/server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
-import { db } from "@/lib/db";
-import crypto from "crypto";
+import { getAppConfig } from "@/lib/config";
+import { recordPurchase } from "@/lib/payments";
+import { verifyMercadoPagoSignature } from "@/lib/mercadopago-signature";
 
 export async function POST(request: Request) {
+  const config = await getAppConfig();
+  const { mercadoPagoAccessToken, mercadoPagoWebhookSecret } = config.secrets;
+  if (!mercadoPagoAccessToken) return NextResponse.json({ error: "Mercado Pago não configurado" }, { status: 503 });
+
+  const url = new URL(request.url);
+  const body = await request.json().catch(() => ({}));
+  const type = body?.type || url.searchParams.get("type") || url.searchParams.get("topic");
+  const paymentId = String(url.searchParams.get("data.id") || body?.data?.id || "");
+
+  if (mercadoPagoWebhookSecret) {
+    const valid = verifyMercadoPagoSignature({
+      secret: mercadoPagoWebhookSecret,
+      signatureHeader: request.headers.get("x-signature"),
+      requestId: request.headers.get("x-request-id"),
+      dataId: paymentId,
+      maxAgeSeconds: 60 * 60,
+    });
+    if (!valid) return NextResponse.json({ error: "Assinatura inválida" }, { status: 401 });
+  } else if (process.env.NODE_ENV === "production") {
+    console.warn("[mercadopago] MERCADOPAGO_WEBHOOK_SECRET não configurado: assinatura não verificada.");
+  }
+
+  if (type !== "payment" || !paymentId) return NextResponse.json({ received: true });
+
   try {
-    const url = new URL(request.url);
-    const action = url.searchParams.get("topic") || url.searchParams.get("type");
-    
-    // MP envia notificações de várias formas, a mais comum hoje é com data.id no body para payments
-    const body = await request.json();
+    // Sempre buscamos o pagamento na API do MP: nunca confiamos no corpo da notificação.
+    const payment = await new Payment(new MercadoPagoConfig({ accessToken: mercadoPagoAccessToken })).get({ id: paymentId });
+    if (payment.status !== "approved") return NextResponse.json({ received: true, status: payment.status });
 
-    const config = await db.systemConfig.findUnique({ where: { id: "global" } });
-    if (!config?.mercadoPagoAccessToken) {
-      return NextResponse.json({ error: "Mercado Pago not configured" }, { status: 400 });
+    const m = (payment.metadata || {}) as Record<string, unknown>;
+    const credits = Number(m.credits || 0);
+    const userId = typeof m.user_id === "string" ? m.user_id : null;
+    const workspaceId = typeof m.workspace_id === "string" ? m.workspace_id : null;
+    if (!userId || !workspaceId || !Number.isInteger(credits) || credits <= 0) {
+      console.error("[mercadopago] pagamento sem metadata esperada", paymentId);
+      return NextResponse.json({ received: true, ignored: true });
     }
 
-    // Opcional: Validar assinatura se MP Webhook Secret estiver configurado (x-signature)
-    // Para MVP, vamos confiar no fetch direto da API usando o ID recebido (seguro contra spoofing)
-
-    const paymentId = body?.data?.id || body?.id;
-    const type = body?.type || action;
-
-    if (type === "payment" && paymentId) {
-      const client = new MercadoPagoConfig({ accessToken: config.mercadoPagoAccessToken });
-      const paymentClient = new Payment(client);
-      
-      const payment = await paymentClient.get({ id: paymentId });
-
-      if (payment.status === "approved") {
-        const metadata = payment.metadata; // MP converte metadata snake_case ou ignora
-        // Algumas vezes a metadata não vem tipada, vamos extrair do external_reference ou metadata original
-        // No checkout enviamos metadata = { user_id, workspace_id, credits, plan_id }
-        
-        const userId = metadata?.user_id;
-        const workspaceId = metadata?.workspace_id;
-        const credits = parseInt(metadata?.credits || "0", 10);
-        const planId = metadata?.plan_id;
-
-        if (userId && workspaceId && credits > 0) {
-          // Verificar se já processamos (evitar duplicação do MP)
-          const txName = `MP_${paymentId}`;
-          const existing = await db.creditTransaction.findFirst({
-            where: { description: { contains: txName } }
-          });
-
-          if (!existing) {
-            // 1. Criar transação de crédito
-            await db.creditTransaction.create({
-              data: {
-                userId,
-                workspaceId,
-                amount: credits,
-                type: "PURCHASE",
-                description: `Compra do Plano ${planId} via Mercado Pago [${txName}]`
-              }
-            });
-
-            // 2. Atualizar saldo
-            await db.creditBalance.upsert({
-              where: { workspaceId },
-              update: { balance: { increment: credits } },
-              create: { workspaceId, userId, balance: credits }
-            });
-
-            // 3. Enviar E-mail de Recibo
-            const user = await db.user.findUnique({ where: { id: userId }});
-            if (user && user.email) {
-              import("@/services/email").then(({ sendPurchaseReceipt }) => {
-                sendPurchaseReceipt(user.email, user.name || "", planId || "Premium", credits);
-              }).catch(console.error);
-            }
-          }
-        }
-      }
-    }
-
-    return NextResponse.json({ received: true });
-  } catch (error: any) {
-    console.error("Mercado Pago Webhook Failed:", error);
-    // Sempre retornar 200 pro MP parar de enviar
-    return NextResponse.json({ received: true, error: error.message }, { status: 200 });
+    const result = await recordPurchase({
+      provider: "MERCADOPAGO",
+      externalId: String(payment.id),
+      userId,
+      workspaceId,
+      planId: typeof m.plan_id === "string" ? m.plan_id : null,
+      planName: typeof m.plan_name === "string" ? m.plan_name : "Créditos",
+      credits,
+      amount: payment.transaction_amount || 0,
+      currency: payment.currency_id || "BRL",
+    });
+    return NextResponse.json({ received: true, result });
+  } catch (error) {
+    console.error("[mercadopago] falha ao processar", error);
+    // 500 faz o MP tentar de novo; o crédito é idempotente.
+    return NextResponse.json({ error: "Falha ao processar" }, { status: 500 });
   }
 }

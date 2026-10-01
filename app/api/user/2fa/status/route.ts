@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { db } from "@/lib/db";
+import { handler } from "@/lib/api";
+import { requireApiUser } from "@/lib/auth";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ enabled: false }, { status: 401 });
-  }
-
-  const user = await db.user.findUnique({ where: { id: session.user.id } });
-  
-  return NextResponse.json({
-    enabled: user?.twoFactorEnabled || false
-  });
-}
+export const GET = handler(async () => {
+  const user = await requireApiUser();
+  return NextResponse.json({ enabled: user.twoFactorEnabled });
+});

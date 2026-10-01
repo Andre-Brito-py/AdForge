@@ -1,0 +1,32 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { enforceRateLimit, handler, HttpError, parseBody } from "@/lib/api";
+import { registerSchema } from "@/lib/validation";
+import { hashPassword } from "@/lib/password";
+import { createUserWithWorkspace } from "@/lib/users";
+import { issueAuthToken } from "@/lib/auth-tokens";
+import { sendVerificationEmail, sendWelcomeEmail } from "@/services/email";
+
+export const POST = handler(async (request: Request) => {
+  await enforceRateLimit(request, "register", 5, 60 * 60);
+  const data = await parseBody(request, registerSchema);
+
+  const existing = await db.user.findUnique({ where: { email: data.email } });
+  if (existing) {
+    throw new HttpError(409, "Já existe uma conta com este e-mail. Faça login ou recupere sua senha.", "EMAIL_TAKEN");
+  }
+
+  const { user } = await createUserWithWorkspace({
+    email: data.email,
+    name: data.name,
+    passwordHash: await hashPassword(data.password),
+  });
+
+  const token = await issueAuthToken(user.id, "VERIFY_EMAIL");
+  await Promise.all([
+    sendVerificationEmail(user.email, user.name || "", token),
+    sendWelcomeEmail(user.email, user.name || ""),
+  ]);
+
+  return NextResponse.json({ success: true }, { status: 201 });
+});

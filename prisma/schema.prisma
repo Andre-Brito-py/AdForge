@@ -9,46 +9,144 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
+  id                  String    @id @default(uuid())
+  email               String    @unique
   name                String?
   image               String?
+  passwordHash        String?
+  emailVerified       DateTime?
   role                String    @default("USER") // USER ou SUPERADMIN
   onboardingCompleted Boolean   @default(false)
+  onboardingRole      String?
+  onboardingGoal      String?
   twoFactorSecret     String?
   twoFactorEnabled    Boolean   @default(false)
+  // Incrementado na troca de senha / logout global: invalida sessões antigas
+  sessionVersion      Int       @default(0)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  notifyOnComplete    Boolean   @default(true)
+  marketingOptIn      Boolean   @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  workspaces        WorkspaceMember[]
-  creditBalances    CreditBalance[]
+  workspaces         WorkspaceMember[]
+  creditBalances     CreditBalance[]
   creditTransactions CreditTransaction[]
-  usageRecords      UsageRecord[]
+  usageRecords       UsageRecord[]
+  authTokens         AuthToken[]
+  payments           Payment[]
+}
+
+model AuthToken {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String // VERIFY_EMAIL, RESET_PASSWORD
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
 }
 
 model Workspace {
-  id          String   @id @default(uuid())
-  name        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  members     WorkspaceMember[]
-  products    Product[]
-  campaigns   Campaign[]
+  members       WorkspaceMember[]
+  products      Product[]
+  campaigns     Campaign[]
   creditBalance CreditBalance?
+  brandKit      BrandKit?
+  connections   Connection[]
+  publications  Publication[]
+}
+
+// Conta externa conectada por OAuth (Meta, e no futuro Mercado Livre, Nuvemshop...)
+model Connection {
+  id             String    @id @default(uuid())
+  workspaceId    String
+  provider       String // META, MERCADOLIVRE, NUVEMSHOP
+  externalUserId String // id do usuário (Meta/ML) ou da loja (Nuvemshop)
+  displayName    String?
+  accessToken    String // criptografado (lib/crypto.ts)
+  refreshToken   String? // criptografado; o do Mercado Livre é de uso único e rotaciona
+  tokenExpiresAt DateTime?
+  scopes         String?
+  // Lista NÃO secreta de destinos (páginas, contas do Instagram) para exibir na UI
+  assetsJson     String?
+  status         String    @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  publications Publication[]
+
+  @@unique([workspaceId, provider])
+  @@index([provider, externalUserId])
+}
+
+model Publication {
+  id            String   @id @default(uuid())
+  workspaceId   String
+  creativeId    String
+  connectionId  String?
+  provider      String // META, MERCADOLIVRE, NUVEMSHOP
+  // INSTAGRAM_FEED, INSTAGRAM_REELS, INSTAGRAM_STORY, FACEBOOK_PAGE, MERCADOLIVRE_ITEM, NUVEMSHOP_PRODUCT
+  target        String
+  accountId     String // conta do Instagram, Página, anúncio do ML ou produto da Nuvemshop
+  accountName   String?
+  caption       String?
+  optionsJson   String? // ex.: {"asCover": true} para lojas
+  status        String   @default("PENDING") // PENDING, PROCESSING, PUBLISHED, FAILED
+  containerId   String? // container do Instagram (vídeos são processados de forma assíncrona)
+  externalId    String? // id do post publicado
+  permalink     String?
+  error         String?
+  attempts      Int      @default(0)
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creative   Creative    @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  connection Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  @@index([creativeId])
+  @@index([status, updatedAt])
 }
 
 model WorkspaceMember {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String
   workspaceId String
-  role        String    @default("MEMBER")
-  createdAt   DateTime  @default(now())
+  role        String   @default("MEMBER")
+  createdAt   DateTime @default(now())
 
-  user        User      @relation(fields: [userId], references: [id])
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model BrandKit {
+  id           String   @id @default(uuid())
+  workspaceId  String   @unique
+  brandName    String?
+  primaryColor String?
+  tone         String?
+  website      String?
+  logoUrl      String?
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model Product {
@@ -65,114 +163,183 @@ model Product {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  workspace        Workspace @relation(fields: [workspaceId], references: [id])
-  campaigns        Campaign[]
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@index([workspaceId, createdAt])
 }
 
 model Campaign {
   id             String   @id @default(uuid())
   workspaceId    String
   productId      String
+  userId         String?
   name           String
-  objective      String   // SELL, PROMOTION, LAUNCH, AWARENESS, ENGAGEMENT
-  tone           String   // Profissional, Minimalista, etc.
+  objective      String
+  tone           String
   targetAudience String?
   offer          String?
   platform       String?
   format         String?
   style          String?
+  quality        String   @default("standard")
   variations     Int      @default(3)
-  status         String   // DRAFT, GENERATING, COMPLETED, FAILED
+  strategyJson   String?
+  creditsCharged Int      @default(0)
+  notifiedAt     DateTime?
+  status         String // GENERATING, COMPLETED, PARTIAL, FAILED
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  workspace      Workspace @relation(fields: [workspaceId], references: [id])
-  product        Product   @relation(fields: [productId], references: [id])
-  creatives      Creative[]
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  creatives Creative[]
+
+  @@index([workspaceId, createdAt])
+  @@index([status])
 }
 
 model Creative {
   id           String   @id @default(uuid())
   campaignId   String
-  type         String   // IMAGE, VIDEO, COPY
-  provider     String   // Gemini, OVI, etc.
-  model        String   // Nome técnico do modelo
+  type         String // IMAGE, VIDEO, COPY
+  variantIndex Int      @default(0)
+  provider     String
+  model        String
   prompt       String?
+  headline     String?
+  text         String?
+  cta          String?
   outputUrl    String?
+  audioUrl     String?
   thumbnailUrl String?
-  aspectRatio  String?  // 1:1, 9:16, 4:5
+  aspectRatio  String?
   width        Int?
   height       Int?
   duration     Int?
   creditsUsed  Int      @default(0)
-  status       String   // QUEUED, PROCESSING, COMPLETED, FAILED
+  status       String // QUEUED, PROCESSING, COMPLETED, FAILED
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  campaign     Campaign @relation(fields: [campaignId], references: [id])
+  campaign     Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   job          GenerationJob?
+  publications Publication[]
+
+  @@index([campaignId])
+}
+
+model GenerationJob {
+  id           String    @id @default(uuid())
+  creativeId   String    @unique
+  status       String // PENDING, PROCESSING, COMPLETED, FAILED
+  attempts     Int       @default(0)
+  externalData String? // JSON com request_id / status_url do provedor (ex: fal.ai)
+  error        String?
+  refunded     Boolean   @default(false)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  creative Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  @@index([status, updatedAt])
 }
 
 model CreditBalance {
   id          String   @id @default(uuid())
   workspaceId String   @unique
-  userId      String?  // Opcional, caso queira amarrar ao user no MVP ao invés do workspace
+  userId      String?
   balance     Int      @default(0)
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  user        User?     @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model CreditTransaction {
   id          String   @id @default(uuid())
   userId      String
   workspaceId String
-  amount      Int      // Positivo (compra/refund) ou Negativo (consumo)
-  type        String   // CONSUME, REFUND, PURCHASE, BONUS
+  amount      Int // Positivo (compra/refund/bônus) ou Negativo (consumo)
+  type        String // CONSUME, REFUND, PURCHASE, BONUS, ADJUSTMENT
   description String?
+  referenceId String?
   createdAt   DateTime @default(now())
 
-  user        User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([referenceId])
 }
 
-model GenerationJob {
+model Payment {
   id          String   @id @default(uuid())
-  creativeId  String   @unique
-  status      String   // PENDING, PROCESSING, COMPLETED, FAILED
-  error       String?
-  startedAt   DateTime?
-  completedAt DateTime?
+  provider    String // STRIPE, MERCADOPAGO
+  externalId  String // id da sessão (Stripe) ou do pagamento (MP)
+  // Opcional: registros de pagamento são mantidos (obrigação fiscal) mesmo se a conta for excluída
+  userId      String?
+  workspaceId String
+  planId      String?
+  credits     Int
+  amount      Float
+  currency    String
+  status      String   @default("APPROVED")
   createdAt   DateTime @default(now())
 
-  creative    Creative @relation(fields: [creativeId], references: [id])
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Garante idempotência: o mesmo pagamento nunca credita duas vezes
+  @@unique([provider, externalId])
+  @@index([createdAt])
 }
 
 model UsageRecord {
   id            String   @id @default(uuid())
   userId        String
-  operation     String   // IMAGE_STANDARD, VIDEO_OVI_5S
+  operation     String
   provider      String
   model         String
   credits       Int
-  estimatedCost Float  // Custo em USD
+  estimatedCost Float
   createdAt     DateTime @default(now())
 
-  user          User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model RateLimit {
+  key         String   @id
+  count       Int
+  windowStart DateTime
 }
 
 model SystemConfig {
-  id                       String   @id @default("global") // Single row pattern
+  id                       String   @id @default("global")
+  // Segredos abaixo são armazenados criptografados (AES-256-GCM, ver lib/crypto.ts)
   geminiKey                String?
-  openAiKey                String?  // Chave da OpenAI para backup de texto/imagem/voz
-  oviKey                   String?  // Legado
-  wanKey                   String?  // Chave para Wan 2.1 (Video Gen / S2V)
-  elevenLabsKey            String?  // Chave para ElevenLabs (TTS PT-BR)
+  openAiKey                String?
+  oviKey                   String? // Legado
+  wanKey                   String? // Chave fal.ai (Wan image-to-video)
+  elevenLabsKey            String?
   stripeSecretKey          String?
   stripeWebhookSecret      String?
   mercadoPagoAccessToken   String?
   mercadoPagoWebhookSecret String?
-  aiCostsJson              String?  // Armazena custos em moedas (ex: image: 3, video: 10)
-  plansJson                String?  // Armazena os planos em R$ e qual é destaque
+  metaAppId                String?
+  metaAppSecret            String?
+  mercadoLivreAppId        String?
+  mercadoLivreSecret       String?
+  nuvemshopAppId           String?
+  nuvemshopSecret          String?
+  aiCostsJson             String?
+  plansJson                String?
+  modelsJson               String?
+  // Ofertas de teste grátis: tudo desligado até o super admin ativar
+  freeTrialEnabled         Boolean  @default(false) // dá signupCredits no cadastro
+  freePlanVisible          Boolean  @default(false) // mostra o card "Grátis" na landing
+  signupCredits            Int      @default(30)
   updatedAt                DateTime @updatedAt
 }

@@ -1,0 +1,563 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { BarChart3, Copy, CreditCard, Gift, KeyRound, Plug, Loader2, Package, Plus, Save, Search, Trash2, Users } from "lucide-react";
+import { toast } from "sonner";
+import { buttonClass } from "@/components/app/ui-bits";
+import { formatDateTime, formatMoney } from "@/lib/format";
+
+type SecretInfo = { configured: boolean; hint: string | null; source: "painel" | "env" | null };
+interface Plan {
+  id: string; name: string; description?: string | null; price_brl: number; price_usd: number; price_eur?: number | null;
+  credits: number; isFeatured?: boolean; isFree?: boolean; isHidden?: boolean; features_pt: string[]; features_en: string[];
+}
+interface ConfigResponse {
+  secrets: Record<string, SecretInfo>;
+  costs: { image: number; video: number; premiumMultiplier: number };
+  models: Record<string, string>;
+  defaultModels: Record<string, string>;
+  plans: Plan[];
+  freeTrial: { enabled: boolean; credits: number; planVisible: boolean };
+}
+
+async function api(url: string, method = "GET", body?: unknown) {
+  const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Erro na requisição");
+  return data;
+}
+
+const TABS = [
+  { id: "overview", label: "Visão geral", icon: BarChart3 },
+  { id: "users", label: "Usuários", icon: Users },
+  { id: "ai", label: "IA e custos", icon: KeyRound },
+  { id: "plans", label: "Pacotes", icon: Package },
+  { id: "trial", label: "Teste grátis", icon: Gift },
+  { id: "payments", label: "Pagamentos", icon: CreditCard },
+  { id: "integrations", label: "Integrações", icon: Plug },
+] as const;
+
+export function AdminClient({ baseUrl }: { baseUrl: string }) {
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
+  const [config, setConfig] = useState<ConfigResponse | null>(null);
+
+  const reload = useCallback(() => api("/api/admin/config").then(setConfig).catch((e) => toast.error(e.message)), []);
+  useEffect(() => { reload(); }, [reload]);
+
+  return (
+    <div className="flex flex-col gap-6 lg:flex-row">
+      <nav className="flex gap-1 overflow-x-auto lg:w-52 lg:flex-col" aria-label="Seções do admin">
+        {TABS.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
+            className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${tab === t.id ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+            <t.icon className="h-4 w-4" /> {t.label}
+          </button>
+        ))}
+      </nav>
+      <div className="min-w-0 flex-1">
+        {tab === "overview" && <Overview />}
+        {tab === "users" && <UsersTab />}
+        {tab === "ai" && (config ? <AiTab config={config} onSaved={reload} /> : <Loading />)}
+        {tab === "plans" && (config ? <PlansTab initial={config.plans} onSaved={reload} /> : <Loading />)}
+        {tab === "trial" && (config ? <TrialTab initial={config.freeTrial} onSaved={reload} /> : <Loading />)}
+        {tab === "payments" && (config ? <PaymentsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
+        {tab === "integrations" && (config ? <IntegrationsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
+      </div>
+    </div>
+  );
+}
+
+function Loading() {
+  return <div className="surface flex h-40 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+}
+
+// ---------------- Visão geral ----------------
+interface Overview {
+  users: number; newUsers30d: number; campaigns: number; creatives: number; failedJobs30d: number; estimatedAiCostUsd30d: number;
+  revenue: { currency: string; total: number; count: number }[];
+  revenue30d: { currency: string; total: number; count: number }[];
+  recentPayments: { id: string; provider: string; amount: number; currency: string; credits: number; createdAt: string; email: string }[];
+}
+
+function Overview() {
+  const [data, setData] = useState<Overview | null>(null);
+  useEffect(() => { api("/api/admin/overview").then(setData).catch((e) => toast.error(e.message)); }, []);
+  if (!data) return <Loading />;
+
+  const money = (rows: Overview["revenue"]) => rows.length ? rows.map((r) => formatMoney(r.total, r.currency)).join(" + ") : formatMoney(0);
+  const stats = [
+    ["Usuários", data.users.toLocaleString("pt-BR"), `+${data.newUsers30d} em 30 dias`],
+    ["Receita (30 dias)", money(data.revenue30d), `${data.revenue30d.reduce((a, r) => a + r.count, 0)} pagamentos`],
+    ["Receita total", money(data.revenue), `${data.revenue.reduce((a, r) => a + r.count, 0)} pagamentos`],
+    ["Custo estimado de IA (30d)", formatMoney(data.estimatedAiCostUsd30d, "USD"), "Estimativa por operação"],
+    ["Campanhas", data.campaigns.toLocaleString("pt-BR"), ""],
+    ["Criativos entregues", data.creatives.toLocaleString("pt-BR"), `${data.failedJobs30d} falhas em 30 dias`],
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {stats.map(([label, value, hint]) => (
+          <div key={label} className="surface p-5">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
+            {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+          </div>
+        ))}
+      </div>
+      <div className="surface overflow-x-auto">
+        <h3 className="border-b border-border px-5 py-3 font-semibold">Últimos pagamentos</h3>
+        {data.recentPayments.length === 0 ? <p className="p-5 text-sm text-muted-foreground">Nenhum pagamento ainda.</p> : (
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-border">
+              {data.recentPayments.map((p) => (
+                <tr key={p.id}>
+                  <td className="whitespace-nowrap px-5 py-3">{formatDateTime(p.createdAt)}</td>
+                  <td className="px-5 py-3">{p.email}</td>
+                  <td className="px-5 py-3 tabular-nums">{formatMoney(p.amount, p.currency)}</td>
+                  <td className="px-5 py-3 tabular-nums">+{p.credits} cr</td>
+                  <td className="px-5 py-3 text-muted-foreground">{p.provider === "STRIPE" ? "Stripe" : "Mercado Pago"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Usuários ----------------
+interface AdminUser { id: string; email: string; name: string | null; role: string; createdAt: string; emailVerified: boolean; twoFactorEnabled: boolean; balance: number; campaigns: number }
+
+function UsersTab() {
+  const [q, setQ] = useState("");
+  const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [adjust, setAdjust] = useState<{ user: AdminUser; amount: string; reason: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback((query: string) => api(`/api/admin/users?q=${encodeURIComponent(query)}`).then(setUsers).catch((e) => toast.error(e.message)), []);
+  useEffect(() => { const t = setTimeout(() => load(q), 250); return () => clearTimeout(t); }, [q, load]);
+
+  const submitAdjust = async () => {
+    if (!adjust) return;
+    setSaving(true);
+    try {
+      await api(`/api/admin/users/${adjust.user.id}/credits`, "POST", { amount: Number(adjust.amount), reason: adjust.reason });
+      toast.success("Saldo ajustado");
+      setAdjust(null);
+      load(q);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <input className="input-base pl-9" placeholder="Buscar por e-mail ou nome" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      {!users ? <Loading /> : (
+        <div className="surface overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr><th className="px-4 py-3 font-medium">Usuário</th><th className="px-4 py-3 font-medium">Desde</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Campanhas</th><th className="px-4 py-3 font-medium">Saldo</th><th /></tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td className="px-4 py-3"><p className="font-medium">{u.name || "—"}{u.role === "SUPERADMIN" && <span className="ml-2 rounded bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand">ADMIN</span>}</p><p className="text-xs text-muted-foreground">{u.email}</p></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDateTime(u.createdAt)}</td>
+                  <td className="px-4 py-3 text-xs">{u.emailVerified ? "E-mail ok" : "Não verificado"}{u.twoFactorEnabled ? " · 2FA" : ""}</td>
+                  <td className="px-4 py-3 tabular-nums">{u.campaigns}</td>
+                  <td className="px-4 py-3 tabular-nums">{u.balance}</td>
+                  <td className="px-4 py-3 text-right"><button onClick={() => setAdjust({ user: u, amount: "", reason: "" })} className={buttonClass("outline", "sm")}>Ajustar créditos</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {adjust && (
+        <div className="surface space-y-3 p-5">
+          <p className="font-medium">Ajustar créditos de {adjust.user.email} (saldo atual: {adjust.user.balance})</p>
+          <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
+            <input className="input-base" type="number" placeholder="+50 ou -20" value={adjust.amount} onChange={(e) => setAdjust({ ...adjust, amount: e.target.value })} />
+            <input className="input-base" placeholder="Motivo (fica no extrato do cliente)" value={adjust.reason} onChange={(e) => setAdjust({ ...adjust, reason: e.target.value })} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setAdjust(null)} className={buttonClass("ghost")}>Cancelar</button>
+            <button onClick={submitAdjust} disabled={saving || !Number(adjust.amount) || adjust.reason.length < 3} className={buttonClass("brand")}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Aplicar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------- Segredos ----------------
+function SecretField({ label, field, info, value, onChange, help }: {
+  label: string; field: string; info?: SecretInfo; value: string | null | undefined; onChange: (field: string, v: string | null | undefined) => void; help?: string;
+}) {
+  const removing = value === null;
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={field} className="label-base">{label}</label>
+        <span className={`text-xs ${info?.configured ? "text-success" : "text-muted-foreground"}`}>
+          {removing ? "será removida" : info?.configured ? `configurada ${info.hint} (${info.source === "env" ? "variável de ambiente" : "painel"})` : "não configurada"}
+        </span>
+      </div>
+      <div className="flex gap-2">
+        <input id={field} type="password" autoComplete="off" className="input-base font-mono" placeholder={info?.configured ? "Deixe em branco para manter" : "Cole a chave"}
+          value={typeof value === "string" ? value : ""} onChange={(e) => onChange(field, e.target.value || undefined)} />
+        {info?.source === "painel" && (
+          <button type="button" onClick={() => onChange(field, removing ? undefined : null)} className={buttonClass("ghost")} title="Remover chave salva no painel">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      {help && <p className="text-xs text-muted-foreground">{help}</p>}
+    </div>
+  );
+}
+
+function useSecretDraft() {
+  const [secrets, setSecrets] = useState<Record<string, string | null | undefined>>({});
+  const change = (field: string, v: string | null | undefined) => setSecrets((s) => ({ ...s, [field]: v }));
+  const payload = () => Object.fromEntries(Object.entries(secrets).filter(([, v]) => v !== undefined));
+  return { secrets, change, payload, reset: () => setSecrets({}) };
+}
+
+function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => void }) {
+  const draft = useSecretDraft();
+  const [costs, setCosts] = useState(config.costs);
+  const [models, setModels] = useState(config.models);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/config", "PUT", { secrets: draft.payload(), costs, models });
+      toast.success("Configurações salvas");
+      draft.reset();
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const modelLabels: Record<string, string> = { text: "Texto / estratégia", image: "Imagem (padrão)", imagePremium: "Imagem (premium)", video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)" };
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <h3 className="font-semibold">Chaves dos provedores</h3>
+        <p className="text-sm text-muted-foreground">Salvas criptografadas no banco. Por segurança, a chave nunca é exibida de novo, só os 4 últimos caracteres.</p>
+        <SecretField label="Google Gemini" field="geminiKey" info={config.secrets.geminiKey} value={draft.secrets.geminiKey} onChange={draft.change} help="Obrigatória para imagens e estratégia. aistudio.google.com" />
+        <SecretField label="fal.ai (vídeo Wan)" field="wanKey" info={config.secrets.wanKey} value={draft.secrets.wanKey} onChange={draft.change} help="Obrigatória para vídeos. fal.ai/dashboard/keys" />
+        <SecretField label="ElevenLabs (locução)" field="elevenLabsKey" info={config.secrets.elevenLabsKey} value={draft.secrets.elevenLabsKey} onChange={draft.change} help="Opcional: locução dos vídeos." />
+        <SecretField label="OpenAI (reserva)" field="openAiKey" info={config.secrets.openAiKey} value={draft.secrets.openAiKey} onChange={draft.change} help="Opcional: reserva para texto e locução." />
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <h3 className="font-semibold">Custos em créditos</h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <NumberField label="Imagem" value={costs.image} onChange={(v) => setCosts({ ...costs, image: v })} />
+          <NumberField label="Vídeo" value={costs.video} onChange={(v) => setCosts({ ...costs, video: v })} />
+          <NumberField label="Multiplicador Premium" value={costs.premiumMultiplier} step={0.5} onChange={(v) => setCosts({ ...costs, premiumMultiplier: v })} />
+        </div>
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <h3 className="font-semibold">Modelos</h3>
+        <p className="text-sm text-muted-foreground">Troque quando um provedor lançar uma versão nova, sem precisar de deploy.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Object.keys(modelLabels).map((k) => (
+            <div key={k} className="space-y-1.5">
+              <label className="label-base" htmlFor={`m-${k}`}>{modelLabels[k]}</label>
+              <input id={`m-${k}`} className="input-base font-mono" value={models[k] || ""} placeholder={config.defaultModels[k]} onChange={(e) => setModels({ ...models, [k]: e.target.value })} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+      </button>
+    </div>
+  );
+}
+
+function NumberField({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="label-base">{label}</label>
+      <input type="number" min={0} step={step} className="input-base tabular-nums" value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </div>
+  );
+}
+
+// ---------------- Pacotes ----------------
+function PlansTab({ initial, onSaved }: { initial: Plan[]; onSaved: () => void }) {
+  const [plans, setPlans] = useState<Plan[]>(initial);
+  const [saving, setSaving] = useState(false);
+  const update = (i: number, patch: Partial<Plan>) => setPlans((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const clean = plans.map((p) => ({ ...p, features_pt: p.features_pt.filter((f) => f.trim()), features_en: p.features_en.filter((f) => f.trim()) }));
+      await api("/api/admin/config", "PUT", { plans: clean });
+      toast.success("Pacotes salvos");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {plans.map((p, i) => (
+        <div key={i} className={`surface space-y-4 p-5 ${p.isFeatured ? "border-brand" : ""}`}>
+          <div className="flex items-center justify-between">
+            <p className="font-semibold">{p.name || "Novo pacote"}</p>
+            <button onClick={() => setPlans(plans.filter((_, j) => j !== i))} className={buttonClass("ghost", "sm")}><Trash2 className="h-3.5 w-3.5" /> Remover</button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <TextField label="ID (não mude após vender)" value={p.id} onChange={(v) => update(i, { id: v })} />
+            <TextField label="Nome" value={p.name} onChange={(v) => update(i, { name: v })} />
+            <NumberField label="Créditos" value={p.credits} onChange={(v) => update(i, { credits: v })} />
+            <NumberField label="Preço R$" value={p.price_brl} step={0.01} onChange={(v) => update(i, { price_brl: v })} />
+            <NumberField label="Preço US$" value={p.price_usd} step={0.01} onChange={(v) => update(i, { price_usd: v })} />
+            <NumberField label="Preço € (opcional)" value={p.price_eur || 0} step={0.01} onChange={(v) => update(i, { price_eur: v || null })} />
+          </div>
+          <TextField label="Descrição" value={p.description || ""} onChange={(v) => update(i, { description: v })} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="label-base">Benefícios PT (um por linha)</label>
+              <textarea className="input-base min-h-24 py-2" value={p.features_pt.join("\n")} onChange={(e) => update(i, { features_pt: e.target.value.split("\n") })} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="label-base">Benefícios EN (um por linha)</label>
+              <textarea className="input-base min-h-24 py-2" value={p.features_en.join("\n")} onChange={(e) => update(i, { features_en: e.target.value.split("\n") })} />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={!!p.isFeatured} onChange={(e) => update(i, { isFeatured: e.target.checked })} /> Destacado</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={!!p.isHidden} onChange={(e) => update(i, { isHidden: e.target.checked })} /> Oculto</label>
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => setPlans([...plans, { id: `pack_${Date.now().toString(36)}`, name: "", price_brl: 0, price_usd: 0, credits: 100, features_pt: [], features_en: [] }])} className={buttonClass("outline")}>
+          <Plus className="h-4 w-4" /> Adicionar pacote
+        </button>
+        <button onClick={save} disabled={saving} className={buttonClass("brand")}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar pacotes
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="label-base">{label}</label>
+      <input className="input-base" value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+// ---------------- Teste grátis ----------------
+function Switch({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-40 ${checked ? "bg-brand" : "bg-muted-foreground/30"}`}>
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-[22px]" : "left-0.5"}`} />
+    </button>
+  );
+}
+
+function TrialTab({ initial, onSaved }: { initial: ConfigResponse["freeTrial"]; onSaved: () => void }) {
+  const [trial, setTrial] = useState(initial);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/config", "PUT", { freeTrial: { ...trial, planVisible: trial.enabled && trial.planVisible } });
+      toast.success(trial.enabled ? "Oferta de teste grátis salva" : "Ofertas grátis desativadas");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-5 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">Ofertas de teste grátis</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Desligadas por padrão. Enquanto estiverem desligadas, nenhum texto de “grátis” aparece no site e novas contas começam com 0 créditos.
+          </p>
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
+          <div>
+            <p className="font-medium">Dar créditos grátis no cadastro</p>
+            <p className="text-sm text-muted-foreground">Cada conta nova recebe créditos para testar. Ativa o selo “créditos grátis” e o botão “Começar grátis”.</p>
+          </div>
+          <Switch checked={trial.enabled} onChange={(v) => setTrial({ ...trial, enabled: v })} />
+        </div>
+
+        {trial.enabled && (
+          <div className="max-w-xs">
+            <NumberField label="Créditos por conta nova" value={trial.credits} onChange={(v) => setTrial({ ...trial, credits: Math.max(1, Math.round(v)) })} />
+          </div>
+        )}
+
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
+          <div>
+            <p className="font-medium">Mostrar plano “Grátis” na página inicial</p>
+            <p className="text-sm text-muted-foreground">
+              {trial.enabled
+                ? `Exibe um card “Grátis · ${trial.credits} créditos” ao lado dos pacotes pagos.`
+                : "Disponível apenas com os créditos grátis ativados (para não anunciar algo que não existe)."}
+            </p>
+          </div>
+          <Switch checked={trial.enabled && trial.planVisible} disabled={!trial.enabled} onChange={(v) => setTrial({ ...trial, planVisible: v })} />
+        </div>
+
+        <p className="text-xs text-muted-foreground">Alterações valem para novos cadastros. Contas já criadas não ganham nem perdem créditos.</p>
+      </section>
+
+      <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+      </button>
+    </div>
+  );
+}
+
+// ---------------- Integrações (Meta) ----------------
+function CopyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2">
+        <code className="flex-1 break-all font-mono text-xs">{value}</code>
+        <button type="button" onClick={() => { navigator.clipboard.writeText(value); toast.success("Copiado"); }} className="rounded-md p-1 text-muted-foreground hover:text-foreground" aria-label={`Copiar ${label}`}>
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onSaved: () => void; baseUrl: string }) {
+  const draft = useSecretDraft();
+  const [saving, setSaving] = useState(false);
+  const configured = config.secrets.metaAppId?.configured && config.secrets.metaAppSecret?.configured;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/config", "PUT", { secrets: draft.payload() });
+      toast.success("Credenciais da Meta salvas");
+      draft.reset();
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">App da Meta (Instagram + Facebook)</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Em developers.facebook.com › seu app › Configurações › Básico.</p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${configured ? "bg-success/12 text-success" : "bg-muted text-muted-foreground"}`}>
+            {configured ? "Ativo para clientes" : "Não configurado"}
+          </span>
+        </div>
+        <SecretField label="App ID" field="metaAppId" info={config.secrets.metaAppId} value={draft.secrets.metaAppId} onChange={draft.change} />
+        <SecretField label="App Secret" field="metaAppSecret" info={config.secrets.metaAppSecret} value={draft.secrets.metaAppSecret} onChange={draft.change}
+          help="Enquanto o app estiver em modo de desenvolvimento, só quem tem função no app (admin, desenvolvedor, testador) consegue conectar." />
+        <button onClick={save} disabled={saving} className={buttonClass("brand")}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+        </button>
+      </section>
+
+      <section className="surface space-y-3 p-5 sm:p-6">
+        <h3 className="font-semibold">URLs para cadastrar no painel da Meta</h3>
+        <CopyRow label="URI de redirecionamento do OAuth válido (Login do Facebook › Configurações)" value={`${baseUrl}/api/integrations/meta/callback`} />
+        <CopyRow label="URL de retorno de chamada para cancelar autorização" value={`${baseUrl}/api/integrations/meta/deauthorize`} />
+        <CopyRow label="URL de solicitação de exclusão de dados" value={`${baseUrl}/api/integrations/meta/data-deletion`} />
+        <CopyRow label="URL da Política de Privacidade" value={`${baseUrl}/legal/privacy`} />
+        <CopyRow label="URL dos Termos de Serviço" value={`${baseUrl}/legal/terms`} />
+        <CopyRow label="Domínio do app" value={baseUrl.replace(/^https?:\/\//, "")} />
+        <p className="text-xs text-muted-foreground">Passo a passo completo, incluindo o App Review: docs/META_SETUP.md no repositório.</p>
+      </section>
+    </div>
+  );
+}
+
+// ---------------- Pagamentos ----------------
+function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onSaved: () => void; baseUrl: string }) {
+  const draft = useSecretDraft();
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/config", "PUT", { secrets: draft.payload() });
+      toast.success("Chaves de pagamento salvas");
+      draft.reset();
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <h3 className="font-semibold">Mercado Pago (BRL: Pix, cartão, boleto)</h3>
+        <SecretField label="Access Token" field="mercadoPagoAccessToken" info={config.secrets.mercadoPagoAccessToken} value={draft.secrets.mercadoPagoAccessToken} onChange={draft.change} />
+        <SecretField label="Assinatura secreta do webhook" field="mercadoPagoWebhookSecret" info={config.secrets.mercadoPagoWebhookSecret} value={draft.secrets.mercadoPagoWebhookSecret} onChange={draft.change}
+          help="Em Suas integrações › Webhooks. Sem ela, notificações falsas não são bloqueadas pela assinatura." />
+        <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/mercadopago</p>
+      </section>
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <h3 className="font-semibold">Stripe (USD/EUR e cartão internacional)</h3>
+        <SecretField label="Secret key" field="stripeSecretKey" info={config.secrets.stripeSecretKey} value={draft.secrets.stripeSecretKey} onChange={draft.change} />
+        <SecretField label="Webhook signing secret (whsec_...)" field="stripeWebhookSecret" info={config.secrets.stripeWebhookSecret} value={draft.secrets.stripeWebhookSecret} onChange={draft.change}
+          help="Eventos: checkout.session.completed e checkout.session.async_payment_succeeded." />
+        <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/stripe</p>
+      </section>
+      <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+      </button>
+    </div>
+  );
+}

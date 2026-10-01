@@ -1,28 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db } from "@/lib/db";
+import { handler, parseBody } from "@/lib/api";
+import { requireApiUser } from "@/lib/auth";
+import { onboardingSchema } from "@/lib/validation";
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { role, goal } = await request.json();
-
-    // Aqui poderíamos salvar role/goal em uma tabela de Profile ou Metadata
-    // Para MVP, apenas marcaremos onboardingCompleted = true no User
-
-    await db.user.update({
-      where: { email: session.user.email },
-      data: { onboardingCompleted: true }
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Erro no onboarding:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
-}
+export const POST = handler(async (request: Request) => {
+  const user = await requireApiUser();
+  const { role, goal } = await parseBody(request, onboardingSchema);
+  await db.user.update({
+    where: { id: user.id },
+    data: { onboardingCompleted: true, onboardingRole: role, onboardingGoal: goal },
+  });
+  return NextResponse.json({ success: true });
+});

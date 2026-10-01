@@ -1,102 +1,117 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2, Image as ImageIcon, Video, Type } from "lucide-react";
-import { motion } from "framer-motion";
+import Link from "next/link";
+import { CheckCircle2, Loader2, XCircle, CircleDashed } from "lucide-react";
+import { PixelMascot } from "@/components/mascot/PixelMascot";
+import { setMascotMood } from "@/components/mascot/mascot-events";
+import { buttonClass } from "@/components/app/ui-bits";
 
-export default function GeneratingPage({ params }: { params: { id: string } }) {
+interface CreativeStatus { id: string; type: string; status: string; variantIndex: number; headline: string | null }
+interface CampaignStatus { id: string; name: string; status: string; creatives: CreativeStatus[] }
+
+const MESSAGES = [
+  "Analisando a foto do produto...",
+  "Escrevendo headlines e textos...",
+  "Montando os cenários...",
+  "Ajustando luz e composição...",
+  "Quase lá, caprichando nos detalhes...",
+];
+
+export default function GeneratingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
-
-  const STEPS = [
-    { label: "Analisando o produto e extraindo características...", icon: Sparkles },
-    { label: "Escrevendo headlines e copys persuasivas...", icon: Type },
-    { label: "Renderizando cenários e fundos imersivos...", icon: ImageIcon },
-    { label: "Finalizando variações criativas...", icon: Loader2 },
-  ];
+  const [data, setData] = useState<CampaignStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [msg, setMsg] = useState(0);
+  const done = useRef(false);
 
   useEffect(() => {
-    // Simular a progressão das etapas visuais
-    const interval = setInterval(() => {
-      setCurrentStep(prev => {
-        if (prev < STEPS.length - 1) return prev + 1;
-        clearInterval(interval);
-        return prev;
-      });
-    }, 2000);
+    setMascotMood("working");
+    const t = setInterval(() => setMsg((m) => (m + 1) % MESSAGES.length), 3500);
+    return () => { clearInterval(t); setMascotMood("idle"); };
+  }, []);
 
-    // Polling real para checar o status da campanha no banco
-    const checkStatus = setInterval(async () => {
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    let delay = 2500;
+    const poll = async () => {
       try {
-        const res = await fetch(`/api/campaigns/${params.id}`);
-        if (res.ok) {
-          const camp = await res.json();
-          if (camp.status === "COMPLETED" || camp.status === "FAILED") {
-            clearInterval(checkStatus);
-            router.push(`/campaigns/${params.id}`);
-          }
+        const res = await fetch(`/api/campaigns/${id}`, { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Erro ao consultar campanha");
+        setData(json);
+        if (json.status !== "GENERATING" && !done.current) {
+          done.current = true;
+          setMascotMood(json.status === "FAILED" ? "confused" : "happy", 5000);
+          setTimeout(() => {
+            router.replace(`/campaigns/${id}`);
+            router.refresh(); // atualiza o saldo da barra lateral (estornos)
+          }, 1400);
+          return;
         }
       } catch (e) {
-        console.error(e);
+        setError(e instanceof Error ? e.message : "Erro de conexão");
       }
-    }, 3000);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(checkStatus);
+      // Vídeos levam minutos: espaça o polling aos poucos.
+      delay = Math.min(delay * 1.15, 8000);
+      timer = setTimeout(poll, delay);
     };
-  }, [params.id, router, STEPS.length]);
+    poll();
+    return () => clearTimeout(timer);
+  }, [id, router]);
 
-  const StepIcon = STEPS[currentStep].icon;
+  const visuals = (data?.creatives || []).filter((c) => c.type !== "COPY");
+  const headlines = new Map((data?.creatives || []).filter((c) => c.type === "COPY").map((c) => [c.variantIndex, c.headline]));
+  const finished = visuals.filter((c) => c.status === "COMPLETED" || c.status === "FAILED").length;
+  const progress = visuals.length ? Math.round(((finished + 0.15) / (visuals.length + 0.15)) * 100) : 8;
+  const isVideo = visuals[0]?.type === "VIDEO";
+  const finishedAll = data && data.status !== "GENERATING";
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-zinc-900 flex flex-col items-center justify-center p-6 text-center">
-      
-      <motion.div 
-        key={currentStep}
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 1.1 }}
-        transition={{ duration: 0.5 }}
-        className="h-24 w-24 bg-zinc-800/50 border border-zinc-700/50 rounded-full flex items-center justify-center mb-8 relative"
-      >
-        <div className="absolute inset-0 rounded-full border border-zinc-500 border-t-zinc-200 animate-spin opacity-50" style={{ animationDuration: "3s" }} />
-        <StepIcon className={`h-10 w-10 text-white ${currentStep === 3 ? "animate-spin" : "animate-pulse"}`} />
-      </motion.div>
+    <div className="mx-auto flex max-w-xl flex-col items-center py-6 text-center sm:py-12">
+      <PixelMascot mood={finishedAll ? (data?.status === "FAILED" ? "confused" : "happy") : "working"} size={96} />
+      <h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
+        {finishedAll ? "Prontinho!" : "Gerando sua campanha"}
+      </h1>
+      <p className="mt-2 min-h-6 text-muted-foreground" aria-live="polite">
+        {finishedAll ? "Abrindo seus criativos..." : MESSAGES[msg]}
+      </p>
 
-      <motion.h1 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-4"
-      >
-        A IA está trabalhando...
-      </motion.h1>
-      
-      <motion.p 
-        key={`p-${currentStep}`}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-xl text-zinc-400 font-medium"
-      >
-        {STEPS[currentStep].label}
-      </motion.p>
-
-      <div className="mt-16 w-full max-w-md">
-        <div className="flex justify-between text-xs font-semibold text-zinc-500 mb-2 px-1">
-          <span>Progresso Estimado</span>
-          <span>{Math.round(((currentStep + 1) / STEPS.length) * 100)}%</span>
+      <div className="mt-8 w-full">
+        <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+          <span>{finished} de {visuals.length || "…"} {isVideo ? "vídeos" : "imagens"}</span>
+          <span className="tabular-nums">{Math.min(progress, 100)}%</span>
         </div>
-        <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
-          <motion.div 
-            initial={{ width: "0%" }}
-            animate={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
-            transition={{ duration: 0.5 }}
-            className="h-full bg-white"
-          />
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-brand transition-all duration-700" style={{ width: `${Math.min(progress, 100)}%` }} />
         </div>
       </div>
 
+      {visuals.length > 0 && (
+        <ul className="surface mt-8 w-full divide-y divide-border text-left">
+          {visuals.map((c, i) => (
+            <li key={c.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+              {c.status === "COMPLETED" ? <CheckCircle2 className="h-4 w-4 text-success" />
+                : c.status === "FAILED" ? <XCircle className="h-4 w-4 text-destructive" />
+                : c.status === "PROCESSING" ? <Loader2 className="h-4 w-4 animate-spin text-brand" />
+                : <CircleDashed className="h-4 w-4 text-muted-foreground" />}
+              <span className="font-medium">Variação {i + 1}</span>
+              <span className="truncate text-muted-foreground">{headlines.get(c.variantIndex)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {isVideo && !finishedAll && (
+        <p className="mt-6 text-xs text-muted-foreground">
+          Vídeos podem levar alguns minutos. Pode fechar esta página: a geração continua e você recebe um e-mail quando terminar.
+        </p>
+      )}
+      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+
+      <Link href="/campaigns" className={`${buttonClass("ghost")} mt-6`}>Voltar para campanhas</Link>
     </div>
   );
 }

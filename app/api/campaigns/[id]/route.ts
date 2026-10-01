@@ -1,31 +1,41 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
 import { db } from "@/lib/db";
+import { handler, HttpError } from "@/lib/api";
+import { requireApiUser } from "@/lib/auth";
+import { advanceCampaign } from "@/lib/generation";
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await context.params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const maxDuration = 300;
 
-    const campaign = await db.campaign.findUnique({
-      where: { id },
-      include: { creatives: true }
-    });
+// Status da campanha. Enquanto estiver gerando, cada consulta também avança o pipeline
+// (busca vídeos prontos na fal.ai e reinicia jobs parados).
+export const GET = handler(async (_request: Request, ctx: RouteContext<"/api/campaigns/[id]">) => {
+  const { id } = await ctx.params;
+  const user = await requireApiUser();
 
-    if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const owned = await db.campaign.findFirst({ where: { id, workspaceId: user.workspaceId }, select: { status: true } });
+  if (!owned) throw new HttpError(404, "Campanha não encontrada");
 
-    // Segurança: garantir que pertence ao workspace do usuário
-    const member = await db.workspaceMember.findFirst({
-      where: { userId: session.user.id, workspaceId: campaign.workspaceId }
-    });
+  if (owned.status === "GENERATING") await advanceCampaign(id);
 
-    if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const campaign = await db.campaign.findUnique({
+    where: { id },
+    select: {
+      id: true, name: true, status: true, variations: true, platform: true, createdAt: true,
+      creatives: {
+        orderBy: [{ variantIndex: "asc" }, { createdAt: "asc" }],
+        select: { id: true, type: true, status: true, variantIndex: true, outputUrl: true, audioUrl: true, headline: true, text: true, cta: true, aspectRatio: true },
+      },
+    },
+  });
+  return NextResponse.json(campaign);
+});
 
-    return NextResponse.json(campaign);
-  } catch (error) {
-    console.error("Error fetching campaign:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
-  }
-}
+export const DELETE = handler(async (_request: Request, ctx: RouteContext<"/api/campaigns/[id]">) => {
+  const { id } = await ctx.params;
+  const user = await requireApiUser();
+  const campaign = await db.campaign.findFirst({ where: { id, workspaceId: user.workspaceId } });
+  if (!campaign) throw new HttpError(404, "Campanha não encontrada");
+  if (campaign.status === "GENERATING") throw new HttpError(409, "Aguarde a geração terminar para excluir.");
+  await db.campaign.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+});

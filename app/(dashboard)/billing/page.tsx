@@ -1,170 +1,102 @@
-import { db } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, Sparkles, ArrowRight, Wallet } from "lucide-react";
-import Link from "next/link";
 import { cookies } from "next/headers";
+import { Check, ShieldCheck } from "lucide-react";
+import { db } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { getAppConfig, purchasablePlans } from "@/lib/config";
+import { getWorkspaceBalance } from "@/services/credits";
+import { PageHeader } from "@/components/app/ui-bits";
 import { CheckoutButton } from "@/components/checkout-button";
+import { CheckoutStatusToast } from "./status-toast";
+import { formatDateTime, formatMoney } from "@/lib/format";
+
+export const metadata = { title: "Comprar créditos" };
+
+type Currency = "BRL" | "USD" | "EUR";
 
 export default async function BillingPage() {
-  const session = await getServerSession(authOptions);
-  
-  let balance = 0;
-  if (session?.user) {
-    const member = await db.workspaceMember.findFirst({
-      where: { userId: session.user.id }
-    });
-    if (member) {
-      const balanceRecord = await db.creditBalance.findUnique({ where: { workspaceId: member.workspaceId }});
-      balance = balanceRecord?.balance || 0;
-    }
-  }
+  const user = await requireUser();
+  const [config, balance, payments] = await Promise.all([
+    getAppConfig(),
+    getWorkspaceBalance(user.workspaceId),
+    db.payment.findMany({ where: { workspaceId: user.workspaceId }, orderBy: { createdAt: "desc" }, take: 20 }),
+  ]);
 
-  const config = await db.systemConfig.findUnique({ where: { id: "global" } });
-  
-  // Planos Padrão Fallback
-  let plans = [
-    {
-      id: "starter",
-      name: "Starter",
-      description: "Para pequenos negócios começando com tráfego pago.",
-      price: "R$ 49",
-      credits: 300,
-      features: ["~100 Imagens", "Editor Básico", "Suporte Email"],
-      isFeatured: false
-    },
-    {
-      id: "growth",
-      name: "Growth",
-      description: "O plano ideal para quem já vende todos os dias.",
-      price: "R$ 149",
-      credits: 1000,
-      features: ["~330 Imagens", "Variações em Lote", "Vídeos Curtos", "Prioridade na IA"],
-      isFeatured: true
-    },
-    {
-      id: "agency",
-      name: "Agency",
-      description: "Alto volume para agências e gestores de tráfego.",
-      price: "R$ 399",
-      credits: 3000,
-      features: ["~1000 Imagens", "Vídeos Ilimitados", "Sem limite de Projetos", "API Access"],
-      isFeatured: false
-    }
-  ];
-
-  const cookieStore = await cookies();
-  const currency = cookieStore.get('CURRENCY')?.value || 'BRL';
-  
-  const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'R$';
-
-  const locale = cookieStore.get('NEXT_LOCALE')?.value || 'pt';
-
-  if (config?.plansJson) {
-    try {
-      const parsed = JSON.parse(config.plansJson);
-      plans = parsed.map((p: any) => {
-        let priceValue = p.price_brl || p.price; // fallback for legacy
-        if (currency === 'USD' && p.price_usd) priceValue = p.price_usd;
-        if (currency === 'EUR' && p.price_eur) priceValue = p.price_eur;
-
-        const isPt = locale === 'pt';
-        const dynamicFeatures = isPt ? p.features_pt : p.features_en;
-        const fallbackFeatures = ["Geração de Copy Inclusa", "Estúdios Ilimitados", "Download em Alta Resolução"];
-
-        return {
-          id: p.id,
-          name: p.name,
-          description: p.description || (isPt ? "O plano perfeito para impulsionar suas vendas com IA." : "The perfect plan to boost your sales with AI."),
-          price: `${currencySymbol} ${priceValue}`,
-          credits: p.credits,
-          features: dynamicFeatures && dynamicFeatures.length > 0 ? dynamicFeatures.filter((f: string) => f.trim() !== '') : fallbackFeatures,
-          isFeatured: p.isFeatured
-        };
-      });
-    } catch(e) {}
-  }
+  const cookieCurrency = (await cookies()).get("CURRENCY")?.value;
+  const currency: Currency = cookieCurrency === "USD" || cookieCurrency === "EUR" ? cookieCurrency : "BRL";
+  const priceOf = (p: (typeof config.plans)[number]) => (currency === "BRL" ? p.price_brl : currency === "EUR" ? p.price_eur ?? 0 : p.price_usd);
+  const plans = purchasablePlans(config.plans).filter((p) => priceOf(p) > 0);
 
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto space-y-12">
-      
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white">Planos e Faturamento</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-2 text-lg">Faça upgrade para escalar suas campanhas.</p>
-        </div>
-        <Link href="/credits">
-          <Button variant="outline" size="lg" className="rounded-full shadow-sm gap-2 h-12 px-6 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-white">
-            <Wallet className="h-5 w-5" /> Ver Histórico de Uso
-          </Button>
-        </Link>
-      </header>
+    <>
+      <CheckoutStatusToast />
+      <PageHeader
+        title="Comprar créditos"
+        description={<>Você tem <strong className="text-foreground">{balance} créditos</strong>. Pacotes avulsos, sem assinatura e sem renovação automática. Créditos não expiram.</>}
+      />
 
-      {/* Current Plan Indicator */}
-      <div className="bg-zinc-900 dark:bg-zinc-950 rounded-3xl p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 text-white shadow-xl relative overflow-hidden border border-zinc-800">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 h-48 w-48 bg-white dark:bg-violet-500 opacity-5 dark:opacity-10 rounded-full blur-2xl" />
-        <div className="relative z-10">
-          <span className="text-zinc-400 text-sm font-semibold uppercase tracking-wider block mb-2">Plano Atual</span>
-          <h2 className="text-3xl font-bold">Plano Gratuito (Trial)</h2>
-          <p className="text-zinc-400 mt-1">Seu saldo atual é de <strong className="text-white">{balance} CR</strong>.</p>
+      {plans.length === 0 ? (
+        <div className="surface p-8 text-center text-muted-foreground">Nenhum pacote disponível nesta moeda no momento.</div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          {plans.map((plan) => {
+            const price = priceOf(plan);
+            const features = plan.features_pt.filter((f) => f.trim());
+            return (
+              <div key={plan.id} className={`surface relative flex flex-col p-6 ${plan.isFeatured ? "border-brand ring-1 ring-brand" : ""}`}>
+                {plan.isFeatured && (
+                  <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">Mais escolhido</span>
+                )}
+                <h3 className="text-lg font-semibold">{plan.name}</h3>
+                {plan.description && <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>}
+                <p className="mt-5 text-3xl font-semibold tracking-tight">{formatMoney(price, currency)}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {plan.credits.toLocaleString("pt-BR")} créditos · {formatMoney(price / plan.credits, currency)} por crédito
+                </p>
+                <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+                  {features.map((f) => (
+                    <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>
+                  ))}
+                </ul>
+                <div className="mt-6">
+                  <CheckoutButton planId={plan.id} label={`Comprar ${plan.name}`} featured={plan.isFeatured} currency={currency} />
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="relative z-10">
-          <Button variant="secondary" className="rounded-full px-8 bg-white text-zinc-900 hover:bg-zinc-100 h-12 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700 border-0">
-            Adicionar Método de Pagamento
-          </Button>
-        </div>
-      </div>
+      )}
 
-      <div className="grid md:grid-cols-3 gap-8 pt-8">
-        {plans.map((plan) => (
-          <div 
-            key={plan.id} 
-            className={`relative p-8 rounded-3xl border flex flex-col transition-all ${
-              plan.isFeatured 
-                ? "bg-zinc-900 border-zinc-900 dark:bg-zinc-900 dark:border-violet-500/50 text-white shadow-2xl scale-105 z-10" 
-                : "bg-white dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 shadow-sm"
-            }`}
-          >
-            {plan.isFeatured && (
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold uppercase tracking-wider py-1 px-4 rounded-full shadow-md">
-                Mais Popular
-              </div>
-            )}
-            
-            <div className="mb-6">
-              <h3 className={`text-xl font-bold ${plan.isFeatured ? "text-white" : "text-zinc-900 dark:text-white"}`}>{plan.name}</h3>
-              <p className={`mt-2 text-sm ${plan.isFeatured ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>{plan.description}</p>
-            </div>
-            
-            <div className="mb-8">
-              <p className={`text-4xl font-extrabold tracking-tight ${plan.isFeatured ? "text-white" : "text-zinc-900 dark:text-white"}`}>
-                {plan.price} <span className={`text-base font-medium ${plan.isFeatured ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-500"}`}>/mês</span>
-              </p>
-              <div className={`mt-3 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${plan.isFeatured ? "bg-white/10 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}>
-                <Sparkles className="mr-2 h-4 w-4" /> {plan.credits} Créditos inclusos
-              </div>
-            </div>
-            
-            <ul className="space-y-4 mb-8 flex-1">
-              {plan.features.map((feature: string, idx: number) => (
-                <li key={idx} className="flex items-start text-sm">
-                  <CheckCircle2 className={`h-5 w-5 mr-3 shrink-0 ${plan.isFeatured ? "text-blue-400" : "text-zinc-900 dark:text-zinc-400"}`} />
-                  <span className={plan.isFeatured ? "text-zinc-300" : "text-zinc-600 dark:text-zinc-400"}>{feature}</span>
-                </li>
-              ))}
-            </ul>
-            
-            <CheckoutButton 
-              planId={plan.id}
-              planName={plan.name}
-              isFeatured={plan.isFeatured}
-              currency={currency}
-            />
+      <p className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
+        <ShieldCheck className="h-4 w-4" />
+        Pagamento processado por {currency === "BRL" ? "Mercado Pago (Pix, cartão e boleto) ou Stripe" : "Stripe"}. Não armazenamos dados de cartão.
+        Direito de arrependimento em até 7 dias para créditos não utilizados.
+      </p>
+
+      <section className="mt-12">
+        <h2 className="mb-4 text-lg font-semibold tracking-tight">Histórico de compras</h2>
+        {payments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma compra ainda.</p>
+        ) : (
+          <div className="surface overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-border text-left text-xs text-muted-foreground">
+                <tr><th className="px-4 py-3 font-medium">Data</th><th className="px-4 py-3 font-medium">Pacote</th><th className="px-4 py-3 font-medium">Créditos</th><th className="px-4 py-3 font-medium">Valor</th><th className="px-4 py-3 font-medium">Via</th></tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {payments.map((p) => (
+                  <tr key={p.id}>
+                    <td className="whitespace-nowrap px-4 py-3">{formatDateTime(p.createdAt)}</td>
+                    <td className="px-4 py-3">{config.plans.find((x) => x.id === p.planId)?.name || p.planId || "—"}</td>
+                    <td className="px-4 py-3 tabular-nums">+{p.credits}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatMoney(p.amount, p.currency)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.provider === "STRIPE" ? "Stripe" : "Mercado Pago"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
-
-    </div>
+        )}
+      </section>
+    </>
   );
 }

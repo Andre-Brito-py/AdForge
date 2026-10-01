@@ -1,127 +1,79 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
-import { db } from "@/lib/db";
 import Stripe from "stripe";
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { z } from "zod";
+import { enforceRateLimit, handler, HttpError, parseBody } from "@/lib/api";
+import { requireApiUser } from "@/lib/auth";
+import { getAppConfig, purchasablePlans } from "@/lib/config";
+import { appUrl } from "@/services/email";
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const bodySchema = z.object({
+  planId: z.string().min(1).max(60),
+  currency: z.enum(["BRL", "USD", "EUR"]).default("BRL"),
+});
 
-    const { planId, currency = "BRL" } = await request.json();
+export const POST = handler(async (request: Request) => {
+  const user = await requireApiUser();
+  await enforceRateLimit(request, "checkout", 10, 15 * 60, user.id);
+  const { planId, currency } = await parseBody(request, bodySchema);
 
-    const config = await db.systemConfig.findUnique({ where: { id: "global" } });
-    if (!config || !config.plansJson) {
-      return NextResponse.json({ error: "No plans configured" }, { status: 400 });
-    }
+  const config = await getAppConfig();
+  const plan = purchasablePlans(config.plans).find((p) => p.id === planId);
+  if (!plan) throw new HttpError(404, "Pacote não encontrado");
 
-    const plans = JSON.parse(config.plansJson);
-    const plan = plans.find((p: any) => p.id === planId);
+  const price = currency === "BRL" ? plan.price_brl : currency === "EUR" ? plan.price_eur ?? 0 : plan.price_usd;
+  if (!price || price <= 0) throw new HttpError(400, "Este pacote não está disponível nesta moeda");
 
-    if (!plan) {
-      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
-    }
+  const base = appUrl();
+  const metadata = { userId: user.id, workspaceId: user.workspaceId, planId: plan.id, planName: plan.name, credits: String(plan.credits) };
 
-    const member = await db.workspaceMember.findFirst({
-      where: { userId: session.user.id }
+  // Mercado Pago para BRL (Pix, boleto, cartão nacional).
+  if (currency === "BRL" && config.secrets.mercadoPagoAccessToken) {
+    const client = new MercadoPagoConfig({ accessToken: config.secrets.mercadoPagoAccessToken });
+    const preference = await new Preference(client).create({
+      body: {
+        items: [{ id: plan.id, title: `Vysify · Pacote ${plan.name} (${plan.credits} créditos)`, quantity: 1, unit_price: Number(price), currency_id: "BRL" }],
+        payer: { email: user.email },
+        metadata: { user_id: user.id, workspace_id: user.workspaceId, plan_id: plan.id, plan_name: plan.name, credits: plan.credits },
+        back_urls: {
+          success: `${base}/billing?status=success`,
+          pending: `${base}/billing?status=pending`,
+          failure: `${base}/billing?status=canceled`,
+        },
+        auto_return: "approved",
+        notification_url: `${base}/api/webhooks/mercadopago`,
+        external_reference: `${user.id}:${plan.id}:${Date.now()}`,
+        statement_descriptor: "VYSIFY",
+      },
     });
-
-    if (!member) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-    }
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    
-    // MERCADO PAGO - If currency is BRL and MP is configured
-    if (currency === "BRL" && config.mercadoPagoAccessToken) {
-      const client = new MercadoPagoConfig({ accessToken: config.mercadoPagoAccessToken });
-      const preference = new Preference(client);
-
-      const price = plan.price_brl || 0;
-
-      const response = await preference.create({
-        body: {
-          items: [
-            {
-              id: plan.id,
-              title: `Vysify - Plano ${plan.name}`,
-              quantity: 1,
-              unit_price: Number(price),
-              currency_id: "BRL"
-            }
-          ],
-          metadata: {
-            user_id: session.user.id,
-            workspace_id: member.workspaceId,
-            plan_id: plan.id,
-            credits: plan.credits
-          },
-          back_urls: {
-            success: `${appUrl}/billing?success=true`,
-            pending: `${appUrl}/billing?pending=true`,
-            failure: `${appUrl}/billing?canceled=true`
-          },
-          auto_return: "approved",
-          external_reference: `${session.user.id}_${Date.now()}`
-        }
-      });
-
-      return NextResponse.json({ url: response.init_point });
-    }
-    
-    // STRIPE - Fallback or if currency is USD/EUR
-    if (config.stripeSecretKey) {
-      const stripe = new Stripe(config.stripeSecretKey, { apiVersion: "2024-10-28.acacia" });
-
-      let priceValue = plan.price_usd || 0;
-      let curr = "usd";
-
-      if (currency === "EUR" && plan.price_eur) {
-        priceValue = plan.price_eur;
-        curr = "eur";
-      } else if (currency === "BRL" && plan.price_brl) {
-        priceValue = plan.price_brl;
-        curr = "brl";
-      }
-
-      const stripeSession = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        mode: "payment", // "subscription" se for recorrente
-        line_items: [
-          {
-            price_data: {
-              currency: curr,
-              product_data: {
-                name: `Vysify - Plano ${plan.name}`,
-                description: `${plan.credits} Créditos Inclusos`
-              },
-              unit_amount: Math.round(priceValue * 100), // Stripe expects cents
-            },
-            quantity: 1,
-          }
-        ],
-        success_url: `${appUrl}/billing?success=true`,
-        cancel_url: `${appUrl}/billing?canceled=true`,
-        client_reference_id: session.user.id,
-        metadata: {
-          userId: session.user.id,
-          workspaceId: member.workspaceId,
-          planId: plan.id,
-          credits: plan.credits.toString()
-        }
-      });
-
-      return NextResponse.json({ url: stripeSession.url });
-    }
-
-    return NextResponse.json({ error: "No payment gateway configured for this currency" }, { status: 400 });
-
-  } catch (error: any) {
-    console.error("Checkout Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!preference.init_point) throw new HttpError(502, "Não foi possível iniciar o pagamento");
+    return NextResponse.json({ url: preference.init_point });
   }
-}
+
+  if (config.secrets.stripeSecretKey) {
+    const stripe = new Stripe(config.secrets.stripeSecretKey);
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer_email: user.email,
+      line_items: [
+        {
+          price_data: {
+            currency: currency.toLowerCase(),
+            product_data: { name: `Vysify · Pacote ${plan.name}`, description: `${plan.credits} créditos (não expiram)` },
+            unit_amount: Math.round(price * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${base}/billing?status=success`,
+      cancel_url: `${base}/billing?status=canceled`,
+      client_reference_id: user.id,
+      metadata,
+      payment_intent_data: { metadata },
+    });
+    if (!session.url) throw new HttpError(502, "Não foi possível iniciar o pagamento");
+    return NextResponse.json({ url: session.url });
+  }
+
+  throw new HttpError(503, "Pagamentos temporariamente indisponíveis. Tente novamente mais tarde.", "PAYMENTS_NOT_CONFIGURED");
+});

@@ -1,0 +1,154 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
+import {
+  LayoutDashboard, Package, Megaphone, Palette, Plug, Coins, CreditCard, Settings, Shield, LogOut, Menu, X, Plus,
+} from "lucide-react";
+import { LogoMark } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { MascotCorner } from "@/components/mascot/MascotCorner";
+import { VerifyEmailBanner } from "./verify-email-banner";
+
+const NAV = [
+  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
+  { href: "/products", label: "Produtos", icon: Package },
+  { href: "/campaigns", label: "Campanhas", icon: Megaphone },
+  { href: "/brand", label: "Brand Kit", icon: Palette },
+  { href: "/integrations", label: "Integrações", icon: Plug },
+  { href: "/credits", label: "Créditos", icon: Coins },
+  { href: "/billing", label: "Comprar créditos", icon: CreditCard },
+  { href: "/settings", label: "Configurações", icon: Settings },
+];
+
+export interface ShellUser {
+  name: string | null;
+  email: string;
+  isAdmin: boolean;
+  emailVerified: boolean;
+}
+
+function NavLinks({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () => void }) {
+  const pathname = usePathname();
+  const items = isAdmin ? [...NAV, { href: "/admin", label: "Admin", icon: Shield }] : NAV;
+  return (
+    <nav className="flex flex-col gap-0.5" aria-label="Navegação principal">
+      {items.map((item) => {
+        const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/")) || pathname === item.href;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
+            className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+              active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+            }`}
+          >
+            <item.icon className={`h-4 w-4 ${active ? "text-brand" : ""}`} />
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function SidebarContent({ user, balance, onNavigate }: { user: ShellUser; balance: number; onNavigate?: () => void }) {
+  return (
+    <div className="flex h-full flex-col gap-6 p-4">
+      <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2 px-2 pt-1 font-semibold tracking-tight">
+        <LogoMark className="h-7 w-7" />
+        <span className="text-lg">Vysify</span>
+      </Link>
+
+      <Link
+        href="/campaigns/new"
+        onClick={onNavigate}
+        className="flex items-center justify-center gap-2 rounded-xl bg-brand px-3 py-2.5 text-sm font-semibold text-brand-foreground shadow-sm transition hover:brightness-110"
+      >
+        <Plus className="h-4 w-4" /> Nova campanha
+      </Link>
+
+      <NavLinks isAdmin={user.isAdmin} onNavigate={onNavigate} />
+
+      <div className="mt-auto space-y-3">
+        <Link href="/credits" onClick={onNavigate} className="surface block p-4 transition hover:border-foreground/20">
+          <p className="text-xs font-medium text-muted-foreground">Saldo disponível</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
+            {balance.toLocaleString("pt-BR")} <span className="text-sm font-medium text-muted-foreground">créditos</span>
+          </p>
+        </Link>
+        <div className="flex items-center gap-2 rounded-xl px-2 py-1.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
+            {(user.name || user.email).slice(0, 1).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{user.name || "Minha conta"}</p>
+            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+          </div>
+          <ThemeToggle />
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label="Sair da conta"
+            title="Sair"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AppShell({ user, balance, children }: { user: ShellUser; balance: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-sidebar-border bg-sidebar lg:block">
+        <SidebarContent user={user} balance={balance} />
+      </aside>
+
+      {/* Barra superior no celular */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur-md lg:hidden">
+        <button onClick={() => setOpen(true)} className="-ml-2 rounded-lg p-2 hover:bg-muted" aria-label="Abrir menu">
+          <Menu className="h-5 w-5" />
+        </button>
+        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+          <LogoMark className="h-6 w-6" /> Vysify
+        </Link>
+        <Link href="/credits" className="rounded-full bg-muted px-3 py-1 text-xs font-semibold tabular-nums">
+          {balance} cr
+        </Link>
+      </header>
+
+      {open && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <div className="absolute inset-0 bg-black/50 animate-in fade-in" onClick={() => setOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-sidebar shadow-xl animate-in slide-in-from-left">
+            <button onClick={() => setOpen(false)} className="absolute right-3 top-3 rounded-lg p-2 hover:bg-muted" aria-label="Fechar menu">
+              <X className="h-5 w-5" />
+            </button>
+            <SidebarContent user={user} balance={balance} onNavigate={() => setOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      <div className="lg:pl-64">
+        {!user.emailVerified && <VerifyEmailBanner />}
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">{children}</main>
+      </div>
+
+      <MascotCorner />
+    </div>
+  );
+}
