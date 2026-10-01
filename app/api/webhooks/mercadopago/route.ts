@@ -63,6 +63,14 @@ export async function POST(request: Request) {
               update: { balance: { increment: credits } },
               create: { workspaceId, userId, balance: credits }
             });
+
+            // 3. Enviar E-mail de Recibo
+            const user = await db.user.findUnique({ where: { id: userId }});
+            if (user && user.email) {
+              import("@/services/email").then(({ sendPurchaseReceipt }) => {
+                sendPurchaseReceipt(user.email, user.name || "", planId || "Premium", credits);
+              }).catch(console.error);
+            }
           }
         }
       }

@@ -63,6 +63,11 @@ export const authOptions = {
             },
           })
           
+          // E-mail de Boas Vindas Async
+          import("@/services/email").then(({ sendWelcomeEmail }) => {
+            sendWelcomeEmail(user.email, user.name || "");
+          }).catch(console.error);
+          
           // Create default workspace and credit balance
           const workspace = await db.workspace.create({
             data: {
@@ -109,6 +114,10 @@ export const authOptions = {
               onboardingCompleted: false
             },
           })
+          
+          import("@/services/email").then(({ sendWelcomeEmail }) => {
+            sendWelcomeEmail(dbUser.email, dbUser.name || "");
+          }).catch(console.error);
           
           const workspace = await db.workspace.create({
             data: {
