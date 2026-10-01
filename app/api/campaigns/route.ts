@@ -40,6 +40,25 @@ export async function POST(request: Request) {
     const costPerVariation = quality === "premium" ? baseCost * 2 : baseCost;
     const totalCost = variations * costPerVariation;
 
+    // MODERAÇÃO DE CONTEÚDO E GERAÇÃO DE ESTRATÉGIA (Síncrono para garantir que não cobra de algo ilegal)
+    let strategy;
+    try {
+      strategy = await generateCampaignStrategy(
+        product.originalImageUrl,
+        product.name,
+        objective,
+        style,
+        targetAudience || "Público Geral"
+      );
+    } catch (e: any) {
+      if (e.message?.includes("POLICY_VIOLATION")) {
+        return NextResponse.json({ 
+          error: "Sua requisição viola nossas Políticas de Uso. A plataforma é exclusiva para anúncios comerciais de produtos legítimos." 
+        }, { status: 403 });
+      }
+      return NextResponse.json({ error: "Falha na Inteligência Artificial ao analisar o produto." }, { status: 500 });
+    }
+
     try {
       await consumeCredits(
         workspaceMember.workspaceId,
@@ -72,7 +91,7 @@ export async function POST(request: Request) {
     });
 
     // Inicia o processamento e permite que a Vercel aguarde até terminar (se dentro do maxDuration)
-    const aiPromise = generateCreativesAsync(campaign.id, product, { objective, tone: style, targetAudience, variations, format, platform, quality, costPerVariation });
+    const aiPromise = generateCreativesAsync(campaign.id, product, strategy, { objective, tone: style, targetAudience, variations, format, platform, quality, costPerVariation });
     
     waitUntil(aiPromise);
 
@@ -83,15 +102,8 @@ export async function POST(request: Request) {
   }
 }
 
-async function generateCreativesAsync(campaignId: string, product: any, config: any) {
+async function generateCreativesAsync(campaignId: string, product: any, strategy: any, config: any) {
   try {
-    const strategy = await generateCampaignStrategy(
-      product.originalImageUrl,
-      product.name,
-      config.objective,
-      config.tone,
-      config.targetAudience || "Público Geral"
-    );
 
     const copies = strategy.copies.slice(0, config.variations);
     const copyCreatives = copies.map((copy: string) => ({

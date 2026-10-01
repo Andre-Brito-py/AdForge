@@ -30,15 +30,22 @@ export async function generateCampaignStrategy(
   const mimeType = filePath.endsWith(".png") ? "image/png" : "image/jpeg";
 
   const prompt = `
-  Atue como um especialista em Marketing e Copywriter.
-  Analise a imagem deste produto ("${productName}") e gere uma estratégia de campanha.
+  Atue como um especialista em Marketing e Copywriter e também como o Moderador de Segurança da Plataforma.
   
-  Objetivo: ${objective}
-  Tom de voz: ${tone}
-  Público-alvo: ${targetAudience}
+  ⚠️ REGRA DE SEGURANÇA E POLÍTICA DE USO ⚠️
+  Nossa plataforma é estritamente destinada à geração de ANÚNCIOS COMERCIAIS e PROPAGANDAS DE PRODUTOS.
+  Você DEVE analisar o produto ("${productName}"), a imagem fornecida, o objetivo ("${objective}"), o tom ("${tone}") e o público ("${targetAudience}").
+  Se o conteúdo envolver violência, pornografia, deepfakes políticos, materiais ilegais, difamação, ou QUALQUER coisa que não seja uma campanha promocional/publicitária de um produto/serviço legítimo, você DEVE rejeitar o pedido.
   
-  Responda APENAS com um objeto JSON válido (sem blocos de código ou markdown extra) neste formato exato:
+  Se for rejeitado, responda APENAS com este JSON:
   {
+    "violation": true,
+    "violationReason": "O conteúdo solicitado viola nossos Termos de Uso. A plataforma é exclusiva para anúncios comerciais de produtos e serviços legítimos."
+  }
+
+  Caso contrário (se for um anúncio válido), gere a estratégia de campanha e responda APENAS com este objeto JSON exato (sem blocos de código ou markdown):
+  {
+    "violation": false,
     "analysis": "Breve análise visual e de benefícios percebidos do produto na foto",
     "hooks": ["Hook curto 1", "Hook curto 2", "Hook curto 3"],
     "headlines": ["Headline impactante 1", "Headline impactante 2", "Headline impactante 3"],
@@ -70,9 +77,20 @@ export async function generateCampaignStrategy(
     });
 
     const jsonText = response.text || "{}";
-    return JSON.parse(jsonText) as CampaignStrategy;
-  } catch (error) {
+    const data = JSON.parse(jsonText);
+    
+    if (data.violation) {
+      throw new Error(`POLICY_VIOLATION: ${data.violationReason}`);
+    }
+    
+    return data as CampaignStrategy;
+  } catch (error: any) {
     console.error("Gemini Error:", error);
+    
+    // Se for violação de política, repassa o erro para a rota parar a geração
+    if (error.message?.includes("POLICY_VIOLATION")) {
+      throw error;
+    }
     
     // Tenta fallback para OpenAI se a chave existir
     if (config?.openAiKey) {

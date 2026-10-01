@@ -29,6 +29,7 @@ export const metadata: Metadata = {
 };
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { CookieBanner } from "@/components/CookieBanner";
 
 export default async function RootLayout({
   children,
@@ -54,6 +55,7 @@ export default async function RootLayout({
               {children}
             </Providers>
             <Toaster />
+            <CookieBanner />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>
