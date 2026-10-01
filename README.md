@@ -4,30 +4,34 @@ Vysify é um estúdio criativo B2B alimentado por Inteligência Artificial (God 
 
 ## 🌟 Principais Funcionalidades
 
-- **Omnichannel Distribution**: Geração nativa para WhatsApp, Instagram, Facebook Ads, TikTok Ads e Shopify.
 - **Workflow em Cascata (Pipeline IA)**: 
-  1. Criação de Estratégia e Copy (Gemini 2.5 Flash).
+  1. Criação de Estratégia e Copy baseada em Gatilhos Mentais (Gemini 2.5 Flash).
   2. Text-to-Speech ultra-realista em Português (ElevenLabs/OpenAI TTS).
   3. Video Generation / S2V (Wan 2.1).
-- **Billing e Monetização**: Paywall integrado com Stripe e MercadoPago. Assinaturas e venda de Créditos avulsos.
-- **Catálogo de Produtos**: Importação de imagens, detecção de paleta de cores e informações base da marca.
-- **Autenticação Segura**: Suporte a Google OAuth, Login com Magic/Credenciais (com validação segura de SuperAdmin) e MFA (2FA via Authenticator).
-- **Painel de Super Admin**: Controle global do sistema, alteração de APIs em runtime (sem precisar fazer novo deploy) e monitoramento de saldo/usuários.
+- **Billing e Monetização (Stripe & Mercado Pago)**: Paywall integrado. Planos dinâmicos gerenciados via Painel Admin (Ocultar planos, destacar planos, ativar versão Grátis/Trial). 
+- **Landing Page Dinâmica**: Layout Premium em Bento-Grid, que altera os call-to-actions automaticamente ("Começar Grátis" vs "Assinar Agora") se existir algum plano configurado como gratuito.
+- **Segurança Legal e Compliance (LGPD e CDC)**:
+  - IA com Guardrails (Filtro Anti-NSFW e Moderação) que bloqueia gerações fora do escopo de vendas/anúncios comerciais.
+  - Termos de Uso (Direito de Arrependimento de 7 Dias).
+  - Política de Privacidade e Banner interativo de Consentimento de Cookies.
+- **Comunicação Automatizada**: E-mails transacionais via **Resend** (E-mail de Boas-vindas para novos usuários e Recibo Automático de Pagamento).
+- **Painel de Super Admin**: Controle global do sistema, alteração de chaves de APIs em runtime (sem precisar fazer novo deploy).
 
 ## 🛠️ Arquitetura e Tecnologias
 
 - **Framework**: Next.js 14+ (App Router)
-- **Estilização**: Tailwind CSS + Shadcn UI
+- **Estilização**: Tailwind CSS + Shadcn UI + Framer Motion (Animações Premium)
 - **Banco de Dados**: PostgreSQL hospedado na Supabase.
 - **ORM**: Prisma
-- **Armazenamento (Cloud Storage)**: Supabase Storage / Cloudflare R2 / AWS S3
-- **Execução Serverless**: Vercel Functions (usando `waitUntil` para vídeos pesados e longos).
+- **Armazenamento (Cloud Storage)**: Supabase Storage / AWS S3
+- **Execução Serverless**: Vercel Functions (usando `waitUntil` para garantir execução de long-running jobs como vídeos da Wan 2.1 sem timeout).
 
 ## ⚙️ Como Executar o Projeto (Localmente)
 
 ### 1. Requisitos Prévios
 - Node.js versão LTS (20.x ou superior)
 - Conta na Supabase (para Banco de Dados e Storage S3)
+- Conta na Resend (Opcional: para disparo de e-mails reais)
 
 ### 2. Variáveis de Ambiente
 Renomeie o arquivo `.env.example` para `.env` e preencha com as suas chaves:
@@ -47,6 +51,9 @@ S3_SECRET_ACCESS_KEY="sua-secret"
 # Credenciais Hardcoded do Super Admin
 ADMIN_EMAIL="andre@vysify.com"
 ADMIN_PASSWORD="AdminSeguro123!"
+
+# E-mails (Resend)
+RESEND_API_KEY="re_sua-chave-aqui"
 ```
 
 ### 3. Instalação e Banco de Dados
