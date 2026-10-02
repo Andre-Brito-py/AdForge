@@ -53,7 +53,7 @@ describe("estratégia de vídeo", () => {
 describe("plano do vídeo", () => {
   it("lê o formato novo e o antigo (texto com [INSTRUCTIONS])", () => {
     const spec = parseVideoSpec(serializeVideoSpec({ scenes: ["a", "b"], voiceover: "v", extra: "mais rápido" }), "fallback");
-    expect(spec).toEqual({ v: 2, scenes: ["a", "b"], voiceover: "v", extra: "mais rápido", keyframe: null });
+    expect(spec).toEqual({ v: 2, scenes: ["a", "b"], voiceover: "v", extra: "mais rápido", keyframe: null, productSize: null, presenter: null });
     const legacy = parseVideoSpec("Bottle shot\n[INSTRUCTIONS] mais luz", "texto da copy");
     expect(legacy.scenes).toEqual(["Bottle shot"]);
     expect(legacy.extra).toBe("mais luz");

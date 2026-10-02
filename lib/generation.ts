@@ -7,7 +7,9 @@ import { deletePrefix, externallyReachableUrl, fetchMedia, IMAGE_TYPES, isOwnSto
 import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
-import { assembleVideo, lastFrame } from "./video-assembly";
+import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
+import { planSegments, segmentPrompt, videoModelCaps } from "./video-models";
+import { createKeyframe } from "@/services/ai/keyframe";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
 import { buildImageRightsRecord } from "./image-rights";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
@@ -209,7 +211,10 @@ export async function createCampaign(
             provider: media === "VIDEO" ? "fal.ai" : "gemini",
             model: media === "VIDEO" ? (input.quality === "premium" ? config.models.videoPremium : config.models.video) : (input.quality === "premium" ? config.models.imagePremium : config.models.image),
             prompt: media === "VIDEO"
-              ? serializeVideoSpec({ scenes: variant.scenes, voiceover: variant.voiceover, keyframe: references.length ? variant.keyframe || variant.visualConcept : null })
+              ? serializeVideoSpec({
+                  scenes: variant.scenes, voiceover: variant.voiceover, keyframe: variant.keyframe || variant.visualConcept,
+                  productSize: strategy.productSize, presenter: variant.presenter ?? null,
+                })
               : variant.visualConcept,
             aspectRatio,
             creditsUsed: unitCost,
@@ -439,18 +444,44 @@ function workDir(job: LoadedJob) {
   return `creatives/${c.workspaceId}/${c.id}/${job.creativeId}-parts/`;
 }
 
-async function submitSegment(job: LoadedJob, spec: VideoSpec, index: number, imageUrl: string) {
+/** Durações dos pedidos (vídeos antigos: um trecho de 5 s por cena). */
+function segmentsOf(progress: VideoProgress) {
+  return progress.segments ?? Array(progress.total).fill(VIDEO_SEGMENT_SECONDS);
+}
+
+async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments">, index: number, imageUrl: string) {
   const config = await getAppConfig();
   if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
   const campaign = job.creative.campaign;
   const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
+  const segments = segmentsOf(progress as VideoProgress);
+  const start = segments.slice(0, index).reduce((a, b) => a + b, 0);
+  const seconds = segments[index];
+
+  // Modelos com lip-sync recebem a parte da locução que cai neste pedido.
+  let audioUrl: string | null = null;
+  if (progress.audioInSegments) {
+    const fresh = await db.creative.findUnique({ where: { id: job.creativeId }, select: { audioUrl: true } });
+    const narration = fresh?.audioUrl ? await readOwnMedia(fresh.audioUrl).then((m) => m.buffer).catch(() => null) : null;
+    const slice = narration ? await sliceAudio(narration, start, seconds) : null;
+    if (slice) audioUrl = await externallyReachableUrl(await saveFile(slice, `${workDir(job)}voice-${index}.mp3`, "audio/mpeg"));
+  }
+
   return submitVideo({
     falKey: config.secrets.wanKey,
     model: job.creative.model,
     imageUrl,
-    prompt: buildVideoPrompt(spec.scenes[index], STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic", spec.extra, { index, total: spec.scenes.length }, brand?.primaryColor),
+    prompt: buildVideoPrompt(
+      segmentPrompt(spec.scenes, start, seconds),
+      STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic",
+      spec.extra,
+      { index, total: segments.length },
+      brand?.primaryColor
+    ),
     aspectRatio: job.creative.aspectRatio || "9:16",
     premium: campaign.quality === "premium",
+    seconds,
+    audioUrl,
   });
 }
 
@@ -461,41 +492,56 @@ async function submitVideoJob(job: LoadedJob) {
   if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
   const spec = await videoSpecFor(job);
 
-  // Locução no idioma do anúncio. É um extra: se falhar, o vídeo sai sem áudio.
+  // Locução no idioma do anúncio, com a voz de quem apresenta. É um extra: se falhar, o vídeo sai sem áudio.
+  let hasNarration = !!creative.audioUrl;
   if (!creative.audioUrl) {
     try {
-      const audioUrl = await generateNarration(spec.voiceover, config.secrets, campaign.workspaceId);
-      if (audioUrl) await db.creative.update({ where: { id: creative.id }, data: { audioUrl } });
+      const audioUrl = await generateNarration(spec.voiceover, config.secrets, campaign.workspaceId, spec.presenter);
+      if (audioUrl) {
+        await db.creative.update({ where: { id: creative.id }, data: { audioUrl } });
+        hasNarration = true;
+      }
     } catch (error) {
       console.warn("[generation] locução falhou (seguindo sem áudio)", error);
     }
   }
 
-  // Com imagens de referência, o vídeo começa num quadro composto (ex.: a modelo da imagem 2 com a garrafa da
-  // imagem 1), gerado pelo modelo de imagem; sem elas, a foto do produto é animada diretamente.
+  // O vídeo sempre começa num quadro de abertura gerado como UMA foto realista (produto + referências, na escala
+  // certa e no formato do vídeo) e aprovado por uma revisão de IA. Animar a foto crua do produto deixava o
+  // resultado artificial. Sem Gemini configurado, cai na foto do produto.
   let startImage = campaign.product.originalImageUrl;
-  const references = await loadReferences(campaign.referencesJson);
-  if (references.length > 0) {
-    if (!config.secrets.geminiKey) throw new Error("Gemini não configurado (necessário para juntar as imagens de referência)");
+  if (config.secrets.geminiKey) {
     const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
-    const frame = await generateAdImage({
-      apiKey: config.secrets.geminiKey,
-      model: campaign.quality === "premium" ? config.models.imagePremium : config.models.image,
-      fallbackModel: config.models.image,
-      product: await readOwnMedia(campaign.product.originalImageUrl),
-      references,
-      concept: spec.keyframe || spec.scenes[0],
-      styleLabel: STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic",
-      aspectRatio: creative.aspectRatio || "9:16",
-      quality: campaign.quality === "premium" ? "premium" : "standard",
-      brandColor: brand?.primaryColor,
-      extraInstructions: spec.extra,
-    });
+    const frame = await createKeyframe(
+      {
+        apiKey: config.secrets.geminiKey,
+        // Composição é a parte mais difícil: sempre o modelo de imagem mais forte.
+        model: config.models.imagePremium,
+        fallbackModel: config.models.image,
+        product: await readOwnMedia(campaign.product.originalImageUrl),
+        references: await loadReferences(campaign.referencesJson),
+        concept: spec.keyframe || spec.scenes[0],
+        productSize: spec.productSize,
+        styleLabel: STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic",
+        aspectRatio: creative.aspectRatio || "9:16",
+        quality: "premium",
+        brandColor: brand?.primaryColor,
+        extraInstructions: spec.extra,
+      },
+      { apiKey: config.secrets.geminiKey, model: config.models.text }
+    );
     startImage = await saveFile(frame.buffer, `${workDir(job)}keyframe.${IMAGE_TYPES[frame.mimeType as ImageMime] || "png"}`, frame.mimeType);
   }
 
-  const request = await submitSegment(job, spec, 0, await externallyReachableUrl(startImage));
-  const progress: VideoProgress = { v: 2, total: spec.scenes.length, done: [], current: request, segmentStartedAt: Date.now() };
+  const caps = videoModelCaps(creative.model);
+  const plan = {
+    total: 0,
+    segments: planSegments(campaign.videoDuration || VIDEO_SEGMENT_SECONDS, caps.durations),
+    audioInSegments: caps.lipSyncAudio && hasNarration,
+  };
+  plan.total = plan.segments.length;
+  const request = await submitSegment(job, spec, plan, 0, await externallyReachableUrl(startImage));
+  const progress: VideoProgress = { v: 2, ...plan, done: [], current: request, segmentStartedAt: Date.now() };
   await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(progress) } });
 }
 
@@ -543,8 +589,8 @@ async function pollVideoJob(job: LoadedJob) {
   if (done.length < progress.total) {
     const previous = lastBuffer ?? (await readOwnMedia(done[done.length - 1])).buffer;
     const frameUrl = await saveFile(await lastFrame(previous), `${dir}frame-${done.length}.png`, "image/png");
-    const request = await submitSegment(job, spec, done.length, await externallyReachableUrl(frameUrl));
-    const next: VideoProgress = { v: 2, total: progress.total, done, current: request, segmentStartedAt: Date.now() };
+    const request = await submitSegment(job, spec, progress, done.length, await externallyReachableUrl(frameUrl));
+    const next: VideoProgress = { v: 2, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, done, current: request, segmentStartedAt: Date.now() };
     await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
     return;
   }
@@ -562,7 +608,10 @@ async function pollVideoJob(job: LoadedJob) {
       return null;
     });
   }
-  const final = await assembleVideo(segments, narration, logo);
+  // Com lip-sync, a locução já veio dentro de cada trecho; senão, entra agora por cima do vídeo.
+  const final = progress.audioInSegments
+    ? await assembleVideo(segments, null, logo, { segmentAudio: true })
+    : await assembleVideo(segments, narration, logo);
 
   const url = await saveFile(final.buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${job.creativeId}.mp4`, "video/mp4");
   const completed = await db.generationJob.updateMany({

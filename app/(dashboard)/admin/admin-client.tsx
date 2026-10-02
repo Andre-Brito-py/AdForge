@@ -28,11 +28,12 @@ interface ConfigResponse {
     stripeAutomaticTax: boolean;
     meta: { loginConfigId: string | null; graphVersion: string };
     elevenLabsVoiceId: string;
+    elevenLabsVoiceIdMale: string;
   };
 }
 type SettingKey =
   | "companyName" | "companyCnpj" | "companyAddress" | "supportEmail" | "privacyEmail" | "euRepresentative" | "ukRepresentative"
-  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId";
+  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId" | "elevenLabsVoiceIdMale";
 
 async function api(url: string, method = "GET", body?: unknown) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -730,7 +731,11 @@ function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () =
             help="“Login do Facebook para Empresas”. Vazio = usa as permissões padrão." />
           <SettingInput label="Meta: versão da Graph API" value={v("metaGraphVersion")} inUse={eff.meta.graphVersion} onChange={set("metaGraphVersion")} help="Ex.: v23.0" />
         </div>
-        <SettingInput label="ElevenLabs: ID da voz da locução" value={v("elevenLabsVoiceId")} inUse={eff.elevenLabsVoiceId} onChange={set("elevenLabsVoiceId")} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SettingInput label="ElevenLabs: voz feminina / padrão" value={v("elevenLabsVoiceId")} inUse={eff.elevenLabsVoiceId} onChange={set("elevenLabsVoiceId")} />
+          <SettingInput label="ElevenLabs: voz masculina" value={v("elevenLabsVoiceIdMale")} inUse={eff.elevenLabsVoiceIdMale} onChange={set("elevenLabsVoiceIdMale")}
+            help="Usada quando quem apresenta o produto no vídeo é um homem." />
+        </div>
       </section>
 
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>

@@ -1,4 +1,5 @@
 import { brandColorDirection } from "@/lib/brand-assets";
+import { videoModelCaps } from "@/lib/video-models";
 
 /**
  * Geração de vídeo (image-to-video) via fila assíncrona da fal.ai.
@@ -26,6 +27,10 @@ function falAspect(aspectRatio: string) {
   return ["16:9", "9:16", "1:1"].includes(aspectRatio) ? aspectRatio : "auto";
 }
 
+/** O que nunca queremos no vídeo (vale para os modelos que aceitam prompt negativo). */
+const NEGATIVE_PROMPT =
+  "distorted or resized product, product changing shape or label, oversized or tiny product, pasted or collage look, extra fingers, deformed hands, face changing identity, on-screen text, watermark, logo artifacts, jump cuts";
+
 export async function submitVideo(opts: {
   falKey: string;
   model: string;
@@ -33,18 +38,37 @@ export async function submitVideo(opts: {
   prompt: string;
   aspectRatio: string;
   premium: boolean;
+  /** Duração deste pedido (s); só usada pelos modelos que aceitam escolher. */
+  seconds?: number;
+  /** Locução deste trecho (URL ou data URI) para o modelo sincronizar os lábios. */
+  audioUrl?: string | null;
 }): Promise<FalRequest> {
+  const caps = videoModelCaps(opts.model);
+  const body = caps.lipSyncAudio
+    ? {
+        prompt: opts.prompt.slice(0, 1500),
+        image_url: opts.imageUrl,
+        duration: String(opts.seconds && caps.durations.includes(opts.seconds) ? opts.seconds : caps.durations[0]),
+        resolution: opts.premium ? caps.resolution.premium : caps.resolution.standard,
+        ...(opts.audioUrl ? { audio_url: opts.audioUrl } : {}),
+        negative_prompt: NEGATIVE_PROMPT,
+        // O prompt já vem detalhado pela Vysify; a expansão automática poderia mudar o produto ou a cena.
+        enable_prompt_expansion: false,
+        multi_shots: false,
+        enable_safety_checker: true,
+      }
+    : {
+        prompt: opts.prompt,
+        image_url: opts.imageUrl,
+        aspect_ratio: falAspect(opts.aspectRatio),
+        resolution: opts.premium ? caps.resolution.premium : caps.resolution.standard,
+        enable_safety_checker: true,
+      };
   const res = await fetch(`${FAL_QUEUE}/${opts.model}`, {
     method: "POST",
     headers: { Authorization: `Key ${opts.falKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      prompt: opts.prompt,
-      image_url: opts.imageUrl,
-      aspect_ratio: falAspect(opts.aspectRatio),
-      resolution: opts.premium ? "720p" : "480p",
-      enable_safety_checker: true,
-    }),
-    signal: AbortSignal.timeout(30_000),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) {
     throw new VideoGenerationError(`fal.ai recusou o pedido (${res.status}): ${(await res.text()).slice(0, 300)}`);

@@ -64,6 +64,8 @@ const variantSchema = z.object({
   scenes: z.array(z.string().min(1).max(600)).max(12).optional(),
   // Com imagens de referência: o quadro de abertura que junta as imagens (ex.: a modelo da imagem 2 segurando a garrafa da imagem 1).
   keyframe: z.string().max(1200).optional(),
+  // Quem aparece apresentando (define a voz da locução: masculina/feminina).
+  presenter: z.enum(["female", "male", "none"]).optional(),
 });
 
 const strategySchema = z.object({
@@ -72,6 +74,8 @@ const strategySchema = z.object({
   outOfScope: z.boolean().optional(),
   scopeReason: z.string().optional(),
   language: z.string().optional(),
+  // Tamanho real estimado do produto (ex.: "squeeze bottle ~25 cm tall, fits in one hand"): evita produto gigante no vídeo.
+  productSize: z.string().max(300).optional(),
   analysis: z.string().max(2000).optional().default(""),
   hooks: z.array(z.string().max(200)).optional().default([]),
   variants: z.array(variantSchema).optional().default([]),
@@ -81,6 +85,7 @@ export type StrategyVariant = z.infer<typeof variantSchema> & { voiceover: strin
 export type CampaignStrategy = {
   /** Idioma efetivamente usado (o escolhido ou o detectado). */
   language: AdLanguage;
+  productSize: string | null;
   analysis: string;
   hooks: string[];
   variants: StrategyVariant[];
@@ -158,8 +163,7 @@ function buildPrompt(input: StrategyInput): string {
   const imagesBlock = refCount
     ? `IMAGES
 You received ${refCount + 1} images. Image 1 is the client's PRODUCT. Images 2${refCount > 1 ? `-${refCount + 1}` : ""} are references the client attached (e.g. a model/person, a setting, a style). The briefing may refer to them as "imagem 2", "image 2", "foto 2", "a modelo", etc. Use each image exactly as the briefing asks; if the briefing doesn't say, use people as the presenter and other images as setting/style inspiration.
-In every visualConcept${isVideo ? ", keyframe and scene" : ""} describe the people and objects explicitly with their image number (e.g. "the woman from image 2 holding the bottle from image 1") so another model can compose them.${isVideo ? `
-- "keyframe": in ENGLISH, the opening frame that combines the images (who/what from which image, setting, framing). If a person presents the product, scenes should show them presenting it and talking to camera.` : ""}
+In every visualConcept${isVideo ? ", keyframe and scene" : ""} describe the people and objects explicitly with their image number (e.g. "the woman from image 2 holding the bottle from image 1") so another model can compose them.${isVideo ? " If a person presents the product, scenes should show them presenting it and talking to camera." : ""}
 ${IMAGE_POLICY}
 If ANY image breaks these image rules, reply with violation=true and a polite violationReason (no graphic details).
 
@@ -172,7 +176,12 @@ If the product photo breaks these image rules, reply with violation=true and a p
   const videoFields = isVideo
     ? `
 - "voiceover": the narration script spoken over the video, in the ad language, about ${words} words (it must fit ${seconds} seconds when read naturally). Plain spoken text: no emojis, hashtags, URLs or stage directions.
-- "scenes": exactly ${scenes} strings in ENGLISH, one per consecutive 5-second shot. Scene 1 animates the product photo; every next scene CONTINUES from the last frame of the previous one (same product, same setting and lighting, smooth camera move — no hard cuts, no new characters appearing from nowhere). No on-screen text.`
+- "keyframe": in ENGLISH, the opening frame as ONE real photograph (not a collage): who/what is in it${refCount ? " (with image numbers)" : ""}, setting, camera angle and lens, framing, light direction. State how the product is held or placed so its size is realistic (e.g. "held in one hand at chest height, about the size of her forearm").
+- "presenter": "female", "male" or "none" — who appears presenting the product (it picks the narrator's voice).
+- "scenes": exactly ${scenes} strings in ENGLISH, one per consecutive 5-second beat. Scene 1 starts from the keyframe; every next scene CONTINUES the same shot (same product, same setting and lighting, smooth camera move — no hard cuts, no new characters appearing from nowhere). Describe natural, physically plausible motion. No on-screen text.`
+    : "";
+  const productSizeField = isVideo || refCount
+    ? `"productSize": "the product's real-world size estimated from the photo and data (e.g. 'squeeze sports bottle, ~25 cm tall, 7 cm wide, fits in one hand')", `
     : "";
 
   return `You are a senior creative director and performance-ad copywriter, and also the platform's safety and scope moderator.
@@ -201,7 +210,7 @@ USER_DATA
 ${userData}
 
 Reply ONLY with JSON in this format:
-{"violation": false, "outOfScope": false, ${lang.outputField}, "analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "visualConcept": "..."${isVideo ? `, "voiceover": "...", "scenes": ["..."]${refCount ? ', "keyframe": "..."' : ""}` : ""}}]}
+{"violation": false, "outOfScope": false, ${lang.outputField}, ${productSizeField}"analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "visualConcept": "..."${isVideo ? `, "voiceover": "...", "keyframe": "...", "presenter": "female|male|none", "scenes": ["..."]` : ""}}]}
 If the request is not an ad, reply: {"outOfScope": true, "scopeReason": "one friendly sentence in ${reasonLanguage} saying what was asked and that Vysify only creates ads"}
 If the request breaks the content rules, reply: {"violation": true, "violationReason": "short reason in ${reasonLanguage}"}`;
 }
@@ -230,7 +239,7 @@ export function parseStrategy(raw: string, input: StrategyInput): CampaignStrate
     const v = parsed.data.variants[i % parsed.data.variants.length];
     return { ...v, voiceover: (v.voiceover || v.copy).trim(), scenes: normalizeScenes(v.scenes, v.visualConcept, sceneCount) };
   });
-  return { language, analysis: parsed.data.analysis, hooks: parsed.data.hooks, variants };
+  return { language, productSize: parsed.data.productSize?.trim() || null, analysis: parsed.data.analysis, hooks: parsed.data.hooks, variants };
 }
 
 /** Exatamente `count` cenas: completa as que faltarem continuando a última. */

@@ -68,6 +68,61 @@ export async function lastFrame(video: Buffer): Promise<Buffer> {
   });
 }
 
+/**
+ * Trecho [start, start+seconds) da locução em MP3, com pelo menos `minSeconds` (silêncio no fim) —
+ * modelos com lip-sync exigem áudio de no mínimo 3 s. Devolve null se a fala já acabou antes de `start`.
+ */
+export async function sliceAudio(audio: Buffer, start: number, seconds: number, minSeconds = 3): Promise<Buffer | null> {
+  return withTempDir(async (dir) => {
+    const input = path.join(dir, "in.mp3");
+    const output = path.join(dir, "out.mp3");
+    await writeFile(input, audio);
+    const total = await probeDuration(input);
+    if (start >= total - 0.3) return null;
+    const pad = Math.max(minSeconds, Math.min(seconds, total - start));
+    await run(["-ss", String(start), "-t", String(seconds), "-i", input, "-af", `apad=whole_dur=${pad.toFixed(2)}`, "-c:a", "libmp3lame", "-b:a", "128k", output]);
+    return readFile(output);
+  });
+}
+
+async function hasAudio(file: string): Promise<boolean> {
+  const out = await run(["-i", file, "-f", "null", "-t", "0", "-"]).catch((e: Error) => e.message);
+  return /Audio:/.test(out);
+}
+
+async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buffer | null): Promise<{ buffer: Buffer; duration: number }> {
+  const inputs = files.flatMap((f) => ["-i", f]);
+  const audioLabels: string[] = [];
+  let extra = files.length;
+  for (let i = 0; i < files.length; i++) {
+    if (await hasAudio(files[i])) {
+      audioLabels.push(`[${i}:a:0]`);
+    } else {
+      // Trecho sem áudio: silêncio do mesmo tamanho, para a concatenação funcionar.
+      inputs.push("-f", "lavfi", "-t", (await probeDuration(files[i])).toFixed(2), "-i", "anullsrc=r=44100:cl=stereo");
+      audioLabels.push(`[${extra++}:a:0]`);
+    }
+  }
+  let graph =
+    files.map((_, i) => `[${i}:v:0]setsar=1[v${i}]`).join(";") + ";" +
+    audioLabels.map((l, i) => `${l}aresample=44100,aformat=channel_layouts=stereo[a${i}]`).join(";") + ";" +
+    files.map((_, i) => `[v${i}][a${i}]`).join("") + `concat=n=${files.length}:v=1:a=1[v][a]`;
+  let vOut = "[v]";
+  if (logoPng) {
+    const logo = path.join(dir, "logo.png");
+    await writeFile(logo, logoPng);
+    inputs.push("-i", logo);
+    const { width } = await probeSize(files[0]);
+    const w = Math.max(32, Math.round(width * LOGO_WIDTH_RATIO / 2) * 2);
+    const margin = Math.round(width * LOGO_MARGIN_RATIO);
+    graph += `;[${extra}:v]scale=${w}:-1[lg];[v][lg]overlay=W-w-${margin}:H-h-${margin}:format=auto[vl]`;
+    vOut = "[vl]";
+  }
+  const output = path.join(dir, "final.mp4");
+  await run([...inputs, "-filter_complex", graph, "-map", vOut, "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", output], 300_000);
+  return { buffer: await readFile(output), duration: Math.round(await probeDuration(output)) };
+}
+
 /** Largura e altura do primeiro stream de vídeo. */
 async function probeSize(file: string): Promise<{ width: number; height: number }> {
   const out = await run(["-i", file, "-f", "null", "-t", "0", "-"]).catch((e: Error) => e.message);
@@ -79,7 +134,12 @@ async function probeSize(file: string): Promise<{ width: number; height: number 
  * Une os trechos (na ordem), aplica o logo (opcional) e coloca a locução. Se a fala for mais longa
  * que o vídeo, o último quadro é estendido para ela não ser cortada; se for mais curta, o resto fica em silêncio.
  */
-export async function assembleVideo(segments: Buffer[], narration: Buffer | null, logoPng?: Buffer | null): Promise<{ buffer: Buffer; duration: number }> {
+export async function assembleVideo(
+  segments: Buffer[],
+  narration: Buffer | null,
+  logoPng?: Buffer | null,
+  opts: { segmentAudio?: boolean } = {}
+): Promise<{ buffer: Buffer; duration: number }> {
   if (segments.length === 0) throw new Error("Nenhum trecho para montar");
   return withTempDir(async (dir) => {
     const files = await Promise.all(
@@ -89,6 +149,9 @@ export async function assembleVideo(segments: Buffer[], narration: Buffer | null
         return f;
       })
     );
+
+    // Trechos que já trazem a locução (modelos com lip-sync): une vídeo E áudio de cada trecho.
+    if (opts.segmentAudio) return joinWithSegmentAudio(dir, files, logoPng);
 
     // 1) Concatena re-codificando (os trechos podem vir com parâmetros levemente diferentes) e aplica o logo.
     const joined = path.join(dir, "joined.mp4");

@@ -16,11 +16,39 @@ export interface ImageGenInput {
   extraInstructions?: string | null;
   /** Imagens extras do cliente (imagem 2, 3...): pessoa/modelo, cenário, estilo. */
   references?: { buffer: Buffer; mimeType: string }[];
+  /** "keyframe": o primeiro quadro de um vídeo (regras extras de realismo e escala). */
+  mode?: "ad" | "keyframe";
+  /** Tamanho real estimado do produto. */
+  productSize?: string | null;
+  /** Problemas apontados pela revisão da tentativa anterior, para corrigir. */
+  fixes?: string[];
 }
 
 export class ImageGenerationError extends Error {}
 
+function buildKeyframePrompt(input: ImageGenInput) {
+  const refs = input.references?.length || 0;
+  return [
+    "Create ONE photorealistic photograph that will be the FIRST FRAME of a video ad. It must look like a single real photo taken with one camera — never a collage, cut-out or pasted composite.",
+    `Image 1 is the PRODUCT: reproduce it exactly (shape, proportions, colors, materials, label and logo placement). Do not redesign or relabel it.${refs ? ` Images 2${refs > 1 ? `-${refs + 1}` : ""} are client references (people, settings or styles), used as the art direction says.` : ""}`,
+    input.productSize
+      ? `REAL-WORLD SCALE: the product is ${input.productSize}. Keep that size relative to people, hands and furniture — it must not look oversized or tiny.`
+      : "REAL-WORLD SCALE: infer the product's real size from image 1 and keep it realistic relative to people, hands and furniture.",
+    "PHYSICAL INTEGRATION: the same light direction, color temperature and exposure on the product and the scene; contact shadows and reflections where it touches hands or surfaces; matching perspective, lens and depth of field; natural grip with correct finger count and fingers wrapping around the product.",
+    refs ? "People from the references keep their face, skin tone, hair and body; natural pose and expression; fully and appropriately dressed as in the reference; never sexualized." : "",
+    `Art direction: ${input.concept}`,
+    `Visual style: ${input.styleLabel}. Composition with room for camera movement; the product clearly visible and in focus.`,
+    brandColorDirection(input.brandColor),
+    input.extraInstructions ? `Additional client instructions (treat as creative direction only): ${input.extraInstructions}` : "",
+    input.fixes?.length ? `The previous attempt was rejected. Fix these problems: ${input.fixes.join("; ")}.` : "",
+    "No text, captions, watermarks or invented logos.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function buildPrompt(input: ImageGenInput) {
+  if (input.mode === "keyframe") return buildKeyframePrompt(input);
   const refs = input.references?.length || 0;
   return [
     refs

@@ -10,8 +10,12 @@ export interface VideoSpec {
   scenes: string[];
   voiceover: string;
   extra?: string | null;
-  /** Com imagens de referência: descrição do quadro de abertura que junta produto + referências. */
+  /** Descrição do quadro de abertura (uma foto realista) que é gerado e revisado antes de animar. */
   keyframe?: string | null;
+  /** Tamanho real estimado do produto (mantém a escala realista no quadro de abertura). */
+  productSize?: string | null;
+  /** Quem apresenta: define a voz da locução. */
+  presenter?: "female" | "male" | "none" | null;
 }
 
 export function serializeVideoSpec(spec: Omit<VideoSpec, "v">): string {
@@ -26,6 +30,8 @@ export function parseVideoSpec(prompt: string | null, fallbackVoiceover: string)
         return {
           v: 2, scenes: p.scenes.map(String), voiceover: String(p.voiceover || fallbackVoiceover),
           extra: p.extra ? String(p.extra) : null, keyframe: p.keyframe ? String(p.keyframe) : null,
+          productSize: p.productSize ? String(p.productSize) : null,
+          presenter: ["female", "male", "none"].includes(p.presenter) ? p.presenter : null,
         };
       }
     } catch {
@@ -44,6 +50,10 @@ export function parseVideoSpec(prompt: string | null, fallbackVoiceover: string)
 export interface VideoProgress {
   v: 2;
   total: number;
+  /** Duração de cada pedido (s). Ausente nos vídeos antigos = trechos de 5 s. */
+  segments?: number[];
+  /** Os trechos já vêm com a locução (lip-sync): na montagem não se coloca a locução de novo. */
+  audioInSegments?: boolean;
   /** URLs (no nosso armazenamento) dos trechos já prontos, em ordem. */
   done: string[];
   /** Pedido em andamento na fal.ai (null entre um trecho e outro). */
