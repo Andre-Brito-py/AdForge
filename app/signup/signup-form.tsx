@@ -50,7 +50,11 @@ export function SignupForm({ googleEnabled, signupCredits }: { googleEnabled: bo
     >
       {googleEnabled && (
         <>
-          <GoogleButton disabled={loading} onClick={() => { setLoading(true); signIn("google", { callbackUrl: "/onboarding" }); }} />
+          <GoogleButton disabled={loading} onClick={() => {
+            if (!accept) return setError(t("signup.errors.acceptTerms"));
+            setLoading(true);
+            signIn("google", { callbackUrl: "/onboarding" });
+          }} />
           <p className="mt-2 text-center text-xs text-muted-foreground">{t("signup.googleNotice")}</p>
           <Divider />
         </>

@@ -100,10 +100,12 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider !== "google") return true;
       const email = user.email?.toLowerCase();
       if (!email) return false;
+      // Só aceita e-mails que o próprio Google confirma como verificados.
+      if ((profile as { email_verified?: boolean } | undefined)?.email_verified !== true) return false;
 
       const existing = await db.user.findUnique({ where: { email } });
       if (!existing) {
@@ -117,8 +119,12 @@ export const authOptions: NextAuthOptions = {
         });
         sendWelcomeEmail(created.email, created.name || "", created.locale).catch(console.error);
       } else if (!existing.emailVerified) {
-        // O Google já verificou a posse do e-mail.
-        await db.user.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
+        // O Google provou a posse do e-mail. Uma senha definida antes disso pode ter sido criada
+        // por outra pessoa com este e-mail (pré-sequestro de conta): descartamos a senha e as sessões.
+        await db.user.update({
+          where: { id: existing.id },
+          data: { emailVerified: new Date(), passwordHash: null, sessionVersion: { increment: 1 } },
+        });
       }
       return true;
     },
