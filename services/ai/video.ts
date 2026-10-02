@@ -74,9 +74,13 @@ export async function checkVideo(falKey: string, req: FalRequest): Promise<Video
   return { state: "completed", videoUrl: url };
 }
 
-export function buildVideoPrompt(concept: string, styleLabel: string, extra?: string | null) {
+export function buildVideoPrompt(concept: string, styleLabel: string, extra?: string | null, segment?: { index: number; total: number }) {
+  const continuation = segment && segment.index > 0
+    ? `This shot continues seamlessly from the input frame (part ${segment.index + 1} of ${segment.total}): keep the same product, setting, lighting and color grading; no cut, no scene change.`
+    : "";
   return [
     concept,
+    continuation,
     `Style: ${styleLabel}. Smooth cinematic camera motion, the product stays identical to the input image, no on-screen text.`,
     extra ? `Client direction: ${extra}` : "",
   ]

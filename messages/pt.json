@@ -350,7 +350,7 @@
       "reviewTitle": "Revise e gere",
       "variations": "Quantas variações?",
       "language": "Idioma do anúncio",
-      "languageHint": "A IA escreve os textos e a locução nesse idioma, ideal para vender em outros países.",
+      "languageHint": "No automático, a IA usa o idioma que você pedir (ex.: \"em espanhol\") ou o idioma em que escreveu. Os textos e a locução saem nesse idioma.",
       "summary": {
         "product": "Produto",
         "objective": "Objetivo",
@@ -367,7 +367,19 @@
       "notEnough": "Saldo insuficiente. <buy>Comprar créditos</buy> ou reduza as variações.",
       "creating": "Criando estratégia...",
       "generate": "Gerar campanha · {count} créditos",
-      "error": "Não foi possível iniciar a campanha"
+      "error": "Não foi possível iniciar a campanha",
+      "briefing": "O que você quer no anúncio? (opcional)",
+      "briefingPlaceholder": "Ex.: vídeo mostrando a garrafa na academia, tom animado, destacar que mantém gelado por 24h. Se quiser outro idioma, é só pedir: \"dublado em espanhol\".",
+      "briefingHint": "Escreva do seu jeito. A IA usa o idioma em que você escrever (ou o que você pedir) nos textos e na locução.",
+      "duration": "Duração do vídeo",
+      "durationHint": "Vídeos acima de 5 s são feitos em cenas de 5 s que continuam exatamente do último quadro da anterior, já com a locução dentro.",
+      "durationOption": "{s} s",
+      "languageAuto": "Automático (pelo seu pedido)",
+      "vyOutOfScopeTitle": "Isso não é comigo…",
+      "vyPolicyTitle": "Esse eu não posso fazer",
+      "vyFooter": "A Vysify cria só anúncios de produtos e serviços. Ajuste o pedido e tente de novo, sem nenhum crédito cobrado.",
+      "vyOk": "Ajustar o pedido",
+      "summaryDuration": "Duração"
     },
     "generating": {
       "title": "Gerando sua campanha",
@@ -386,7 +398,9 @@
       "variation": "Variação {n}",
       "videoNote": "Vídeos podem levar alguns minutos. Pode fechar esta página: a geração continua e você recebe um e-mail quando terminar.",
       "back": "Voltar para campanhas",
-      "connectionError": "Erro de conexão"
+      "connectionError": "Erro de conexão",
+      "scene": "cena {done} de {total}",
+      "assembling": "juntando cenas e locução"
     },
     "gallery": {
       "deleteConfirm": "Excluir esta campanha e todos os criativos? Esta ação não pode ser desfeita.",
@@ -412,7 +426,8 @@
       "instructionsPlaceholder": "Ex.: fundo de mármore claro, luz de fim de tarde, produto em close",
       "generate": "Gerar",
       "regenStarted": "Nova variação em geração. Ela aparece aqui em instantes.",
-      "regenError": "Não foi possível gerar a nova versão"
+      "regenError": "Não foi possível gerar a nova versão",
+      "narration": "Locução separada (MP3)"
     }
   },
   "publish": {
@@ -683,7 +698,8 @@
     "metaNoConnection": "Nenhuma conta da Meta conectada.",
     "metaExpired": "A conexão expirou. Conecte novamente.",
     "targetAccountNotFound": "Conta de destino não encontrada. Atualize a conexão em Integrações.",
-    "signupsClosed": "Novos cadastros estão fechados no momento."
+    "signupsClosed": "Novos cadastros estão fechados no momento.",
+    "outOfScope": "{reason}"
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",
@@ -698,6 +714,7 @@
     "otpFormat": "Informe o código de 6 dígitos.",
     "confirmDelete": "Digite EXCLUIR para confirmar.",
     "captionTooLong": "A legenda pode ter até 2.200 caracteres.",
-    "accountInvalid": "Conta inválida."
+    "accountInvalid": "Conta inválida.",
+    "videoDuration": "Escolha uma duração válida para o vídeo."
   }
 }

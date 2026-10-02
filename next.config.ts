@@ -13,6 +13,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // ffmpeg-static localiza o binário pelo próprio caminho: não pode ser empacotado pelo bundler.
+  serverExternalPackages: ["ffmpeg-static"],
+  // Rotas que avançam vídeos (último quadro, união dos trechos, locução) precisam do binário no deploy.
+  outputFileTracingIncludes: {
+    // Colchetes escapados: a chave é um glob (picomatch) sobre o caminho da rota.
+    "/api/campaigns/\\[id\\]": ["./node_modules/ffmpeg-static/ffmpeg*"],
+    "/api/cron/jobs": ["./node_modules/ffmpeg-static/ffmpeg*"],
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

@@ -9,7 +9,7 @@ import { setMascotMood } from "@/components/mascot/mascot-events";
 import { buttonClass } from "@/components/app/ui-bits";
 import { useTranslations } from "next-intl";
 
-interface CreativeStatus { id: string; type: string; status: string; variantIndex: number; headline: string | null }
+interface CreativeStatus { id: string; type: string; status: string; variantIndex: number; headline: string | null; segments?: { done: number; total: number } | null }
 interface CampaignStatus { id: string; name: string; status: string; creatives: CreativeStatus[] }
 
 
@@ -61,7 +61,9 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
   const visuals = (data?.creatives || []).filter((c) => c.type !== "COPY");
   const headlines = new Map((data?.creatives || []).filter((c) => c.type === "COPY").map((c) => [c.variantIndex, c.headline]));
   const finished = visuals.filter((c) => c.status === "COMPLETED" || c.status === "FAILED").length;
-  const progress = visuals.length ? Math.round(((finished + 0.15) / (visuals.length + 0.15)) * 100) : 8;
+  // Vídeos longos contam as cenas prontas no progresso (senão a barra fica parada por vários minutos).
+  const partial = visuals.reduce((sum, c) => sum + (c.status === "PROCESSING" && c.segments ? c.segments.done / (c.segments.total + 1) : 0), 0);
+  const progress = visuals.length ? Math.round(((finished + partial + 0.15) / (visuals.length + 0.15)) * 100) : 8;
   const isVideo = visuals[0]?.type === "VIDEO";
   const finishedAll = data && data.status !== "GENERATING";
 
@@ -95,6 +97,11 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
                 : <CircleDashed className="h-4 w-4 text-muted-foreground" />}
               <span className="font-medium">{t("variation", { n: i + 1 })}</span>
               <span className="truncate text-muted-foreground">{headlines.get(c.variantIndex)}</span>
+              {c.segments && c.segments.total > 1 && (
+                <span className="ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                  {c.segments.done >= c.segments.total ? t("assembling") : t("scene", { done: c.segments.done + 1, total: c.segments.total })}
+                </span>
+              )}
             </li>
           ))}
         </ul>

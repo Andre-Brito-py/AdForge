@@ -189,6 +189,10 @@ model Campaign {
   quality        String   @default("standard")
   // Idioma dos textos do anúncio (pode ser diferente do idioma da interface)
   language       String   @default("pt-BR")
+  // Pedido livre do cliente ("o que você quer no anúncio"); a IA detecta o idioma e o escopo por ele
+  briefing       String?
+  // Duração de cada vídeo em segundos (múltiplos de 5; cada trecho começa no último quadro do anterior)
+  videoDuration  Int      @default(5)
   variations     Int      @default(3)
   strategyJson   String?
   creditsCharged Int      @default(0)

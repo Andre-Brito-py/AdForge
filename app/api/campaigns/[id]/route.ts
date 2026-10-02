@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { handler, HttpError } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth";
 import { advanceCampaign } from "@/lib/generation";
+import { parseVideoProgress } from "@/lib/video-plan";
 
 export const maxDuration = 300;
 
@@ -23,11 +24,21 @@ export const GET = handler(async (_request: Request, ctx: RouteContext<"/api/cam
       id: true, name: true, status: true, variations: true, platform: true, createdAt: true,
       creatives: {
         orderBy: [{ variantIndex: "asc" }, { createdAt: "asc" }],
-        select: { id: true, type: true, status: true, variantIndex: true, outputUrl: true, audioUrl: true, headline: true, text: true, cta: true, aspectRatio: true },
+        select: {
+          id: true, type: true, status: true, variantIndex: true, outputUrl: true, audioUrl: true, headline: true, text: true, cta: true, aspectRatio: true,
+          job: { select: { externalData: true, startedAt: true } },
+        },
       },
     },
   });
-  return NextResponse.json(campaign);
+  if (!campaign) throw new HttpError(404, "errors.campaignNotFound");
+
+  // Vídeos longos: quantas cenas já ficaram prontas (o estado interno do provedor não sai daqui).
+  const creatives = campaign.creatives.map(({ job, ...c }) => {
+    const p = c.type === "VIDEO" && c.status === "PROCESSING" ? parseVideoProgress(job?.externalData ?? null, job?.startedAt?.getTime() ?? 0) : null;
+    return { ...c, segments: p ? { done: p.done.length, total: p.total } : null };
+  });
+  return NextResponse.json({ ...campaign, creatives });
 });
 
 export const DELETE = handler(async (_request: Request, ctx: RouteContext<"/api/campaigns/[id]">) => {

@@ -287,7 +287,7 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
         <h3 className="font-semibold">Custos em créditos</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           <NumberField label="Imagem" value={costs.image} onChange={(v) => setCosts({ ...costs, image: v })} />
-          <NumberField label="Vídeo" value={costs.video} onChange={(v) => setCosts({ ...costs, video: v })} />
+          <NumberField label="Vídeo (a cada 5 s)" value={costs.video} onChange={(v) => setCosts({ ...costs, video: v })} />
           <NumberField label="Multiplicador Premium" value={costs.premiumMultiplier} step={0.5} onChange={(v) => setCosts({ ...costs, premiumMultiplier: v })} />
         </div>
       </section>

@@ -98,6 +98,10 @@ Os textos de Termos e Privacidade foram reescritos para refletir o produto real 
 
 O código está pronto e testado contra uma Graph API simulada. Falta o lado da Meta (app, verificação da empresa e App Review): siga o [docs/META_SETUP.md](META_SETUP.md). Enquanto as credenciais não forem cadastradas, a página Integrações mostra "Em breve" e nada quebra.
 
+## 10.0 Vídeos longos (ffmpeg)
+
+Vídeos acima de 5 s e a locução embutida usam o ffmpeg do pacote `ffmpeg-static`, baixado no `npm install` (já liberado em `allowScripts` no `package.json`). Depois do primeiro deploy, gere um vídeo de 10 s e confira se ele sai com áudio. Se a hospedagem bloquear o binário, defina `FFMPEG_PATH` com o caminho de um ffmpeg disponível. Revise em **Admin › IA e custos** o preço do vídeo: ele vale **por cena de 5 s**.
+
 ## 10.1 Login com Google (opcional)
 
 Em **Admin › Integrações › Login com Google**: cole o Client ID e o Client Secret (Google Cloud Console › APIs e serviços › Credenciais › ID do cliente OAuth, tipo "Aplicativo da Web") e cadastre lá a URI de redirecionamento mostrada no painel. O botão "Continuar com Google" pode ser ligado e desligado a qualquer momento, sem redeploy. Antes de abrir ao público, publique a tela de consentimento OAuth no Google (fora do modo "Teste").

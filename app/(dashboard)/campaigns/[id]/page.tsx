@@ -27,7 +27,7 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
 
   const config = await getAppConfig();
   const platform = campaign.platform && campaign.platform in PLATFORMS ? (campaign.platform as PlatformKey) : null;
-  const unitCost = platform ? costPerVariation(config.costs, platform, (campaign.quality as QualityKey) || "standard") : null;
+  const unitCost = platform ? costPerVariation(config.costs, platform, (campaign.quality as QualityKey) || "standard", campaign.videoDuration) : null;
 
   const [metaApp, metaConn, publications] = await Promise.all([
     getMetaApp(),

@@ -350,7 +350,7 @@
       "reviewTitle": "Review and generate",
       "variations": "How many variations?",
       "language": "Ad language",
-      "languageHint": "The AI writes the copy and the voiceover in this language — ideal for selling in other countries.",
+      "languageHint": "On automatic, the AI uses the language you ask for (e.g. \"in Spanish\") or the one you wrote in. Copy and voiceover come out in that language.",
       "summary": {
         "product": "Product",
         "objective": "Goal",
@@ -367,7 +367,19 @@
       "notEnough": "Not enough credits. <buy>Buy credits</buy> or reduce the variations.",
       "creating": "Creating strategy...",
       "generate": "Generate campaign · {count} credits",
-      "error": "Couldn't start the campaign"
+      "error": "Couldn't start the campaign",
+      "briefing": "What do you want in the ad? (optional)",
+      "briefingPlaceholder": "E.g. video showing the bottle at the gym, upbeat tone, highlight that it keeps drinks cold for 24h. Want another language? Just ask: \"dubbed in Spanish\".",
+      "briefingHint": "Write it your way. The AI uses the language you write in (or the one you ask for) for the copy and the voiceover.",
+      "duration": "Video length",
+      "durationHint": "Videos longer than 5 s are made of 5-second scenes that continue exactly from the previous scene's last frame, with the voiceover already inside.",
+      "durationOption": "{s} s",
+      "languageAuto": "Automatic (from your request)",
+      "vyOutOfScopeTitle": "That's not my thing…",
+      "vyPolicyTitle": "I can't make that one",
+      "vyFooter": "Vysify only creates ads for products and services. Adjust your request and try again — no credits were charged.",
+      "vyOk": "Adjust my request",
+      "summaryDuration": "Length"
     },
     "generating": {
       "title": "Generating your campaign",
@@ -386,7 +398,9 @@
       "variation": "Variation {n}",
       "videoNote": "Videos can take a few minutes. You can close this page: generation continues and you'll get an email when it's done.",
       "back": "Back to campaigns",
-      "connectionError": "Connection error"
+      "connectionError": "Connection error",
+      "scene": "scene {done} of {total}",
+      "assembling": "putting scenes and voiceover together"
     },
     "gallery": {
       "deleteConfirm": "Delete this campaign and all of its creatives? This can't be undone.",
@@ -412,7 +426,8 @@
       "instructionsPlaceholder": "E.g.: light marble background, golden-hour light, close-up of the product",
       "generate": "Generate",
       "regenStarted": "New variation is being generated. It will show up here shortly.",
-      "regenError": "Couldn't generate the new version"
+      "regenError": "Couldn't generate the new version",
+      "narration": "Separate voiceover (MP3)"
     }
   },
   "publish": {
@@ -683,7 +698,8 @@
     "metaNoConnection": "No Meta account connected.",
     "metaExpired": "The connection expired. Please connect again.",
     "targetAccountNotFound": "Destination account not found. Refresh the connection in Integrations.",
-    "signupsClosed": "New sign-ups are closed right now."
+    "signupsClosed": "New sign-ups are closed right now.",
+    "outOfScope": "{reason}"
   },
   "validation": {
     "emailInvalid": "Invalid email.",
@@ -698,6 +714,7 @@
     "otpFormat": "Enter the 6-digit code.",
     "confirmDelete": "Type DELETE to confirm.",
     "captionTooLong": "The caption can have up to 2,200 characters.",
-    "accountInvalid": "Invalid account."
+    "accountInvalid": "Invalid account.",
+    "videoDuration": "Choose a valid video length."
   }
 }

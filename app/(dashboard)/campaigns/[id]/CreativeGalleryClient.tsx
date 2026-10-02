@@ -10,6 +10,7 @@ import { DeleteButton } from "@/components/app/delete-button";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { objectiveLabel, platformLabel, styleLabel } from "@/lib/catalog-i18n";
 import { setMascotMood } from "@/components/mascot/mascot-events";
+import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { PublicationList, PublishDialog, type PublicationRow, type PublishingInfo } from "./publish-dialog";
 
 interface Creative {
@@ -49,6 +50,8 @@ export default function CreativeGalleryClient({
   const [regenFor, setRegenFor] = useState<Creative | null | undefined>(undefined);
   const [instructions, setInstructions] = useState("");
   const [regenerating, setRegenerating] = useState(false);
+  const [regenNotice, setRegenNotice] = useState<{ kind: "OUT_OF_SCOPE" | "POLICY_VIOLATION"; message: string } | null>(null);
+  const tw = useTranslations("campaigns.wizard");
   const [publishFor, setPublishFor] = useState<{ visual: Creative; copy?: Creative } | null>(null);
   const [publications, setPublications] = useState<PublicationRow[]>(initialPublications);
   const publishingNow = publications.some((p) => p.status === "PENDING" || p.status === "PROCESSING");
@@ -109,7 +112,12 @@ export default function CreativeGalleryClient({
     });
     const data = await res.json().catch(() => ({}));
     setRegenerating(false);
+    if (!res.ok && (data.code === "OUT_OF_SCOPE" || data.code === "POLICY_VIOLATION")) {
+      setMascotMood("confused", 6000);
+      return setRegenNotice({ kind: data.code, message: data.error });
+    }
     if (!res.ok) return toast.error(data.error || t("regenError"));
+    setRegenNotice(null);
     toast.success(t("regenStarted"));
     setMascotMood("working", 8000);
     setRegenFor(undefined);
@@ -198,11 +206,11 @@ export default function CreativeGalleryClient({
                 <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium backdrop-blur">#{i + 1}</span>
               </div>
 
-              {visual.audioUrl && (
-                <div className="flex items-center gap-2 border-t border-border px-4 py-2">
-                  <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <audio src={visual.audioUrl} controls preload="none" className="h-8 w-full" />
-                </div>
+              {/* A locução já vai dentro do vídeo; o MP3 fica disponível para quem quiser editar. */}
+              {visual.audioUrl && visual.status === "COMPLETED" && (
+                <a href={visual.audioUrl} target="_blank" rel="noopener" className="flex items-center gap-2 border-t border-border px-4 py-2 text-xs text-muted-foreground hover:text-foreground">
+                  <Volume2 className="h-3.5 w-3.5 shrink-0" /> {t("narration")}
+                </a>
               )}
 
               {c && (
@@ -257,7 +265,7 @@ export default function CreativeGalleryClient({
         onPublished={(p) => setPublications((list) => [p, ...list])}
       />
 
-      <Dialog open={regenFor !== undefined} onOpenChange={(open) => !open && setRegenFor(undefined)}>
+      <Dialog open={regenFor !== undefined} onOpenChange={(open) => { if (!open) { setRegenFor(undefined); setRegenNotice(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{regenFor ? t("regenTitleOne") : t("regenTitle")}</DialogTitle>
@@ -265,6 +273,16 @@ export default function CreativeGalleryClient({
               {t.rich("regenDescription", { count: unitCost ?? 0, b: (chunks) => <strong>{chunks}</strong> })}
             </DialogDescription>
           </DialogHeader>
+          {regenNotice && (
+            <div role="alert" className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-3">
+              <PixelMascot mood="confused" size={40} />
+              <div className="min-w-0 text-sm">
+                <p className="font-semibold">{regenNotice.kind === "OUT_OF_SCOPE" ? tw("vyOutOfScopeTitle") : tw("vyPolicyTitle")}</p>
+                <p className="mt-1">{regenNotice.message}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{tw("vyFooter")}</p>
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <label htmlFor="instr" className="label-base">{t("instructions")}</label>
             <textarea id="instr" className="input-base min-h-24 py-3" maxLength={500} value={instructions} onChange={(e) => setInstructions(e.target.value)}

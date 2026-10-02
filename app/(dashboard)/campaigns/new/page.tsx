@@ -4,7 +4,6 @@ import { requireUser } from "@/lib/auth";
 import { getAppConfig } from "@/lib/config";
 import { getWorkspaceBalance } from "@/services/credits";
 import { PageHeader } from "@/components/app/ui-bits";
-import { defaultAdLanguage } from "@/lib/locale";
 import { CampaignWizard } from "./wizard";
 
 export async function generateMetadata() {
@@ -17,7 +16,7 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
   const sp = await props.searchParams;
   const initialProductId = typeof sp.productId === "string" ? sp.productId : "";
 
-  const [products, balance, config, lastCampaign] = await Promise.all([
+  const [products, balance, config] = await Promise.all([
     db.product.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: "desc" },
@@ -25,8 +24,6 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
     }),
     getWorkspaceBalance(user.workspaceId),
     getAppConfig(),
-    // Reaproveita o idioma usado na última campanha (quem vende para os EUA continua em inglês).
-    db.campaign.findFirst({ where: { workspaceId: user.workspaceId }, orderBy: { createdAt: "desc" }, select: { language: true } }),
   ]);
 
   const locale = user.locale === "en" ? "en" : "pt";
@@ -40,7 +37,6 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
         costs={config.costs}
         availability={{ IMAGE: !!config.secrets.geminiKey, VIDEO: !!config.secrets.wanKey && (!!config.secrets.geminiKey || !!config.secrets.openAiKey) }}
         emailVerified={!!user.emailVerified}
-        defaultLanguage={lastCampaign?.language || defaultAdLanguage(locale, user.country)}
         locale={locale}
       />
     </>

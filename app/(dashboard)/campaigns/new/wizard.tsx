@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -8,17 +9,18 @@ import { ArrowLeft, ArrowRight, Check, Globe, Image as ImageIcon, Loader2, Plus,
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
-  OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, campaignCost, costPerVariation,
-  type AiCosts, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey,
+  OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, VIDEO_DURATIONS, campaignCost, costPerVariation,
+  type AiCosts, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey, type VideoDuration,
 } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { buttonClass } from "@/components/app/ui-bits";
 import { setMascotMood } from "@/components/mascot/mascot-events";
+import { PixelMascot } from "@/components/mascot/PixelMascot";
 
 interface Product { id: string; name: string; originalImageUrl: string; targetAudience: string | null }
 
 export function CampaignWizard({
-  products, initialProductId, balance, costs, availability, emailVerified, defaultLanguage, locale,
+  products, initialProductId, balance, costs, availability, emailVerified, locale,
 }: {
   products: Product[];
   initialProductId: string;
@@ -26,7 +28,6 @@ export function CampaignWizard({
   costs: AiCosts;
   availability: { IMAGE: boolean; VIDEO: boolean };
   emailVerified: boolean;
-  defaultLanguage: string;
   locale: "pt" | "en";
 }) {
   const t = useTranslations("campaigns.wizard");
@@ -44,10 +45,15 @@ export function CampaignWizard({
   const [style, setStyle] = useState<StyleKey | "">("");
   const [quality, setQuality] = useState<QualityKey>("standard");
   const [variations, setVariations] = useState<number>(3);
-  const [language, setLanguage] = useState<AdLanguage>(defaultLanguage in AD_LANGUAGES ? (defaultLanguage as AdLanguage) : locale === "pt" ? "pt-BR" : "en-US");
+  const [language, setLanguage] = useState<AdLanguage | "auto">("auto");
+  const [briefing, setBriefing] = useState("");
+  const [duration, setDuration] = useState<VideoDuration>(5);
+  // Recusa da IA (fora do escopo de anúncios ou contra as regras): o Vy explica.
+  const [vyNotice, setVyNotice] = useState<{ kind: "OUT_OF_SCOPE" | "POLICY_VIOLATION"; message: string } | null>(null);
 
   const product = products.find((p) => p.id === productId);
-  const total = platform ? campaignCost(costs, platform, quality, variations) : 0;
+  const isVideo = !!platform && PLATFORMS[platform].media === "VIDEO";
+  const total = platform ? campaignCost(costs, platform, quality, variations, isVideo ? duration : null) : 0;
   const enough = balance >= total;
 
   const canNext = useMemo(() => [!!productId, !!objective, !!platform && !!style, true][step], [step, productId, objective, platform, style]);
@@ -60,9 +66,18 @@ export function CampaignWizard({
       const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, objective, targetAudience: targetAudience || null, offer: offer || null, platform, style, quality, variations, language }),
+        body: JSON.stringify({
+          productId, objective, targetAudience: targetAudience || null, offer: offer || null, platform, style, quality, variations, language,
+          briefing: briefing.trim() || null, videoDuration: isVideo ? duration : 5,
+        }),
       });
       const data = await res.json().catch(() => ({}));
+      if (!res.ok && (data.code === "OUT_OF_SCOPE" || data.code === "POLICY_VIOLATION")) {
+        setMascotMood("confused", 6000);
+        setVyNotice({ kind: data.code, message: data.error });
+        setLoading(false);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || t("error"));
       router.push(`/campaigns/${data.id}/generating`);
     } catch (err) {
@@ -118,6 +133,12 @@ export function CampaignWizard({
 
             {step === 1 && (
               <Section title={t("objectiveTitle")} subtitle={t("objectiveSub")}>
+                <div className="mb-6 space-y-2">
+                  <label htmlFor="briefing" className="label-base">{t("briefing")}</label>
+                  <textarea id="briefing" className="input-base min-h-28 py-3" maxLength={1000} value={briefing} onChange={(e) => setBriefing(e.target.value)}
+                    placeholder={t("briefingPlaceholder")} />
+                  <p className="text-xs text-muted-foreground">{t("briefingHint")}</p>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(Object.keys(OBJECTIVES) as ObjectiveKey[]).map((key) => (
                     <button key={key} type="button" onClick={() => setObjective(key)} data-selected={objective === key} className="choice">
@@ -161,6 +182,21 @@ export function CampaignWizard({
                   })}
                 </div>
 
+                {isVideo && (
+                  <>
+                    <h3 className="mb-1 mt-7 text-sm font-medium">{t("duration")}</h3>
+                    <p className="mb-3 text-xs text-muted-foreground">{t("durationHint")}</p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {VIDEO_DURATIONS.map((s) => (
+                        <button key={s} type="button" onClick={() => setDuration(s)} data-selected={duration === s} className="choice py-2.5 text-center">
+                          <span className="block font-semibold tabular-nums">{t("durationOption", { s })}</span>
+                          <span className="block text-xs text-muted-foreground">{tc("credits", { count: costPerVariation(costs, platform as PlatformKey, quality, s) })}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
                 <h3 className="mb-3 mt-7 text-sm font-medium">{t("style")}</h3>
                 <div className="flex flex-wrap gap-2">
                   {(Object.keys(STYLES) as StyleKey[]).map((key) => (
@@ -180,7 +216,7 @@ export function CampaignWizard({
                       </span>
                       <span className="mt-0.5 block text-sm text-muted-foreground">
                         {tcat(`qualities.${key}.description`)}
-                        {platform ? ` · ${t("perVariation", { count: costPerVariation(costs, platform, key) })}` : ""}
+                        {platform ? ` · ${t("perVariation", { count: costPerVariation(costs, platform, key, isVideo ? duration : null) })}` : ""}
                       </span>
                     </button>
                   ))}
@@ -201,7 +237,8 @@ export function CampaignWizard({
 
                 <div className="mt-6 space-y-2">
                   <label htmlFor="lang" className="label-base flex items-center gap-2"><Globe className="h-4 w-4 text-brand" /> {t("language")}</label>
-                  <select id="lang" className="input-base" value={language} onChange={(e) => setLanguage(e.target.value as AdLanguage)}>
+                  <select id="lang" className="input-base" value={language} onChange={(e) => setLanguage(e.target.value as AdLanguage | "auto")}>
+                    <option value="auto">{t("languageAuto")}</option>
                     {(Object.keys(AD_LANGUAGES) as AdLanguage[]).map((code) => (
                       <option key={code} value={code}>{AD_LANGUAGES[code][locale]}</option>
                     ))}
@@ -214,7 +251,8 @@ export function CampaignWizard({
                   <Row k={t("summary.objective")} v={tcat(`objectives.${objective}.label`)} />
                   <Row k={t("summary.format")} v={`${tcat(`platforms.${platform}.label`)} (${tcat(`platforms.${platform}.hint`)})`} />
                   <Row k={t("summary.style")} v={`${tcat(`styles.${style}`)} · ${tcat(`qualities.${quality}.label`)}`} />
-                  <Row k={t("summary.language")} v={AD_LANGUAGES[language][locale]} />
+                  <Row k={t("summary.language")} v={language === "auto" ? t("languageAuto") : AD_LANGUAGES[language][locale]} />
+                  {isVideo && <Row k={t("summaryDuration")} v={t("durationOption", { s: duration })} />}
                 </dl>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border p-5">
@@ -239,6 +277,26 @@ export function CampaignWizard({
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Portal: um ancestral do painel tem transform, o que prenderia o "fixed" à área do conteúdo. */}
+      {vyNotice && createPortal(
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center" role="alertdialog" aria-modal="true" aria-labelledby="vy-title">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-popover p-6 shadow-xl animate-in fade-in zoom-in-95">
+            <div className="flex items-start gap-4">
+              <PixelMascot mood="confused" size={64} />
+              <div className="min-w-0">
+                <p id="vy-title" className="text-lg font-semibold">{vyNotice.kind === "OUT_OF_SCOPE" ? t("vyOutOfScopeTitle") : t("vyPolicyTitle")}</p>
+                <p className="mt-2 text-sm">{vyNotice.message}</p>
+                <p className="mt-3 text-xs text-muted-foreground">{t("vyFooter")}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button type="button" autoFocus onClick={() => { setVyNotice(null); setStep(1); }} className={buttonClass("primary")}>{t("vyOk")}</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <div className="mt-4 flex items-center justify-between">
         <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || loading} className={buttonClass("ghost")}>

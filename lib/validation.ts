@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_VARIATIONS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS } from "./catalog";
+import { MAX_VARIATIONS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS, VIDEO_DURATIONS } from "./catalog";
 import { AD_LANGUAGE_KEYS, LOCALES } from "./locale";
 
 // Mensagens padrão do Zod: o idioma é escolhido por requisição em lib/api.ts (parseBody).
@@ -81,7 +81,14 @@ export const campaignSchema = z.object({
   platform: z.enum(PLATFORM_KEYS),
   style: z.enum(STYLE_KEYS),
   quality: z.enum(QUALITY_KEYS).default("standard"),
-  language: z.enum(AD_LANGUAGE_KEYS).default("pt-BR"),
+  // "auto": a IA escolhe pelo pedido (idioma pedido explicitamente > idioma em que foi escrito > idioma do cliente)
+  language: z.enum(["auto", ...AD_LANGUAGE_KEYS]).default("auto"),
+  briefing: optionalText(1000),
+  videoDuration: z
+    .number()
+    .int()
+    .refine((d) => (VIDEO_DURATIONS as readonly number[]).includes(d), { message: "validation.videoDuration" })
+    .default(5),
   variations: z.number().int().min(1).max(MAX_VARIATIONS),
 });
 

@@ -35,6 +35,19 @@ export const QUALITIES = {
 export const VARIATION_OPTIONS = [1, 2, 3, 4] as const;
 export const MAX_VARIATIONS = 4;
 
+/**
+ * Vídeos longos são feitos em trechos de 5 s: cada trecho parte do último quadro do anterior
+ * (continuidade) e no fim tudo é unido com a locução. O custo em créditos é por trecho.
+ */
+export const VIDEO_SEGMENT_SECONDS = 5;
+export const VIDEO_DURATIONS = [5, 10, 15, 20, 30] as const;
+export type VideoDuration = (typeof VIDEO_DURATIONS)[number];
+
+export function videoSegments(duration: number | null | undefined): number {
+  const d = VIDEO_DURATIONS.includes(duration as VideoDuration) ? (duration as number) : VIDEO_SEGMENT_SECONDS;
+  return Math.round(d / VIDEO_SEGMENT_SECONDS);
+}
+
 export type ObjectiveKey = keyof typeof OBJECTIVES;
 export type PlatformKey = keyof typeof PLATFORMS;
 export type StyleKey = keyof typeof STYLES;
@@ -48,13 +61,15 @@ export interface AiCosts {
 
 export const DEFAULT_COSTS: AiCosts = { image: 3, video: 10, premiumMultiplier: 2 };
 
-export function costPerVariation(costs: AiCosts, platform: PlatformKey, quality: QualityKey): number {
-  const base = PLATFORMS[platform].media === "VIDEO" ? costs.video : costs.image;
+/** Créditos por variação. Para vídeo, `costs.video` é o preço de cada trecho de 5 s. */
+export function costPerVariation(costs: AiCosts, platform: PlatformKey, quality: QualityKey, videoDuration?: number | null): number {
+  const isVideo = PLATFORMS[platform].media === "VIDEO";
+  const base = isVideo ? costs.video * videoSegments(videoDuration) : costs.image;
   return quality === "premium" ? Math.ceil(base * costs.premiumMultiplier) : base;
 }
 
-export function campaignCost(costs: AiCosts, platform: PlatformKey, quality: QualityKey, variations: number): number {
-  return costPerVariation(costs, platform, quality) * variations;
+export function campaignCost(costs: AiCosts, platform: PlatformKey, quality: QualityKey, variations: number, videoDuration?: number | null): number {
+  return costPerVariation(costs, platform, quality, videoDuration) * variations;
 }
 
 export const OBJECTIVE_KEYS = Object.keys(OBJECTIVES) as [ObjectiveKey, ...ObjectiveKey[]];

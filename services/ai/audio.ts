@@ -2,9 +2,12 @@ import { randomUUID } from "crypto";
 import { saveFile } from "@/lib/storage";
 import { getAppConfig } from "@/lib/config";
 
+// ELEVENLABS_BASE_URL aponta para um servidor simulado nos testes locais.
+const ELEVENLABS_BASE = (process.env.ELEVENLABS_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, "");
+
 async function elevenLabs(text: string, apiKey: string): Promise<Buffer> {
   const voiceId = (await getAppConfig()).settings.elevenLabsVoiceId;
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
+  const res = await fetch(`${ELEVENLABS_BASE}/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
     method: "POST",
     headers: { Accept: "audio/mpeg", "Content-Type": "application/json", "xi-api-key": apiKey },
     body: JSON.stringify({

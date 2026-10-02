@@ -12,7 +12,8 @@ foto + configurações  →  campanha gerada pela IA  →  download  ou  publica
 | --- | --- | --- |
 | Conta | Cadastro com senha (bcrypt), confirmação de e-mail, recuperação de senha, 2FA (TOTP), login com Google opcional | ✅ Pronto |
 | Produtos | Upload da foto com validação real do arquivo, biblioteca de produtos | ✅ Pronto |
-| Campanhas | Assistente em 4 passos, estratégia + copy, imagens (Gemini) e vídeos com locução (fal.ai/Wan + ElevenLabs/OpenAI), nova variação com instruções | ✅ Pronto |
+| Campanhas | Assistente em 4 passos com pedido livre, estratégia + copy, imagens (Gemini) e vídeos de 5 a 30 s com locução embutida (fal.ai/Wan + ElevenLabs/OpenAI), nova variação com instruções | ✅ Pronto |
+| Idioma e escopo | Idioma automático (o pedido "dublado em espanhol" vence o idioma em que foi escrito); a IA recusa pedidos que não são anúncios (novela, filme, conteúdo adulto/violento) antes de cobrar, com aviso do Vy | ✅ Pronto |
 | Créditos | Débito atômico, estorno automático em falhas, extrato | ✅ Pronto |
 | Pagamentos | Pacotes avulsos via Mercado Pago (Pix, cartão, boleto) e Stripe, webhooks idempotentes | ✅ Pronto |
 | Teste grátis | Créditos no cadastro e card "Grátis" na landing, **desligados por padrão** (Admin › Teste grátis) | ✅ Pronto |
@@ -36,10 +37,12 @@ foto + configurações  →  campanha gerada pela IA  →  download  ou  publica
 
 ## Como funciona a geração
 
-1. `POST /api/campaigns` valida o pedido, gera a estratégia com o Gemini (**antes** de cobrar) e debita os créditos de forma atômica.
+1. `POST /api/campaigns` valida o pedido e gera a estratégia com o Gemini (**antes** de cobrar). Nessa mesma chamada a IA detecta o idioma do anúncio e recusa pedidos fora do escopo (não são anúncios) ou contra as regras de conteúdo; só depois os créditos são debitados de forma atômica.
 2. Cada variação vira um `GenerationJob`, executado em segundo plano (`waitUntil`), com retentativa automática.
-3. **Imagens** ficam prontas em segundos. **Vídeos** vão para a fila da fal.ai e são acompanhados pelo polling da tela de progresso e pelo cron `/api/cron/jobs`.
+3. **Imagens** ficam prontas em segundos. **Vídeos** são feitos em cenas de 5 s na fila da fal.ai: quando uma cena termina, o ffmpeg extrai o **último quadro** e ele vira a imagem inicial da próxima cena (continuidade). Com todas prontas, o ffmpeg une as cenas e coloca a locução (no idioma do anúncio) dentro do MP4. O avanço acontece no polling da tela de progresso e no cron `/api/cron/jobs`, com trava para dois pollers não avançarem a mesma cena.
 4. Se uma variação falhar, os créditos dela são **estornados automaticamente** e o cliente vê o aviso.
+
+O custo de vídeo no Admin é **por cena de 5 s** (um vídeo de 20 s custa 4×).
 
 ## Como funciona a publicação (Meta)
 

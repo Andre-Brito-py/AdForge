@@ -1,0 +1,69 @@
+import type { FalRequest } from "@/services/ai/video";
+
+/**
+ * O que um criativo de vídeo deve conter (guardado em Creative.prompt como JSON):
+ * uma cena por trecho de 5 s, o roteiro da locução e eventuais instruções extras do cliente.
+ * Criativos antigos têm só o texto do conceito em Creative.prompt.
+ */
+export interface VideoSpec {
+  v: 2;
+  scenes: string[];
+  voiceover: string;
+  extra?: string | null;
+}
+
+export function serializeVideoSpec(spec: Omit<VideoSpec, "v">): string {
+  return JSON.stringify({ v: 2, ...spec });
+}
+
+export function parseVideoSpec(prompt: string | null, fallbackVoiceover: string): VideoSpec {
+  if (prompt?.startsWith("{")) {
+    try {
+      const p = JSON.parse(prompt);
+      if (p?.v === 2 && Array.isArray(p.scenes) && p.scenes.length > 0) {
+        return { v: 2, scenes: p.scenes.map(String), voiceover: String(p.voiceover || fallbackVoiceover), extra: p.extra ? String(p.extra) : null };
+      }
+    } catch {
+      /* cai no formato antigo */
+    }
+  }
+  // Formato antigo: "conceito\n[INSTRUCTIONS] extra"
+  const [concept, extra] = (prompt || "").split("\n[INSTRUCTIONS] ");
+  return { v: 2, scenes: [concept || "Clean studio product shot"], voiceover: fallbackVoiceover, extra: extra || null };
+}
+
+/**
+ * Estado do processamento (GenerationJob.externalData): trechos prontos, o pedido em andamento
+ * na fal.ai e uma "trava" para dois pollers simultâneos não avançarem o mesmo trecho duas vezes.
+ */
+export interface VideoProgress {
+  v: 2;
+  total: number;
+  /** URLs (no nosso armazenamento) dos trechos já prontos, em ordem. */
+  done: string[];
+  /** Pedido em andamento na fal.ai (null entre um trecho e outro). */
+  current: FalRequest | null;
+  /** Início do trecho atual (para o tempo limite por trecho). */
+  segmentStartedAt: number;
+  /** Quando algum worker pegou o avanço (unir/baixar/enviar o próximo). */
+  claimedAt?: number;
+}
+
+export function parseVideoProgress(raw: string | null, fallbackStartedAt: number): VideoProgress | null {
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw);
+    if (p?.v === 2) return p as VideoProgress;
+    // Formato antigo: só o FalRequest de um vídeo de um trecho.
+    if (p?.requestId) return { v: 2, total: 1, done: [], current: p as FalRequest, segmentStartedAt: fallbackStartedAt };
+  } catch {
+    /* inválido */
+  }
+  return null;
+}
+
+export const CLAIM_TTL_MS = 3 * 60_000;
+
+export function isClaimed(p: VideoProgress, now = Date.now()) {
+  return !!p.claimedAt && now - p.claimedAt < CLAIM_TTL_MS;
+}

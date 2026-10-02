@@ -2,13 +2,16 @@ import { waitUntil } from "@vercel/functions";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { getAppConfig } from "./config";
-import { PLATFORMS, STYLES, costPerVariation, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
-import { externallyReachableUrl, fetchMedia, IMAGE_TYPES, readOwnMedia, saveFile, type ImageMime } from "./storage";
+import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, videoSegments, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
+import { deletePrefix, externallyReachableUrl, fetchMedia, IMAGE_TYPES, readOwnMedia, saveFile, type ImageMime } from "./storage";
 import { HttpError } from "./api";
+import { defaultAdLanguage } from "./locale";
+import { isClaimed, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
+import { assembleVideo, lastFrame } from "./video-assembly";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
-import { generateCampaignStrategy, AiUnavailableError, PolicyViolationError } from "@/services/ai/text";
+import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
-import { buildVideoPrompt, checkVideo, submitVideo, type FalRequest } from "@/services/ai/video";
+import { buildVideoPrompt, checkVideo, submitVideo } from "@/services/ai/video";
 import { generateNarration } from "@/services/ai/audio";
 import { sendCampaignReadyEmail } from "@/services/email";
 import { txDescription } from "./generation-text";
@@ -65,7 +68,9 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
   });
 
   const config = await getAppConfig();
-  const unitCost = costPerVariation(config.costs, input.platform, input.quality);
+  const media = PLATFORMS[input.platform].media;
+  const videoDuration = media === "VIDEO" ? input.videoDuration : VIDEO_SEGMENT_SECONDS;
+  const unitCost = costPerVariation(config.costs, input.platform, input.quality, videoDuration);
   const totalCost = unitCost * input.variations;
 
   // Checagem rápida antes de gastar uma chamada de IA (a cobrança real é atômica mais abaixo).
@@ -88,18 +93,16 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
       offer: input.offer,
       variations: input.variations,
       language: input.language,
+      fallbackLanguage: defaultAdLanguage(user.locale === "en" ? "en" : "pt", user.country),
+      briefing: input.briefing,
+      videoDuration,
       uiLocale: user.locale === "en" ? "en" : "pt",
       brand,
     });
   } catch (error) {
-    if (error instanceof PolicyViolationError) {
-      throw new HttpError(422, "errors.policyViolation", "POLICY_VIOLATION", { reason: error.message });
-    }
-    if (error instanceof AiUnavailableError) throw new HttpError(503, "errors.aiUnavailable", "AI_UNAVAILABLE");
-    throw error;
+    throw toHttpAiError(error);
   }
 
-  const media = PLATFORMS[input.platform].media;
   const aspectRatio = PLATFORMS[input.platform].aspectRatio;
   const campaignId = randomUUID();
   const jobIds: string[] = [];
@@ -117,7 +120,7 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
             operation: `CAMPAIGN_${media}_${input.quality.toUpperCase()}`,
             provider: media === "VIDEO" ? "fal.ai" : "gemini",
             model: media === "VIDEO" ? config.models.video : config.models.image,
-            estimatedCostUsd: input.variations * (media === "VIDEO" ? 0.25 : 0.04),
+            estimatedCostUsd: input.variations * (media === "VIDEO" ? 0.25 * videoSegments(videoDuration) : 0.04),
           },
         },
         tx
@@ -138,7 +141,9 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
           platform: input.platform,
           format: aspectRatio,
           quality: input.quality,
-          language: input.language,
+          language: strategy.language,
+          briefing: input.briefing,
+          videoDuration,
           variations: input.variations,
           strategyJson: JSON.stringify(strategy),
           creditsCharged: totalCost,
@@ -168,7 +173,7 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
             variantIndex: i,
             provider: media === "VIDEO" ? "fal.ai" : "gemini",
             model: media === "VIDEO" ? (input.quality === "premium" ? config.models.videoPremium : config.models.video) : (input.quality === "premium" ? config.models.imagePremium : config.models.image),
-            prompt: variant.visualConcept,
+            prompt: media === "VIDEO" ? serializeVideoSpec({ scenes: variant.scenes, voiceover: variant.voiceover }) : variant.visualConcept,
             aspectRatio,
             creditsUsed: unitCost,
             status: "QUEUED",
@@ -202,8 +207,17 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
 
   const config = await getAppConfig();
   const quality = (campaign.quality === "premium" ? "premium" : "standard") as QualityKey;
-  const cost = costPerVariation(config.costs, platform, quality);
   const media = PLATFORMS[platform].media;
+  const cost = costPerVariation(config.costs, platform, quality, campaign.videoDuration);
+
+  // Instruções livres passam pela mesma moderação de escopo/conteúdo, antes de cobrar.
+  if (instructions) {
+    try {
+      await checkInstructionsScope(instructions, user.locale === "en" ? "en" : "pt");
+    } catch (error) {
+      throw toHttpAiError(error);
+    }
+  }
 
   const visuals = campaign.creatives.filter((c) => c.type === media);
   const base = (baseCreativeId && visuals.find((c) => c.id === baseCreativeId)) || visuals[0];
@@ -222,7 +236,7 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
           amount: cost,
           description: txDescription(user.locale, "variation", { media }),
           referenceId: campaign.id,
-          usage: { operation: `REGENERATE_${media}`, provider: base.provider, model: base.model, estimatedCostUsd: media === "VIDEO" ? 0.25 : 0.04 },
+          usage: { operation: `REGENERATE_${media}`, provider: base.provider, model: base.model, estimatedCostUsd: media === "VIDEO" ? 0.25 * videoSegments(campaign.videoDuration) : 0.04 },
         },
         tx
       );
@@ -241,7 +255,9 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
           variantIndex: nextIndex,
           provider: base.provider,
           model: base.model,
-          prompt: instructions ? `${base.prompt}\n[INSTRUCTIONS] ${instructions}` : base.prompt,
+          prompt: media === "VIDEO"
+            ? serializeVideoSpec({ ...parseVideoSpec(base.prompt, baseCopy?.text || ""), ...(instructions ? { extra: instructions } : {}) })
+            : instructions ? `${splitPrompt(base.prompt).concept}\n[INSTRUCTIONS] ${instructions}` : base.prompt,
           aspectRatio: base.aspectRatio,
           creditsUsed: cost,
           status: "QUEUED",
@@ -354,58 +370,127 @@ async function runImageJob(job: LoadedJob) {
   await maybeFinalizeCampaign(campaign.id);
 }
 
+// --- Vídeo: um trecho de 5 s por cena; cada trecho parte do último quadro do anterior. ---
+
+async function videoSpecFor(job: LoadedJob) {
+  const copy = await db.creative.findFirst({ where: { campaignId: job.creative.campaignId, type: "COPY", variantIndex: job.creative.variantIndex } });
+  return parseVideoSpec(job.creative.prompt, copy?.text || "");
+}
+
+/** Pasta dos arquivos intermediários (trechos e quadros), apagada quando o vídeo final fica pronto. */
+function workDir(job: LoadedJob) {
+  const c = job.creative.campaign;
+  return `creatives/${c.workspaceId}/${c.id}/${job.creativeId}-parts/`;
+}
+
+async function submitSegment(job: LoadedJob, spec: VideoSpec, index: number, imageUrl: string) {
+  const config = await getAppConfig();
+  if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
+  const campaign = job.creative.campaign;
+  return submitVideo({
+    falKey: config.secrets.wanKey,
+    model: job.creative.model,
+    imageUrl,
+    prompt: buildVideoPrompt(spec.scenes[index], STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic", spec.extra, { index, total: spec.scenes.length }),
+    aspectRatio: job.creative.aspectRatio || "9:16",
+    premium: campaign.quality === "premium",
+  });
+}
+
 async function submitVideoJob(job: LoadedJob) {
   const { creative } = job;
   const campaign = creative.campaign;
   const config = await getAppConfig();
   if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
+  const spec = await videoSpecFor(job);
 
-  // Locução é um extra: se falhar, o vídeo continua.
+  // Locução no idioma do anúncio. É um extra: se falhar, o vídeo sai sem áudio.
   if (!creative.audioUrl) {
-    const copy = await db.creative.findFirst({ where: { campaignId: campaign.id, type: "COPY", variantIndex: creative.variantIndex } });
     try {
-      const audioUrl = await generateNarration(copy?.text || "", config.secrets, campaign.workspaceId);
+      const audioUrl = await generateNarration(spec.voiceover, config.secrets, campaign.workspaceId);
       if (audioUrl) await db.creative.update({ where: { id: creative.id }, data: { audioUrl } });
     } catch (error) {
       console.warn("[generation] locução falhou (seguindo sem áudio)", error);
     }
   }
 
-  const { concept, extra } = splitPrompt(creative.prompt);
-  const request = await submitVideo({
-    falKey: config.secrets.wanKey,
-    model: creative.model,
-    imageUrl: await externallyReachableUrl(campaign.product.originalImageUrl),
-    prompt: buildVideoPrompt(concept, STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic", extra),
-    aspectRatio: creative.aspectRatio || "9:16",
-    premium: campaign.quality === "premium",
-  });
-  await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(request) } });
+  const request = await submitSegment(job, spec, 0, await externallyReachableUrl(campaign.product.originalImageUrl));
+  const progress: VideoProgress = { v: 2, total: spec.scenes.length, done: [], current: request, segmentStartedAt: Date.now() };
+  await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(progress) } });
 }
 
 async function pollVideoJob(job: LoadedJob) {
   const config = await getAppConfig();
   if (!config.secrets.wanKey) return;
-  const request = JSON.parse(job.externalData!) as FalRequest;
-  const status = await checkVideo(config.secrets.wanKey, request);
+  const raw = job.externalData!;
+  const progress = parseVideoProgress(raw, job.startedAt?.getTime() ?? Date.now());
+  if (!progress) return failJob(job.id, "Estado do vídeo inválido");
+  if (isClaimed(progress)) return; // outro worker está unindo/enviando o próximo trecho
 
-  if (status.state === "pending") {
-    await db.generationJob.update({ where: { id: job.id }, data: { status: "PROCESSING" } }); // atualiza updatedAt
+  if (Date.now() - progress.segmentStartedAt > VIDEO_TIMEOUT_MS) return failJob(job.id, "Tempo limite de geração excedido");
+
+  let finishedUrl: string | null = null;
+  if (progress.current) {
+    const status = await checkVideo(config.secrets.wanKey, progress.current);
+    if (status.state === "pending") {
+      await db.generationJob.update({ where: { id: job.id }, data: { status: "PROCESSING" } }); // atualiza updatedAt
+      return;
+    }
+    if (status.state === "failed") return failJob(job.id, status.error);
+    finishedUrl = status.videoUrl;
+  }
+
+  // Trava otimista: só quem conseguir trocar o estado exato que leu segue adiante.
+  const claimed = await db.generationJob.updateMany({
+    where: { id: job.id, status: "PROCESSING", externalData: raw },
+    data: { externalData: JSON.stringify({ ...progress, claimedAt: Date.now() }) },
+  });
+  if (claimed.count === 0) return;
+
+  const spec = await videoSpecFor(job);
+  const dir = workDir(job);
+  const done = [...progress.done];
+  let lastBuffer: Buffer | null = null;
+  if (finishedUrl) {
+    lastBuffer = (await fetchMedia(finishedUrl)).buffer;
+    done.push(await saveFile(lastBuffer, `${dir}seg-${done.length}.mp4`, "video/mp4"));
+  }
+
+  // Ainda faltam cenas: o próximo trecho começa exatamente onde este terminou.
+  if (done.length < progress.total) {
+    const previous = lastBuffer ?? (await readOwnMedia(done[done.length - 1])).buffer;
+    const frameUrl = await saveFile(await lastFrame(previous), `${dir}frame-${done.length}.png`, "image/png");
+    const request = await submitSegment(job, spec, done.length, await externallyReachableUrl(frameUrl));
+    const next: VideoProgress = { v: 2, total: progress.total, done, current: request, segmentStartedAt: Date.now() };
+    await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
     return;
   }
-  if (status.state === "failed") return failJob(job.id, status.error);
 
-  const media = await fetchMedia(status.videoUrl);
+  // Todas as cenas prontas: une os trechos e coloca a locução num único MP4.
+  const segments = await Promise.all(done.map(async (url, i) => (i === done.length - 1 && lastBuffer ? lastBuffer : (await readOwnMedia(url)).buffer)));
+  const fresh = await db.creative.findUnique({ where: { id: job.creativeId }, select: { audioUrl: true } });
+  const narration = fresh?.audioUrl ? await readOwnMedia(fresh.audioUrl).then((m) => m.buffer).catch(() => null) : null;
+  const final = await assembleVideo(segments, narration);
+
   const campaign = job.creative.campaign;
-  const url = await saveFile(media.buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${job.creativeId}.mp4`, "video/mp4");
-  const done = await db.generationJob.updateMany({
+  const url = await saveFile(final.buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${job.creativeId}.mp4`, "video/mp4");
+  const completed = await db.generationJob.updateMany({
     where: { id: job.id, status: "PROCESSING" },
-    data: { status: "COMPLETED", completedAt: new Date() },
+    data: { status: "COMPLETED", completedAt: new Date(), externalData: JSON.stringify({ ...progress, done, current: null, claimedAt: undefined }) },
   });
-  if (done.count === 1) {
-    await db.creative.update({ where: { id: job.creativeId }, data: { status: "COMPLETED", outputUrl: url, duration: 5 } });
+  if (completed.count === 1) {
+    await db.creative.update({ where: { id: job.creativeId }, data: { status: "COMPLETED", outputUrl: url, duration: final.duration } });
+    await deletePrefix(dir).catch((e) => console.warn("[generation] limpeza dos trechos falhou", e));
   }
   await maybeFinalizeCampaign(campaign.id);
+}
+
+/** Converte erros da IA de texto em respostas HTTP (Vy mostra a recusa de escopo/conteúdo). */
+function toHttpAiError(error: unknown) {
+  if (error instanceof OutOfScopeError) return new HttpError(422, "errors.outOfScope", "OUT_OF_SCOPE", { reason: error.message });
+  if (error instanceof PolicyViolationError) return new HttpError(422, "errors.policyViolation", "POLICY_VIOLATION", { reason: error.message });
+  if (error instanceof AiUnavailableError) return new HttpError(503, "errors.aiUnavailable", "AI_UNAVAILABLE");
+  return error;
 }
 
 /** Marca o job como falho e devolve os créditos daquele criativo (idempotente). */
@@ -478,11 +563,8 @@ export async function advanceCampaign(campaignId: string) {
     const idle = now - job.updatedAt.getTime();
     try {
       if (job.status === "PROCESSING" && job.externalData) {
-        if (job.startedAt && now - job.startedAt.getTime() > VIDEO_TIMEOUT_MS) {
-          await failJob(job.id, "Tempo limite de geração excedido");
-        } else if (idle > POLL_THROTTLE_MS) {
-          await pollVideoJob(job);
-        }
+        // O tempo limite agora é por trecho (vídeos longos têm vários), checado dentro do poll.
+        if (idle > POLL_THROTTLE_MS) await pollVideoJob(job);
       } else if (job.status === "PROCESSING" && idle > STALE_PROCESSING_MS) {
         if (job.attempts < MAX_ATTEMPTS) {
           await db.generationJob.update({ where: { id: job.id }, data: { status: "PENDING" } });
