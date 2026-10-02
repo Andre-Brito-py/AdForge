@@ -385,7 +385,18 @@
       "noLogo": "Upload a logo in the <link>Brand Kit</link> to apply it to your creatives.",
       "summaryLogo": "Logo",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "references": "Reference images (optional)",
+      "referencesHint": "Attach up to 3 images, like a model, a setting or a style, and mention them by number in your request. E.g. “use the bottle from image 1 and the model from image 2 talking about it”.",
+      "referenceProduct": "Image 1 · product",
+      "referenceN": "Image {n}",
+      "referenceAdd": "Add image",
+      "referenceUploading": "Checking…",
+      "referenceRemove": "Remove image {n}",
+      "imageRights": "I'm authorized to use the image of the people shown in these photos (or they're me).",
+      "vyImageTitle": "I can't use that image",
+      "vyImageFooter": "Underwear and swimwear are welcome as products: on a hanger, a mannequin or worn by adults in catalog poses. Nudity, sensual content, violence, minors in that context and celebrities aren't allowed.",
+      "summaryReferences": "Reference images"
     },
     "generating": {
       "title": "Generating your campaign",
@@ -709,7 +720,10 @@
     "metaExpired": "The connection expired. Please connect again.",
     "targetAccountNotFound": "Destination account not found. Refresh the connection in Integrations.",
     "signupsClosed": "New sign-ups are closed right now.",
-    "outOfScope": "{reason}"
+    "outOfScope": "{reason}",
+    "imageBlocked": "We can't use this image: {reason}",
+    "referenceMissing": "One of the reference images is no longer available. Please upload it again.",
+    "referencesNeedImageAi": "Reference images aren't available on this platform yet (the image model isn't configured)."
   },
   "validation": {
     "emailInvalid": "Invalid email.",
@@ -725,6 +739,8 @@
     "confirmDelete": "Type DELETE to confirm.",
     "captionTooLong": "The caption can have up to 2,200 characters.",
     "accountInvalid": "Invalid account.",
-    "videoDuration": "Choose a valid video length."
+    "videoDuration": "Choose a valid video length.",
+    "imageRights": "Confirm you're authorized to use the image of the people in the reference photos.",
+    "tooManyReferences": "Upload at most 3 reference images."
   }
 }

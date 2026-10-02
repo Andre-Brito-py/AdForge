@@ -10,6 +10,8 @@ export interface VideoSpec {
   scenes: string[];
   voiceover: string;
   extra?: string | null;
+  /** Com imagens de referência: descrição do quadro de abertura que junta produto + referências. */
+  keyframe?: string | null;
 }
 
 export function serializeVideoSpec(spec: Omit<VideoSpec, "v">): string {
@@ -21,7 +23,10 @@ export function parseVideoSpec(prompt: string | null, fallbackVoiceover: string)
     try {
       const p = JSON.parse(prompt);
       if (p?.v === 2 && Array.isArray(p.scenes) && p.scenes.length > 0) {
-        return { v: 2, scenes: p.scenes.map(String), voiceover: String(p.voiceover || fallbackVoiceover), extra: p.extra ? String(p.extra) : null };
+        return {
+          v: 2, scenes: p.scenes.map(String), voiceover: String(p.voiceover || fallbackVoiceover),
+          extra: p.extra ? String(p.extra) : null, keyframe: p.keyframe ? String(p.keyframe) : null,
+        };
       }
     } catch {
       /* cai no formato antigo */
@@ -47,6 +52,17 @@ export interface VideoProgress {
   segmentStartedAt: number;
   /** Quando algum worker pegou o avanço (unir/baixar/enviar o próximo). */
   claimedAt?: number;
+}
+
+/** URLs das imagens de referência guardadas na campanha (lista vazia se não houver ou se o JSON for inválido). */
+export function parseReferences(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const list = JSON.parse(json);
+    return Array.isArray(list) ? list.filter((u): u is string => typeof u === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 export function parseVideoProgress(raw: string | null, fallbackStartedAt: number): VideoProgress | null {

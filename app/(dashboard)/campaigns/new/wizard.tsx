@@ -1,21 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Globe, Image as ImageIcon, Loader2, Plus, Sparkles, Video } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Globe, Image as ImageIcon, Loader2, Plus, Sparkles, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
-  OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, VIDEO_DURATIONS, campaignCost, costPerVariation,
+  MAX_REFERENCES, OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, VIDEO_DURATIONS, campaignCost, costPerVariation,
   type AiCosts, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey, type VideoDuration,
 } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { buttonClass } from "@/components/app/ui-bits";
 import { setMascotMood } from "@/components/mascot/mascot-events";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
+import { UploadError, uploadImage } from "@/components/app/image-dropzone";
 
 interface Product { id: string; name: string; originalImageUrl: string; targetAudience: string | null }
 
@@ -50,15 +51,41 @@ export function CampaignWizard({
   const [briefing, setBriefing] = useState("");
   const [duration, setDuration] = useState<VideoDuration>(5);
   const [applyLogo, setApplyLogo] = useState(!!logoUrl);
-  // Recusa da IA (fora do escopo de anúncios ou contra as regras): o Vy explica.
-  const [vyNotice, setVyNotice] = useState<{ kind: "OUT_OF_SCOPE" | "POLICY_VIOLATION"; message: string } | null>(null);
+  const [references, setReferences] = useState<string[]>([]);
+  const [uploadingRef, setUploadingRef] = useState(false);
+  const [imageRights, setImageRights] = useState(false);
+  const refInput = useRef<HTMLInputElement>(null);
+  // Recusa da IA (fora do escopo, contra as regras ou imagem proibida): o Vy explica.
+  const [vyNotice, setVyNotice] = useState<{ kind: "OUT_OF_SCOPE" | "POLICY_VIOLATION" | "IMAGE_BLOCKED"; message: string } | null>(null);
+
+  const addReference = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadingRef(true);
+    try {
+      const url = await uploadImage(file);
+      setReferences((r) => [...r, url].slice(0, MAX_REFERENCES));
+    } catch (err) {
+      if (err instanceof UploadError && err.code === "IMAGE_BLOCKED") {
+        setMascotMood("confused", 6000);
+        setVyNotice({ kind: "IMAGE_BLOCKED", message: err.message });
+      } else {
+        toast.error(err instanceof Error ? err.message : t("error"));
+      }
+    } finally {
+      setUploadingRef(false);
+      if (refInput.current) refInput.current.value = "";
+    }
+  };
 
   const product = products.find((p) => p.id === productId);
   const isVideo = !!platform && PLATFORMS[platform].media === "VIDEO";
   const total = platform ? campaignCost(costs, platform, quality, variations, isVideo ? duration : null) : 0;
   const enough = balance >= total;
 
-  const canNext = useMemo(() => [!!productId, !!objective, !!platform && !!style, true][step], [step, productId, objective, platform, style]);
+  const canNext = useMemo(
+    () => [!!productId, !!objective && !uploadingRef && (references.length === 0 || imageRights), !!platform && !!style, true][step],
+    [step, productId, objective, platform, style, uploadingRef, references.length, imageRights]
+  );
 
   const submit = async () => {
     if (!platform || !objective || !style) return;
@@ -71,6 +98,7 @@ export function CampaignWizard({
         body: JSON.stringify({
           productId, objective, targetAudience: targetAudience || null, offer: offer || null, platform, style, quality, variations, language,
           briefing: briefing.trim() || null, videoDuration: isVideo ? duration : 5, applyLogo: !!logoUrl && applyLogo,
+          references, imageRights: references.length > 0 && imageRights,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -140,6 +168,45 @@ export function CampaignWizard({
                   <textarea id="briefing" className="input-base min-h-28 py-3" maxLength={1000} value={briefing} onChange={(e) => setBriefing(e.target.value)}
                     placeholder={t("briefingPlaceholder")} />
                   <p className="text-xs text-muted-foreground">{t("briefingHint")}</p>
+                </div>
+
+                <div className="mb-6 space-y-2">
+                  <span className="label-base">{t("references")}</span>
+                  <p className="text-xs text-muted-foreground">{t("referencesHint")}</p>
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    {product && (
+                      <figure className="w-24">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={product.originalImageUrl} alt="" className="aspect-square w-24 rounded-xl border border-border bg-muted object-cover" />
+                        <figcaption className="mt-1 text-center text-[11px] text-muted-foreground">{t("referenceProduct")}</figcaption>
+                      </figure>
+                    )}
+                    {references.map((url, i) => (
+                      <figure key={url} className="relative w-24">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="aspect-square w-24 rounded-xl border border-border bg-muted object-cover" />
+                        <button type="button" onClick={() => setReferences((r) => r.filter((u) => u !== url))} aria-label={t("referenceRemove", { n: i + 2 })}
+                          className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-muted-foreground shadow hover:text-foreground">
+                          <X className="h-3 w-3" />
+                        </button>
+                        <figcaption className="mt-1 text-center text-[11px] font-medium">{t("referenceN", { n: i + 2 })}</figcaption>
+                      </figure>
+                    ))}
+                    {references.length < MAX_REFERENCES && (
+                      <button type="button" onClick={() => refInput.current?.click()} disabled={uploadingRef}
+                        className="flex aspect-square w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-xs text-muted-foreground hover:border-brand hover:text-foreground disabled:opacity-60">
+                        {uploadingRef ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                        {uploadingRef ? t("referenceUploading") : t("referenceAdd")}
+                      </button>
+                    )}
+                    <input ref={refInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => addReference(e.target.files?.[0])} />
+                  </div>
+                  {references.length > 0 && (
+                    <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm">
+                      <input type="checkbox" checked={imageRights} onChange={(e) => setImageRights(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--brand)]" />
+                      <span>{t("imageRights")}</span>
+                    </label>
+                  )}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(Object.keys(OBJECTIVES) as ObjectiveKey[]).map((key) => (
@@ -274,6 +341,7 @@ export function CampaignWizard({
                   <Row k={t("summary.language")} v={language === "auto" ? t("languageAuto") : AD_LANGUAGES[language][locale]} />
                   {isVideo && <Row k={t("summaryDuration")} v={t("durationOption", { s: duration })} />}
                   {logoUrl && <Row k={t("summaryLogo")} v={applyLogo ? t("yes") : t("no")} />}
+                  {references.length > 0 && <Row k={t("summaryReferences")} v={String(references.length)} />}
                 </dl>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border p-5">
@@ -306,13 +374,15 @@ export function CampaignWizard({
             <div className="flex items-start gap-4">
               <PixelMascot mood="confused" size={64} />
               <div className="min-w-0">
-                <p id="vy-title" className="text-lg font-semibold">{vyNotice.kind === "OUT_OF_SCOPE" ? t("vyOutOfScopeTitle") : t("vyPolicyTitle")}</p>
+                <p id="vy-title" className="text-lg font-semibold">
+                  {vyNotice.kind === "OUT_OF_SCOPE" ? t("vyOutOfScopeTitle") : vyNotice.kind === "IMAGE_BLOCKED" ? t("vyImageTitle") : t("vyPolicyTitle")}
+                </p>
                 <p className="mt-2 text-sm">{vyNotice.message}</p>
-                <p className="mt-3 text-xs text-muted-foreground">{t("vyFooter")}</p>
+                <p className="mt-3 text-xs text-muted-foreground">{vyNotice.kind === "IMAGE_BLOCKED" ? t("vyImageFooter") : t("vyFooter")}</p>
               </div>
             </div>
             <div className="mt-5 flex justify-end">
-              <button type="button" autoFocus onClick={() => { setVyNotice(null); setStep(1); }} className={buttonClass("primary")}>{t("vyOk")}</button>
+              <button type="button" autoFocus onClick={() => { const blockedUpload = vyNotice.kind === "IMAGE_BLOCKED"; setVyNotice(null); if (!blockedUpload) setStep(1); }} className={buttonClass("primary")}>{t("vyOk")}</button>
             </div>
           </div>
         </div>,

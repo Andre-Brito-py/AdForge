@@ -5,6 +5,7 @@ import { readOwnMedia, toDataUri } from "@/lib/storage";
 import { PLATFORMS, type ObjectiveKey, type PlatformKey, type StyleKey } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { colorName, websiteDomain } from "@/lib/brand-assets";
+import { IMAGE_POLICY } from "./moderation";
 
 export class PolicyViolationError extends Error {
   constructor(reason?: string) {
@@ -44,6 +45,8 @@ export interface StrategyInput {
   fallbackLanguage: AdLanguage;
   /** Pedido livre do cliente. */
   briefing?: string | null;
+  /** Imagens extras do cliente (imagem 2, 3...); a foto do produto é a imagem 1. */
+  referenceUrls?: string[];
   /** Duração de cada vídeo (s). Define o número de cenas e o tamanho da locução. */
   videoDuration?: number;
   /** Idioma da interface (para o motivo de uma eventual recusa). */
@@ -59,6 +62,8 @@ const variantSchema = z.object({
   // Só em vídeo: roteiro da locução e uma cena (em inglês) para cada trecho de 5 s.
   voiceover: z.string().max(1200).optional(),
   scenes: z.array(z.string().min(1).max(600)).max(12).optional(),
+  // Com imagens de referência: o quadro de abertura que junta as imagens (ex.: a modelo da imagem 2 segurando a garrafa da imagem 1).
+  keyframe: z.string().max(1200).optional(),
 });
 
 const strategySchema = z.object({
@@ -149,6 +154,21 @@ function buildPrompt(input: StrategyInput): string {
     2
   );
 
+  const refCount = input.referenceUrls?.length || 0;
+  const imagesBlock = refCount
+    ? `IMAGES
+You received ${refCount + 1} images. Image 1 is the client's PRODUCT. Images 2${refCount > 1 ? `-${refCount + 1}` : ""} are references the client attached (e.g. a model/person, a setting, a style). The briefing may refer to them as "imagem 2", "image 2", "foto 2", "a modelo", etc. Use each image exactly as the briefing asks; if the briefing doesn't say, use people as the presenter and other images as setting/style inspiration.
+In every visualConcept${isVideo ? ", keyframe and scene" : ""} describe the people and objects explicitly with their image number (e.g. "the woman from image 2 holding the bottle from image 1") so another model can compose them.${isVideo ? `
+- "keyframe": in ENGLISH, the opening frame that combines the images (who/what from which image, setting, framing). If a person presents the product, scenes should show them presenting it and talking to camera.` : ""}
+${IMAGE_POLICY}
+If ANY image breaks these image rules, reply with violation=true and a polite violationReason (no graphic details).
+
+`
+    : `${IMAGE_POLICY}
+If the product photo breaks these image rules, reply with violation=true and a polite violationReason (no graphic details).
+
+`;
+
   const videoFields = isVideo
     ? `
 - "voiceover": the narration script spoken over the video, in the ad language, about ${words} words (it must fit ${seconds} seconds when read naturally). Plain spoken text: no emojis, hashtags, URLs or stage directions.
@@ -162,7 +182,7 @@ ${SCOPE_RULES}
 
 ${lang.rule}
 
-TASK
+${imagesBlock}TASK
 Analyze the product image and the data below (follow the client's "briefing" when it is an ad request) and create exactly ${input.variations} distinct ad variations (different angles: pain point, desire, social proof, urgency, novelty...).
 Use local idioms, currency and units of the ad market.
 For each variation:
@@ -181,7 +201,7 @@ USER_DATA
 ${userData}
 
 Reply ONLY with JSON in this format:
-{"violation": false, "outOfScope": false, ${lang.outputField}, "analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "visualConcept": "..."${isVideo ? ', "voiceover": "...", "scenes": ["..."]' : ""}}]}
+{"violation": false, "outOfScope": false, ${lang.outputField}, "analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "visualConcept": "..."${isVideo ? `, "voiceover": "...", "scenes": ["..."]${refCount ? ', "keyframe": "..."' : ""}` : ""}}]}
 If the request is not an ad, reply: {"outOfScope": true, "scopeReason": "one friendly sentence in ${reasonLanguage} saying what was asked and that Vysify only creates ads"}
 If the request breaks the content rules, reply: {"violation": true, "violationReason": "short reason in ${reasonLanguage}"}`;
 }
@@ -222,13 +242,16 @@ export function normalizeScenes(scenes: string[] | undefined, concept: string, c
   return out;
 }
 
-async function withGemini(apiKey: string, model: string, prompt: string, image: { buffer: Buffer; mimeType: string }) {
+type Img = { buffer: Buffer; mimeType: string };
+
+async function withGemini(apiKey: string, model: string, prompt: string, images: Img[]) {
   const response = await geminiClient(apiKey).models.generateContent({
     model,
     contents: [
       {
         role: "user",
-        parts: [{ text: prompt }, { inlineData: { data: image.buffer.toString("base64"), mimeType: image.mimeType } }],
+        // Cada imagem vem precedida do número dela ("Image 1", "Image 2"...), como o pedido do cliente as cita.
+        parts: [{ text: prompt }, ...images.flatMap((img, i) => [{ text: `Image ${i + 1}:` }, { inlineData: { data: img.buffer.toString("base64"), mimeType: img.mimeType } }])],
       },
     ],
     config: { responseMimeType: "application/json", temperature: 0.9 },
@@ -236,7 +259,7 @@ async function withGemini(apiKey: string, model: string, prompt: string, image: 
   return response.text || "";
 }
 
-async function withOpenAI(apiKey: string, prompt: string, image: { buffer: Buffer; mimeType: string }) {
+async function withOpenAI(apiKey: string, prompt: string, images: Img[]) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -248,7 +271,10 @@ async function withOpenAI(apiKey: string, prompt: string, image: { buffer: Buffe
           role: "user",
           content: [
             { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: toDataUri(image.buffer, image.mimeType) } },
+            ...images.flatMap((img, i) => [
+              { type: "text", text: `Image ${i + 1}:` },
+              { type: "image_url", image_url: { url: toDataUri(img.buffer, img.mimeType) } },
+            ]),
           ],
         },
       ],
@@ -269,12 +295,12 @@ export async function generateCampaignStrategy(input: StrategyInput): Promise<Ca
   const { geminiKey, openAiKey } = config.secrets;
   if (!geminiKey && !openAiKey) throw new AiUnavailableError("Nenhum provedor de texto configurado.");
 
-  const image = await readOwnMedia(input.imageUrl);
+  const images = await Promise.all([input.imageUrl, ...(input.referenceUrls || [])].map((url) => readOwnMedia(url)));
   const prompt = buildPrompt(input);
 
   if (geminiKey) {
     try {
-      return parseStrategy(await withGemini(geminiKey, config.models.text, prompt, image), input);
+      return parseStrategy(await withGemini(geminiKey, config.models.text, prompt, images), input);
     } catch (error) {
       if (error instanceof PolicyViolationError || error instanceof OutOfScopeError) throw error;
       console.error("[ai/text] Gemini falhou", error);
@@ -283,7 +309,7 @@ export async function generateCampaignStrategy(input: StrategyInput): Promise<Ca
   }
 
   try {
-    return parseStrategy(await withOpenAI(openAiKey!, prompt, image), input);
+    return parseStrategy(await withOpenAI(openAiKey!, prompt, images), input);
   } catch (error) {
     if (error instanceof PolicyViolationError || error instanceof OutOfScopeError) throw error;
     console.error("[ai/text] OpenAI falhou", error);

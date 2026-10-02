@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_VARIATIONS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS, VIDEO_DURATIONS } from "./catalog";
+import { MAX_REFERENCES, MAX_VARIATIONS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS, VIDEO_DURATIONS } from "./catalog";
 import { AD_LANGUAGE_KEYS, LOCALES } from "./locale";
 
 // Mensagens padrão do Zod: o idioma é escolhido por requisição em lib/api.ts (parseBody).
@@ -85,13 +85,16 @@ export const campaignSchema = z.object({
   language: z.enum(["auto", ...AD_LANGUAGE_KEYS]).default("auto"),
   briefing: optionalText(1000),
   applyLogo: z.boolean().default(false),
+  // Imagens extras citadas no pedido como "imagem 2", "imagem 3"... (a foto do produto é a imagem 1).
+  references: z.array(z.string().trim().min(1).max(1000)).max(MAX_REFERENCES, { message: "validation.tooManyReferences" }).default([]),
+  imageRights: z.boolean().default(false),
   videoDuration: z
     .number()
     .int()
     .refine((d) => (VIDEO_DURATIONS as readonly number[]).includes(d), { message: "validation.videoDuration" })
     .default(5),
   variations: z.number().int().min(1).max(MAX_VARIATIONS),
-});
+}).refine((c) => c.references.length === 0 || c.imageRights, { message: "validation.imageRights", path: ["imageRights"] });
 
 export const regenerateSchema = z.object({
   instructions: optionalText(500),

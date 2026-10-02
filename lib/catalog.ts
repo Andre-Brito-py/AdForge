@@ -34,6 +34,8 @@ export const QUALITIES = {
 
 export const VARIATION_OPTIONS = [1, 2, 3, 4] as const;
 export const MAX_VARIATIONS = 4;
+/** Imagens de referência além da foto do produto (pessoa/modelo, cenário, estilo...). */
+export const MAX_REFERENCES = 3;
 
 /**
  * Vídeos longos são feitos em trechos de 5 s: cada trecho parte do último quadro do anterior

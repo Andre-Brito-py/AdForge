@@ -14,14 +14,20 @@ export interface ImageGenInput {
   quality: QualityKey;
   brandColor?: string | null;
   extraInstructions?: string | null;
+  /** Imagens extras do cliente (imagem 2, 3...): pessoa/modelo, cenário, estilo. */
+  references?: { buffer: Buffer; mimeType: string }[];
 }
 
 export class ImageGenerationError extends Error {}
 
 function buildPrompt(input: ImageGenInput) {
+  const refs = input.references?.length || 0;
   return [
-    "Create a high-end advertising photograph featuring EXACTLY the product shown in the reference image.",
-    "Keep the product's shape, colors, materials, labels and proportions faithful to the reference. Do not redesign it.",
+    refs
+      ? `Create a high-end advertising photograph. Image 1 is the PRODUCT; images 2${refs > 1 ? `-${refs + 1}` : ""} are client references (people, settings or styles) used as the art direction below describes.`
+      : "Create a high-end advertising photograph featuring EXACTLY the product shown in the reference image.",
+    "Keep the product's shape, colors, materials, labels and proportions faithful to image 1. Do not redesign it.",
+    refs ? "When a person from a reference image appears, keep their face, skin tone, hair and body faithful to that reference; do not sexualize them; keep them fully and appropriately dressed as in the reference." : "",
     `Art direction: ${input.concept}`,
     `Visual style: ${input.styleLabel}.`,
     brandColorDirection(input.brandColor),
@@ -39,7 +45,9 @@ async function callModel(input: ImageGenInput, model: string, withSize: boolean)
       {
         role: "user",
         parts: [
+          ...(input.references?.length ? [{ text: "Image 1:" }] : []),
           { inlineData: { data: input.product.buffer.toString("base64"), mimeType: input.product.mimeType } },
+          ...(input.references || []).flatMap((r, i) => [{ text: `Image ${i + 2}:` }, { inlineData: { data: r.buffer.toString("base64"), mimeType: r.mimeType } }]),
           { text: buildPrompt(input) },
         ],
       },

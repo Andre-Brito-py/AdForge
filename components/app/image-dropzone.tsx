@@ -66,11 +66,19 @@ export function ImageDropzone({
   );
 }
 
+/** Erro de upload com o código da API (ex.: IMAGE_BLOCKED quando a moderação recusa a imagem). */
+export class UploadError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = "UploadError";
+  }
+}
+
 export async function uploadImage(file: File): Promise<string> {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch("/api/upload", { method: "POST", body: form });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Upload failed");
+  if (!res.ok) throw new UploadError(data.error || "Upload failed", data.code);
   return data.url as string;
 }

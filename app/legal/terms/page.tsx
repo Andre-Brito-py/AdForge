@@ -52,8 +52,15 @@ async function TermsPt() {
         <li>use a imagem, a voz ou o nome de pessoas reais sem autorização, incluindo deepfakes;</li>
         <li>faça propaganda enganosa ou abusiva, promessas de cura ou de ganhos financeiros garantidos;</li>
         <li>viole marcas, direitos autorais ou direitos de imagem de terceiros;</li>
-        <li>tenha caráter político-partidário, discriminatório ou de ódio.</li>
+        <li>tenha caráter político-partidário, discriminatório ou de ódio;</li>
+        <li>mostre pessoa que aparente ser menor de 18 anos em roupa íntima, roupa de banho ou qualquer contexto sensual.</li>
       </ul>
+      <p>
+        Moda íntima, lingerie, modeladores e moda praia são permitidos <strong>como produto</strong>: em cabide, manequim, foto do produto aberto ou
+        vestidos por adultos em pose de catálogo, com as partes íntimas cobertas e sem transparência. As imagens enviadas (foto do produto, logotipo e
+        imagens de referência) passam por moderação automática e podem ser recusadas. Ao anexar fotos com pessoas, você declara ter autorização para usar a
+        imagem delas; registramos essa declaração.
+      </p>
       <p>
         Usamos moderação automática que pode bloquear pedidos antes da cobrança. Violações podem levar à suspensão da conta. Créditos de contas suspensas por
         violação grave destes Termos não são reembolsados, salvo o previsto na lei.

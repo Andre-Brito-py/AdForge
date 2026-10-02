@@ -385,7 +385,18 @@
       "noLogo": "Envie um logotipo no <link>Brand Kit</link> para aplicá-lo nos criativos.",
       "summaryLogo": "Logotipo",
       "yes": "Sim",
-      "no": "Não"
+      "no": "Não",
+      "references": "Imagens de referência (opcional)",
+      "referencesHint": "Anexe até 3 imagens, como uma modelo, um cenário ou um estilo, e cite-as pelo número no pedido. Ex.: “use a garrafa da imagem 1 e a modelo da imagem 2 falando sobre ela”.",
+      "referenceProduct": "Imagem 1 · produto",
+      "referenceN": "Imagem {n}",
+      "referenceAdd": "Adicionar imagem",
+      "referenceUploading": "Analisando…",
+      "referenceRemove": "Remover imagem {n}",
+      "imageRights": "Tenho autorização para usar a imagem das pessoas que aparecem nessas fotos (ou elas sou eu).",
+      "vyImageTitle": "Essa imagem eu não posso usar",
+      "vyImageFooter": "Moda íntima e praia são bem-vindas como produto: em cabide, manequim ou vestidas por adultos em pose de catálogo. Nudez, conteúdo sensual, violência, menores de idade nesse contexto e famosos não são permitidos.",
+      "summaryReferences": "Imagens de referência"
     },
     "generating": {
       "title": "Gerando sua campanha",
@@ -709,7 +720,10 @@
     "metaExpired": "A conexão expirou. Conecte novamente.",
     "targetAccountNotFound": "Conta de destino não encontrada. Atualize a conexão em Integrações.",
     "signupsClosed": "Novos cadastros estão fechados no momento.",
-    "outOfScope": "{reason}"
+    "outOfScope": "{reason}",
+    "imageBlocked": "Não podemos usar esta imagem: {reason}",
+    "referenceMissing": "Uma das imagens de referência não está mais disponível. Envie-a novamente.",
+    "referencesNeedImageAi": "Imagens de referência ainda não estão disponíveis nesta plataforma (falta configurar o modelo de imagem)."
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",
@@ -725,6 +739,8 @@
     "confirmDelete": "Digite EXCLUIR para confirmar.",
     "captionTooLong": "A legenda pode ter até 2.200 caracteres.",
     "accountInvalid": "Conta inválida.",
-    "videoDuration": "Escolha uma duração válida para o vídeo."
+    "videoDuration": "Escolha uma duração válida para o vídeo.",
+    "imageRights": "Confirme que você tem autorização para usar a imagem das pessoas nas fotos de referência.",
+    "tooManyReferences": "Envie no máximo 3 imagens de referência."
   }
 }

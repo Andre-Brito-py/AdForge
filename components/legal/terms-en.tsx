@@ -53,8 +53,14 @@ export async function TermsEn() {
         <li>is misleading or deceptive advertising, including unsupported health, cure or guaranteed-income claims;</li>
         <li>infringes trademarks, copyrights or image rights of third parties;</li>
         <li>is political, discriminatory or hateful;</li>
-        <li>violates the advertising rules of the country where it will be shown or of the platform where it will be published.</li>
+        <li>violates the advertising rules of the country where it will be shown or of the platform where it will be published;</li>
+        <li>shows anyone who appears to be under 18 in underwear, swimwear or any sensual context.</li>
       </ul>
+      <p>
+        Underwear, lingerie, shapewear and swimwear are allowed <strong>as products</strong>: on a hanger, a mannequin, as a flat lay or worn by adults in
+        catalog poses, with intimate areas covered and no see-through fabric. Uploaded images (product photo, logo and reference images) go through automated
+        moderation and may be rejected. By attaching photos of people you confirm you are authorized to use their image; we record that confirmation.
+      </p>
       <p>
         We use automated moderation that may block requests before you are charged. Violations may lead to account suspension. Credits of accounts
         suspended for serious breaches of these Terms are not refundable, except where the law requires otherwise.

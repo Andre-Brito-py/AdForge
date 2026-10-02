@@ -3,10 +3,10 @@ import { randomUUID } from "crypto";
 import { db } from "./db";
 import { getAppConfig } from "./config";
 import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, videoSegments, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
-import { deletePrefix, externallyReachableUrl, fetchMedia, IMAGE_TYPES, readOwnMedia, saveFile, type ImageMime } from "./storage";
+import { deletePrefix, externallyReachableUrl, fetchMedia, IMAGE_TYPES, isOwnStorageUrl, readOwnMedia, saveFile, type ImageMime } from "./storage";
 import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
-import { isClaimed, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
+import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame } from "./video-assembly";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
@@ -68,6 +68,19 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
     throw new HttpError(422, "errors.productImageMissing", "PRODUCT_IMAGE_MISSING");
   });
 
+  // Imagens de referência: só do nosso armazenamento (vieram do upload, que já passou pela moderação).
+  const references = [...new Set(input.references)];
+  for (const url of references) {
+    if (!isOwnStorageUrl(url)) throw new HttpError(400, "errors.referenceMissing", "REFERENCE_INVALID");
+    await readOwnMedia(url).catch(() => {
+      throw new HttpError(422, "errors.referenceMissing", "REFERENCE_MISSING");
+    });
+  }
+  // Juntar produto + referências num quadro exige o modelo de imagem (também nos vídeos).
+  if (references.length > 0 && !(await getAppConfig()).secrets.geminiKey) {
+    throw new HttpError(503, "errors.referencesNeedImageAi", "REFERENCES_NEED_IMAGE_AI");
+  }
+
   const config = await getAppConfig();
   const media = PLATFORMS[input.platform].media;
   const videoDuration = media === "VIDEO" ? input.videoDuration : VIDEO_SEGMENT_SECONDS;
@@ -96,6 +109,7 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
       language: input.language,
       fallbackLanguage: defaultAdLanguage(user.locale === "en" ? "en" : "pt", user.country),
       briefing: input.briefing,
+      referenceUrls: references,
       videoDuration,
       uiLocale: user.locale === "en" ? "en" : "pt",
       brand,
@@ -147,6 +161,8 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
           videoDuration,
           // Só vale se o Brand Kit tiver logo (o cliente pode ter apagado depois de abrir o assistente).
           applyLogo: input.applyLogo && !!brand?.logoUrl,
+          referencesJson: references.length ? JSON.stringify(references) : null,
+          imageRightsConfirmedAt: references.length ? new Date() : null,
           variations: input.variations,
           strategyJson: JSON.stringify(strategy),
           creditsCharged: totalCost,
@@ -176,7 +192,9 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
             variantIndex: i,
             provider: media === "VIDEO" ? "fal.ai" : "gemini",
             model: media === "VIDEO" ? (input.quality === "premium" ? config.models.videoPremium : config.models.video) : (input.quality === "premium" ? config.models.imagePremium : config.models.image),
-            prompt: media === "VIDEO" ? serializeVideoSpec({ scenes: variant.scenes, voiceover: variant.voiceover }) : variant.visualConcept,
+            prompt: media === "VIDEO"
+              ? serializeVideoSpec({ scenes: variant.scenes, voiceover: variant.voiceover, keyframe: references.length ? variant.keyframe || variant.visualConcept : null })
+              : variant.visualConcept,
             aspectRatio,
             creditsUsed: unitCost,
             status: "QUEUED",
@@ -361,6 +379,7 @@ async function runImageJob(job: LoadedJob) {
     quality,
     brandColor: brand?.primaryColor,
     extraInstructions: extra,
+    references: await loadReferences(campaign.referencesJson),
   });
 
   let final: { buffer: Buffer; mimeType: string } = out;
@@ -382,6 +401,13 @@ async function runImageJob(job: LoadedJob) {
     db.generationJob.update({ where: { id: job.id }, data: { status: "COMPLETED", completedAt: new Date() } }),
   ]);
   await maybeFinalizeCampaign(campaign.id);
+}
+
+/** Imagens de referência da campanha, lidas do armazenamento (as que sumiram são ignoradas). */
+async function loadReferences(json: string | null): Promise<{ buffer: Buffer; mimeType: string }[]> {
+  const urls = parseReferences(json);
+  const loaded = await Promise.all(urls.map((u) => readOwnMedia(u).catch(() => null)));
+  return loaded.filter((m): m is { buffer: Buffer; mimeType: string } => !!m);
 }
 
 // --- Vídeo: um trecho de 5 s por cena; cada trecho parte do último quadro do anterior. ---
@@ -429,7 +455,30 @@ async function submitVideoJob(job: LoadedJob) {
     }
   }
 
-  const request = await submitSegment(job, spec, 0, await externallyReachableUrl(campaign.product.originalImageUrl));
+  // Com imagens de referência, o vídeo começa num quadro composto (ex.: a modelo da imagem 2 com a garrafa da
+  // imagem 1), gerado pelo modelo de imagem; sem elas, a foto do produto é animada diretamente.
+  let startImage = campaign.product.originalImageUrl;
+  const references = await loadReferences(campaign.referencesJson);
+  if (references.length > 0) {
+    if (!config.secrets.geminiKey) throw new Error("Gemini não configurado (necessário para juntar as imagens de referência)");
+    const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
+    const frame = await generateAdImage({
+      apiKey: config.secrets.geminiKey,
+      model: campaign.quality === "premium" ? config.models.imagePremium : config.models.image,
+      fallbackModel: config.models.image,
+      product: await readOwnMedia(campaign.product.originalImageUrl),
+      references,
+      concept: spec.keyframe || spec.scenes[0],
+      styleLabel: STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic",
+      aspectRatio: creative.aspectRatio || "9:16",
+      quality: campaign.quality === "premium" ? "premium" : "standard",
+      brandColor: brand?.primaryColor,
+      extraInstructions: spec.extra,
+    });
+    startImage = await saveFile(frame.buffer, `${workDir(job)}keyframe.${IMAGE_TYPES[frame.mimeType as ImageMime] || "png"}`, frame.mimeType);
+  }
+
+  const request = await submitSegment(job, spec, 0, await externallyReachableUrl(startImage));
   const progress: VideoProgress = { v: 2, total: spec.scenes.length, done: [], current: request, segmentStartedAt: Date.now() };
   await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(progress) } });
 }
