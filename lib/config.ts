@@ -51,8 +51,9 @@ export const DEFAULT_MODELS: AiModels = {
   text: "gemini-3.8-flash",
   image: "gemini-3.1-flash-image",
   imagePremium: "gemini-3-pro-image",
-  video: "fal-ai/wan-i2v",
-  videoPremium: "fal-ai/wan-i2v",
+  // Wan 2.2 (mesmos parâmetros do 2.1, bem mais rápido); o antigo fal-ai/wan-i2v levava 10+ min por trecho.
+  video: "fal-ai/wan/v2.2-a14b/image-to-video",
+  videoPremium: "fal-ai/wan/v2.2-a14b/image-to-video",
 };
 
 export const DEFAULT_PLANS: Plan[] = [
