@@ -245,6 +245,31 @@ model Creative {
   @@index([campaignId])
 }
 
+/// Prova da declaração de autorização de uso de imagem (Código Civil art. 20; LGPD art. 7º, VI e art. 16).
+/// Sem chaves estrangeiras de propósito: o registro precisa sobreviver à exclusão da campanha ou da conta,
+/// por isso guarda uma cópia mínima dos dados (e-mail, nome) e só o hash das imagens, não as imagens.
+model ImageRightsRecord {
+  id                 String   @id @default(uuid())
+  createdAt          DateTime @default(now())
+  userId             String?
+  userEmail          String
+  userName           String?
+  workspaceId        String
+  campaignId         String?
+  campaignName       String?
+  declarationVersion String
+  declarationText    String
+  locale             String
+  imageUrls          String // JSON: URLs das imagens declaradas
+  imageHashes        String // JSON: SHA-256 de cada imagem (prova qual arquivo era, mesmo depois de apagado)
+  ipAddress          String?
+  userAgent          String?
+
+  @@index([createdAt])
+  @@index([userEmail])
+  @@index([campaignId])
+}
+
 model GenerationJob {
   id           String    @id @default(uuid())
   creativeId   String    @unique

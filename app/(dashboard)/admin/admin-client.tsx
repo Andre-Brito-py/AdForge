@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BarChart3, Copy, CreditCard, Gift, KeyRound, Plug, Loader2, Package, Plus, Save, Search, Settings2, Trash2, Users } from "lucide-react";
+import { BarChart3, ChevronDown, Copy, CreditCard, Download, Gift, ImageOff, KeyRound, Plug, Loader2, Package, Plus, Save, Search, Settings2, ShieldCheck, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { buttonClass } from "@/components/app/ui-bits";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -50,6 +50,7 @@ const TABS = [
   { id: "payments", label: "Pagamentos", icon: CreditCard },
   { id: "integrations", label: "Integrações", icon: Plug },
   { id: "general", label: "Configurações gerais", icon: Settings2 },
+  { id: "imageRights", label: "Autorizações de imagem", icon: ShieldCheck },
 ] as const;
 
 export function AdminClient({ baseUrl }: { baseUrl: string }) {
@@ -78,6 +79,7 @@ export function AdminClient({ baseUrl }: { baseUrl: string }) {
         {tab === "payments" && (config ? <PaymentsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
         {tab === "integrations" && (config ? <IntegrationsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
         {tab === "general" && (config ? <GeneralTab config={config} onSaved={reload} /> : <Loading />)}
+        {tab === "imageRights" && <ImageRightsTab />}
       </div>
     </div>
   );
@@ -734,6 +736,129 @@ function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () =
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
       </button>
+    </div>
+  );
+}
+
+// ---------------- Autorizações de imagem ----------------
+interface ImageRightsItem {
+  id: string; createdAt: string; userEmail: string; userName: string | null; campaignId: string | null; campaignName: string | null;
+  declarationVersion: string; declarationText: string; locale: string; imageUrls: string[]; imageHashes: string[];
+  ipAddress: string | null; userAgent: string | null; campaignExists: boolean; accountExists: boolean;
+}
+
+function RefThumb({ url, n }: { url: string; n: number }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <figure className="w-16 shrink-0">
+      {broken ? (
+        <div className="flex aspect-square w-16 flex-col items-center justify-center rounded-lg bg-muted text-[10px] text-muted-foreground" title="O arquivo foi apagado; o hash continua no registro.">
+          <ImageOff className="h-4 w-4" /> apagada
+        </div>
+      ) : (
+        <a href={url} target="_blank" rel="noopener">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={`Imagem ${n}`} onError={() => setBroken(true)} className="aspect-square w-16 rounded-lg border border-border bg-muted object-cover" />
+        </a>
+      )}
+      <figcaption className="mt-0.5 text-center text-[10px] text-muted-foreground">Imagem {n}</figcaption>
+    </figure>
+  );
+}
+
+function ImageRightsTab() {
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState<{ total: number; pageSize: number; items: ImageRightsItem[] } | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api(`/api/admin/image-rights?q=${encodeURIComponent(q)}&page=${page}`).then(setData).catch((e) => toast.error(e.message));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, page]);
+
+  const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-2 p-5 sm:p-6">
+        <h3 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4 text-brand" /> Autorizações de uso de imagem</h3>
+        <p className="text-sm text-muted-foreground">
+          Toda vez que um cliente anexa imagens de referência, ele declara ter autorização para usar a imagem das pessoas nas fotos. Cada declaração fica
+          registrada aqui com data e hora, o texto exato que ele aceitou, IP, navegador e a impressão digital (SHA-256) de cada imagem.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Use estes registros só para defesa da plataforma (reclamações, processos, pedidos de autoridades). Base legal: LGPD art. 7º, VI, e art. 16;
+          Marco Civil art. 15. Guardados por 5 anos, mesmo se a campanha ou a conta forem apagadas, e depois excluídos automaticamente. Cada consulta fica no log do servidor.
+        </p>
+      </section>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-60 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input className="input-base pl-9" placeholder="Buscar por e-mail, nome, campanha ou código do registro" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        </div>
+        <a href={`/api/admin/image-rights?format=csv&q=${encodeURIComponent(q)}`} className={buttonClass("outline")}>
+          <Download className="h-4 w-4" /> Exportar CSV
+        </a>
+      </div>
+
+      {!data ? <Loading /> : data.items.length === 0 ? (
+        <div className="surface p-8 text-center text-sm text-muted-foreground">{q ? "Nenhum registro encontrado para essa busca." : "Nenhuma declaração registrada ainda."}</div>
+      ) : (
+        <div className="surface divide-y divide-border">
+          {data.items.map((r) => (
+            <div key={r.id} className="p-4">
+              <button type="button" onClick={() => setOpen(open === r.id ? null : r.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-left" aria-expanded={open === r.id}>
+                <span className="w-36 shrink-0 text-sm tabular-nums">{formatDateTime(r.createdAt)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {r.userEmail}
+                    {!r.accountExists && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal text-muted-foreground">conta excluída</span>}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {r.campaignName || "—"}
+                    {!r.campaignExists && " · campanha apagada"}
+                  </span>
+                </span>
+                <span className="text-xs text-muted-foreground">{r.imageUrls.length} {r.imageUrls.length === 1 ? "imagem" : "imagens"}</span>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition ${open === r.id ? "rotate-180" : ""}`} />
+              </button>
+
+              {open === r.id && (
+                <div className="mt-4 space-y-4 rounded-xl bg-muted/40 p-4 text-sm">
+                  <div className="flex flex-wrap gap-3">
+                    {r.imageUrls.map((u, i) => <RefThumb key={u} url={u} n={i + 2} />)}
+                  </div>
+                  <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[10rem_1fr]">
+                    <dt className="text-muted-foreground">Texto aceito</dt><dd>“{r.declarationText}” <span className="text-xs text-muted-foreground">(versão {r.declarationVersion}, {r.locale === "en" ? "inglês" : "português"})</span></dd>
+                    <dt className="text-muted-foreground">Cliente</dt><dd>{r.userName ? `${r.userName} · ` : ""}{r.userEmail}</dd>
+                    <dt className="text-muted-foreground">Data e hora (UTC)</dt><dd className="font-mono text-xs">{r.createdAt}</dd>
+                    <dt className="text-muted-foreground">IP</dt><dd className="font-mono text-xs">{r.ipAddress || "não disponível"}</dd>
+                    <dt className="text-muted-foreground">Navegador</dt><dd className="break-all text-xs">{r.userAgent || "não disponível"}</dd>
+                    <dt className="text-muted-foreground">Campanha</dt><dd className="break-all text-xs">{r.campaignName || "—"} <span className="font-mono text-muted-foreground">{r.campaignId}</span></dd>
+                    <dt className="text-muted-foreground">SHA-256</dt>
+                    <dd className="space-y-1">{r.imageHashes.map((h, i) => <p key={h + i} className="break-all font-mono text-[11px]">Imagem {i + 2}: {h}</p>)}</dd>
+                    <dt className="text-muted-foreground">Código do registro</dt><dd className="font-mono text-xs">{r.id}</dd>
+                  </dl>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {data && pages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{data.total} registros · página {page} de {pages}</span>
+          <div className="flex gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={buttonClass("outline", "sm")}>Anterior</button>
+            <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages} className={buttonClass("outline", "sm")}>Próxima</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

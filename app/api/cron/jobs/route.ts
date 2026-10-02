@@ -4,6 +4,7 @@ import { advanceAllPending } from "@/lib/generation";
 import { advancePendingPublications } from "@/lib/publishing";
 import { purgeOldRateLimits } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
+import { imageRightsCutoff } from "@/lib/image-rights";
 
 export const maxDuration = 300;
 
@@ -26,6 +27,8 @@ export async function GET(request: Request) {
   const publications = await advancePendingPublications();
   await purgeOldRateLimits();
   await db.authToken.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+  // Fim do prazo de guarda das declarações de autorização de imagem (LGPD art. 16: não guardar além do necessário).
+  await db.imageRightsRecord.deleteMany({ where: { createdAt: { lt: imageRightsCutoff() } } });
 
   return NextResponse.json({ ok: true, advanced, publications });
 }

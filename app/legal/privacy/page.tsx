@@ -33,6 +33,11 @@ async function PrivacyPt() {
           publicar os criativos que você mandar publicar e mostrar o link do post. Não lemos mensagens, seguidores nem métricas.
         </li>
         <li><strong>Uso e segurança:</strong> histórico de créditos, registros técnicos (endereço IP, data e hora) para prevenção de fraude e abuso.</li>
+        <li>
+          <strong>Declaração de autorização de imagem:</strong> quando você anexa imagens de referência com pessoas, registramos sua declaração de que tem
+          autorização para usar a imagem delas: data e hora, o texto aceito, seu e-mail e nome, IP, navegador, a campanha e a impressão digital (hash
+          SHA-256) de cada imagem.
+        </li>
       </ul>
 
       <h2>2. Para que usamos e com qual base legal</h2>
@@ -40,6 +45,7 @@ async function PrivacyPt() {
         <li>Prestar o serviço e processar pagamentos: execução de contrato (art. 7º, V).</li>
         <li>Segurança, prevenção de fraude e limites de uso: legítimo interesse (art. 7º, IX).</li>
         <li>Guardar registros de acesso e documentos fiscais: obrigação legal (art. 7º, II; Marco Civil da Internet, art. 15).</li>
+        <li>Guardar a declaração de autorização de imagem, como prova em eventuais reclamações ou processos: exercício regular de direitos (art. 7º, VI).</li>
         <li>Enviar novidades e dicas: consentimento (art. 7º, I), que você pode retirar a qualquer momento em Configurações.</li>
       </ul>
       <p>Não vendemos seus dados e não usamos suas fotos para treinar modelos próprios.</p>
@@ -66,6 +72,11 @@ async function PrivacyPt() {
           apagamos o token e a lista de Páginas imediatamente (veja também <a href="/meta-data-deletion">exclusão de dados da Meta</a>).
         </li>
         <li>Registros de acesso: 6 meses (Marco Civil da Internet).</li>
+        <li>
+          Declarações de autorização de imagem: 5 anos a partir da declaração (prazo de prescrição do art. 27 do CDC), <strong>mesmo após a exclusão da
+          campanha ou da conta</strong>, porque servem de prova (LGPD, art. 16). Guardamos só o hash das imagens, não as imagens. Depois do prazo, o registro
+          é apagado automaticamente. Só a administração da Vysify tem acesso, e apenas para defesa em reclamações, processos ou pedidos de autoridades.
+        </li>
       </ul>
 
       <h2>5. Seus direitos</h2>

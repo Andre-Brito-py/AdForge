@@ -9,6 +9,7 @@ import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame } from "./video-assembly";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
+import { buildImageRightsRecord } from "./image-rights";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
 import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
@@ -57,7 +58,11 @@ async function workspaceOwnerId(workspaceId: string): Promise<string | null> {
 // Criação de campanha
 // ---------------------------------------------------------------------------
 
-export async function createCampaign(user: SessionUser, input: z.infer<typeof campaignSchema>) {
+export async function createCampaign(
+  user: SessionUser,
+  input: z.infer<typeof campaignSchema>,
+  fingerprint: { ipAddress: string | null; userAgent: string | null } = { ipAddress: null, userAgent: null }
+) {
   const product = await db.product.findFirst({ where: { id: input.productId, workspaceId: user.workspaceId } });
   if (!product) throw new HttpError(404, "errors.productNotFound");
 
@@ -70,11 +75,13 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
 
   // Imagens de referência: só do nosso armazenamento (vieram do upload, que já passou pela moderação).
   const references = [...new Set(input.references)];
+  const referenceFiles: { url: string; buffer: Buffer }[] = [];
   for (const url of references) {
     if (!isOwnStorageUrl(url)) throw new HttpError(400, "errors.referenceMissing", "REFERENCE_INVALID");
-    await readOwnMedia(url).catch(() => {
+    const media = await readOwnMedia(url).catch(() => {
       throw new HttpError(422, "errors.referenceMissing", "REFERENCE_MISSING");
     });
+    referenceFiles.push({ url, buffer: media.buffer });
   }
   // Juntar produto + referências num quadro exige o modelo de imagem (também nos vídeos).
   if (references.length > 0 && !(await getAppConfig()).secrets.geminiKey) {
@@ -141,13 +148,14 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
         tx
       );
 
+      const campaignName = input.name || `${product.name} · ${PLATFORMS[input.platform].label}`;
       await tx.campaign.create({
         data: {
           id: campaignId,
           workspaceId: user.workspaceId,
           productId: product.id,
           userId: user.id,
-          name: input.name || `${product.name} · ${PLATFORMS[input.platform].label}`,
+          name: campaignName,
           objective: input.objective,
           tone: input.style,
           style: input.style,
@@ -169,6 +177,13 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
           status: "GENERATING",
         },
       });
+
+      // Prova da declaração de autorização de imagem (na mesma transação: não existe campanha sem ela).
+      if (referenceFiles.length > 0) {
+        await tx.imageRightsRecord.create({
+          data: buildImageRightsRecord({ user, campaign: { id: campaignId, name: campaignName }, images: referenceFiles, fingerprint }),
+        });
+      }
 
       for (let i = 0; i < input.variations; i++) {
         const variant = strategy.variants[i];

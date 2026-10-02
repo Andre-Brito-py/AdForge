@@ -20,6 +20,7 @@ export async function PrivacyEn() {
         <li><strong>Payments:</strong> pack purchased, amount, currency, date and transaction ID. Card details are handled by Stripe or Mercado Pago, never by us.</li>
         <li><strong>Connected accounts (Facebook/Instagram):</strong> if you connect a Meta account, we store its ID and name, the Pages and Instagram accounts you authorized, and an encrypted access token. We use them only to publish the Creatives you choose and to show you the post link.</li>
         <li><strong>Usage and security:</strong> credit history and technical logs (IP address, date and time) to prevent fraud and abuse.</li>
+        <li><strong>Image-rights declaration:</strong> when you attach reference images showing people, we record your declaration that you are authorized to use their image — date and time, the exact text you accepted, your email and name, IP address, browser, the campaign and a fingerprint (SHA-256 hash) of each image.</li>
       </ul>
 
       <h2>2. Purposes and legal bases</h2>
@@ -27,6 +28,7 @@ export async function PrivacyEn() {
         <li>Providing the service and processing payments — <em>performance of a contract</em> (GDPR art. 6(1)(b)).</li>
         <li>Security, fraud prevention and rate limiting — <em>legitimate interests</em> (art. 6(1)(f)).</li>
         <li>Keeping access logs and tax records — <em>legal obligation</em> (art. 6(1)(c)).</li>
+        <li>Keeping image-rights declarations as evidence in complaints or legal claims — <em>legitimate interests</em> in establishing and defending legal claims (art. 6(1)(f); LGPD art. 7(VI)).</li>
         <li>Product news and tips by email, and optional analytics/marketing cookies — <em>consent</em> (art. 6(1)(a)), which you can withdraw at any time.</li>
       </ul>
       <p>We do not sell your personal data and we do not use your photos to train our own models. We do not make decisions with legal effects about you based solely on automated processing.</p>
@@ -53,6 +55,7 @@ export async function PrivacyEn() {
         <li>Payment records: 5 years, to meet tax obligations.</li>
         <li>Access logs: 6 months.</li>
         <li>Meta tokens: until you disconnect the account, remove Vysify from your Facebook settings or delete your account.</li>
+        <li>Image-rights declarations: 5 years from the declaration, <strong>even after the campaign or account is deleted</strong>, because they serve as evidence (GDPR art. 17(3)(e); LGPD art. 16). We keep only a hash of each image, not the image. They are then deleted automatically and are accessible only to Vysify administrators, solely to handle complaints, legal claims or requests from authorities.</li>
       </ul>
 
       <h2>6. Your rights</h2>
