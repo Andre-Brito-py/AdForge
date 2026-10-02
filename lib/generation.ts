@@ -13,7 +13,7 @@ import { buildImageRightsRecord } from "./image-rights";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
 import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
-import { buildVideoPrompt, checkVideo, submitVideo } from "@/services/ai/video";
+import { buildVideoPrompt, cancelVideo, checkVideo, submitVideo } from "@/services/ai/video";
 import { generateNarration } from "@/services/ai/audio";
 import { sendCampaignReadyEmail } from "@/services/email";
 import { txDescription } from "./generation-text";
@@ -24,7 +24,8 @@ import type { campaignSchema } from "./validation";
 const MAX_ATTEMPTS = 2;
 const STALE_PENDING_MS = 90_000;
 const STALE_PROCESSING_MS = 5 * 60_000;
-const VIDEO_TIMEOUT_MS = 25 * 60_000;
+// Por trecho de 5 s. A fila da fal.ai já levou ~35 min num dia carregado; acima disso o trecho é cancelado.
+const VIDEO_TIMEOUT_MS = 40 * 60_000;
 const POLL_THROTTLE_MS = 4_000;
 const CONCURRENCY = 2;
 
@@ -506,12 +507,15 @@ async function pollVideoJob(job: LoadedJob) {
   if (!progress) return failJob(job.id, "Estado do vídeo inválido");
   if (isClaimed(progress)) return; // outro worker está unindo/enviando o próximo trecho
 
-  if (Date.now() - progress.segmentStartedAt > VIDEO_TIMEOUT_MS) return failJob(job.id, "Tempo limite de geração excedido");
-
   let finishedUrl: string | null = null;
   if (progress.current) {
+    // Primeiro pergunta à fal.ai: um trecho que ficou pronto depois do prazo ainda é aproveitado.
     const status = await checkVideo(config.secrets.wanKey, progress.current);
     if (status.state === "pending") {
+      if (Date.now() - progress.segmentStartedAt > VIDEO_TIMEOUT_MS) {
+        await cancelVideo(config.secrets.wanKey, progress.current); // não paga por um trecho que seria descartado
+        return failJob(job.id, "Tempo limite de geração excedido");
+      }
       await db.generationJob.update({ where: { id: job.id }, data: { status: "PROCESSING" } }); // atualiza updatedAt
       return;
     }

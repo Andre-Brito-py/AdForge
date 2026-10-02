@@ -76,6 +76,12 @@ export async function checkVideo(falKey: string, req: FalRequest): Promise<Video
   return { state: "completed", videoUrl: url };
 }
 
+/** Cancela um pedido na fila da fal.ai (melhor esforço: se já estiver rodando, pode não ser cancelável). */
+export async function cancelVideo(falKey: string, req: FalRequest): Promise<void> {
+  const url = req.statusUrl.replace(/\/status(\?.*)?$/, "/cancel");
+  await fetch(url, { method: "PUT", headers: { Authorization: `Key ${falKey}` }, signal: AbortSignal.timeout(15_000) }).catch(() => {});
+}
+
 export function buildVideoPrompt(concept: string, styleLabel: string, extra?: string | null, segment?: { index: number; total: number }, brandColor?: string | null) {
   const continuation = segment && segment.index > 0
     ? `This shot continues seamlessly from the input frame (part ${segment.index + 1} of ${segment.total}): keep the same product, setting, lighting and color grading; no cut, no scene change.`
