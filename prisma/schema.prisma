@@ -193,6 +193,8 @@ model Campaign {
   briefing       String?
   // Duração de cada vídeo em segundos (múltiplos de 5; cada trecho começa no último quadro do anterior)
   videoDuration  Int      @default(5)
+  // Aplica o logo do Brand Kit no canto dos criativos (imagens e vídeos)
+  applyLogo      Boolean  @default(false)
   variations     Int      @default(3)
   strategyJson   String?
   creditsCharged Int      @default(0)

@@ -84,6 +84,7 @@ export const campaignSchema = z.object({
   // "auto": a IA escolhe pelo pedido (idioma pedido explicitamente > idioma em que foi escrito > idioma do cliente)
   language: z.enum(["auto", ...AD_LANGUAGE_KEYS]).default("auto"),
   briefing: optionalText(1000),
+  applyLogo: z.boolean().default(false),
   videoDuration: z
     .number()
     .int()

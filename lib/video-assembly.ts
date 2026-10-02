@@ -41,6 +41,21 @@ async function probeDuration(file: string): Promise<number> {
   return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
 }
 
+/** Converte qualquer imagem (PNG, JPG, WEBP...) em PNG, preservando a transparência. */
+export async function imageToPng(image: Buffer): Promise<Buffer> {
+  return withTempDir(async (dir) => {
+    const input = path.join(dir, "in.img");
+    const output = path.join(dir, "out.png");
+    await writeFile(input, image);
+    await run(["-i", input, "-frames:v", "1", "-pix_fmt", "rgba", output]);
+    return readFile(output);
+  });
+}
+
+/** Logo ocupa ~18% da largura do criativo, com margem de ~3,5%, no canto inferior direito. */
+export const LOGO_WIDTH_RATIO = 0.18;
+export const LOGO_MARGIN_RATIO = 0.035;
+
 /** Último quadro do vídeo em PNG (alta qualidade, sem perdas, para o próximo trecho). */
 export async function lastFrame(video: Buffer): Promise<Buffer> {
   return withTempDir(async (dir) => {
@@ -53,11 +68,18 @@ export async function lastFrame(video: Buffer): Promise<Buffer> {
   });
 }
 
+/** Largura e altura do primeiro stream de vídeo. */
+async function probeSize(file: string): Promise<{ width: number; height: number }> {
+  const out = await run(["-i", file, "-f", "null", "-t", "0", "-"]).catch((e: Error) => e.message);
+  const m = /Video:.*?, (\d{2,5})x(\d{2,5})/.exec(out);
+  return m ? { width: Number(m[1]), height: Number(m[2]) } : { width: 720, height: 1280 };
+}
+
 /**
- * Une os trechos (na ordem) e coloca a locução. Se a fala for mais longa que o vídeo,
- * o último quadro é estendido para ela não ser cortada; se for mais curta, o resto fica em silêncio.
+ * Une os trechos (na ordem), aplica o logo (opcional) e coloca a locução. Se a fala for mais longa
+ * que o vídeo, o último quadro é estendido para ela não ser cortada; se for mais curta, o resto fica em silêncio.
  */
-export async function assembleVideo(segments: Buffer[], narration: Buffer | null): Promise<{ buffer: Buffer; duration: number }> {
+export async function assembleVideo(segments: Buffer[], narration: Buffer | null, logoPng?: Buffer | null): Promise<{ buffer: Buffer; duration: number }> {
   if (segments.length === 0) throw new Error("Nenhum trecho para montar");
   return withTempDir(async (dir) => {
     const files = await Promise.all(
@@ -68,11 +90,22 @@ export async function assembleVideo(segments: Buffer[], narration: Buffer | null
       })
     );
 
-    // 1) Concatena re-codificando (os trechos podem vir com parâmetros levemente diferentes).
+    // 1) Concatena re-codificando (os trechos podem vir com parâmetros levemente diferentes) e aplica o logo.
     const joined = path.join(dir, "joined.mp4");
     const inputs = files.flatMap((f) => ["-i", f]);
-    const concat = files.map((_, i) => `[${i}:v:0]setsar=1[v${i}]`).join(";") + ";" + files.map((_, i) => `[v${i}]`).join("") + `concat=n=${files.length}:v=1:a=0[v]`;
-    await run([...inputs, "-filter_complex", concat, "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-an", joined], 240_000);
+    let graph = files.map((_, i) => `[${i}:v:0]setsar=1[v${i}]`).join(";") + ";" + files.map((_, i) => `[v${i}]`).join("") + `concat=n=${files.length}:v=1:a=0[v]`;
+    let out = "[v]";
+    if (logoPng) {
+      const logo = path.join(dir, "logo.png");
+      await writeFile(logo, logoPng);
+      inputs.push("-i", logo);
+      const { width } = await probeSize(files[0]);
+      const w = Math.max(32, Math.round(width * LOGO_WIDTH_RATIO / 2) * 2);
+      const margin = Math.round(width * LOGO_MARGIN_RATIO);
+      graph += `;[${files.length}:v]scale=${w}:-1[lg];[v][lg]overlay=W-w-${margin}:H-h-${margin}:format=auto[vl]`;
+      out = "[vl]";
+    }
+    await run([...inputs, "-filter_complex", graph, "-map", out, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-an", joined], 240_000);
 
     const videoDuration = await probeDuration(joined);
     const output = path.join(dir, "final.mp4");

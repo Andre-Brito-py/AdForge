@@ -58,6 +58,7 @@ export function BrandForm({ initial }: { initial: Brand }) {
           <div className="space-y-2">
             <label htmlFor="bn" className="label-base">{t("name")}</label>
             <input id="bn" className="input-base" maxLength={80} value={brand.brandName} onChange={set("brandName")} placeholder="Ex.: Termix" />
+            <p className="text-xs text-muted-foreground">{t("nameHint")}</p>
           </div>
           <div className="space-y-2">
             <label htmlFor="color" className="label-base">{t("color")}</label>
@@ -65,16 +66,19 @@ export function BrandForm({ initial }: { initial: Brand }) {
               <input type="color" aria-label={t("pickColor")} value={/^#[0-9a-f]{6}$/i.test(brand.primaryColor) ? brand.primaryColor : "#7c3aed"} onChange={set("primaryColor")} className="h-11 w-14 cursor-pointer rounded-xl border border-input bg-background p-1" />
               <input id="color" className="input-base font-mono uppercase" maxLength={7} value={brand.primaryColor} onChange={set("primaryColor")} />
             </div>
+            <p className="text-xs text-muted-foreground">{t("colorHint")}</p>
           </div>
         </div>
         <div className="space-y-2">
           <label htmlFor="tone" className="label-base">{t("tone")}</label>
           <textarea id="tone" className="input-base min-h-28 py-3" maxLength={1000} value={brand.tone} onChange={set("tone")}
             placeholder={t("tonePlaceholder")} />
+          <p className="text-xs text-muted-foreground">{t("toneHint")}</p>
         </div>
         <div className="space-y-2">
           <label htmlFor="site" className="label-base">{t("website")}</label>
           <input id="site" type="url" className="input-base" maxLength={300} value={brand.website} onChange={set("website")} placeholder="https://" />
+          <p className="text-xs text-muted-foreground">{t("websiteHint")}</p>
         </div>
         <div className="flex justify-end pt-2">
           <button type="submit" disabled={saving} className={buttonClass("brand", "lg")}>

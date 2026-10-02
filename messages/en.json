@@ -379,7 +379,13 @@
       "vyPolicyTitle": "I can't make that one",
       "vyFooter": "Vysify only creates ads for products and services. Adjust your request and try again — no credits were charged.",
       "vyOk": "Adjust my request",
-      "summaryDuration": "Length"
+      "summaryDuration": "Length",
+      "applyLogo": "Apply my logo",
+      "applyLogoHint": "Places your Brand Kit logo in the bottom-right corner of every image or video.",
+      "noLogo": "Upload a logo in the <link>Brand Kit</link> to apply it to your creatives.",
+      "summaryLogo": "Logo",
+      "yes": "Yes",
+      "no": "No"
     },
     "generating": {
       "title": "Generating your campaign",
@@ -508,12 +514,12 @@
   },
   "brand": {
     "title": "Brand Kit",
-    "subtitle": "Your brand identity. The AI uses this in every campaign.",
+    "subtitle": "Your brand identity. Fill it in once and the AI applies it to every campaign.",
     "logo": "Logo",
     "currentLogo": "Current logo",
     "uploadLogo": "Upload logo",
     "changeLogo": "Change logo",
-    "logoHint": "A PNG with a transparent background works best.",
+    "logoHint": "Shown in the bottom-right corner of images and videos when you tick “Apply my logo” while creating a campaign. A PNG with a transparent background works best.",
     "name": "Brand name",
     "color": "Primary color",
     "pickColor": "Pick color",
@@ -521,7 +527,11 @@
     "tonePlaceholder": "E.g.: Young and direct, with a sense of humor. We avoid jargon and never use offensive slang.",
     "website": "Website",
     "saved": "Brand Kit saved",
-    "error": "Couldn't save"
+    "error": "Couldn't save",
+    "nameHint": "The AI mentions the brand in the copy and once in the video voiceover.",
+    "colorHint": "Used subtly in the scene of images and videos (background, props, lighting). The product itself is never recolored.",
+    "toneHint": "Guides how headlines, copy and the voiceover script are written.",
+    "websiteHint": "Added at the end of the caption as an invitation (e.g. “Shop at termix.com”). It isn't spoken in the voiceover."
   },
   "settings": {
     "title": "Settings",

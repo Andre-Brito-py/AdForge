@@ -20,8 +20,9 @@ import { PixelMascot } from "@/components/mascot/PixelMascot";
 interface Product { id: string; name: string; originalImageUrl: string; targetAudience: string | null }
 
 export function CampaignWizard({
-  products, initialProductId, balance, costs, availability, emailVerified, locale,
+  products, initialProductId, balance, costs, availability, emailVerified, locale, logoUrl,
 }: {
+  logoUrl: string | null;
   products: Product[];
   initialProductId: string;
   balance: number;
@@ -48,6 +49,7 @@ export function CampaignWizard({
   const [language, setLanguage] = useState<AdLanguage | "auto">("auto");
   const [briefing, setBriefing] = useState("");
   const [duration, setDuration] = useState<VideoDuration>(5);
+  const [applyLogo, setApplyLogo] = useState(!!logoUrl);
   // Recusa da IA (fora do escopo de anúncios ou contra as regras): o Vy explica.
   const [vyNotice, setVyNotice] = useState<{ kind: "OUT_OF_SCOPE" | "POLICY_VIOLATION"; message: string } | null>(null);
 
@@ -68,7 +70,7 @@ export function CampaignWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId, objective, targetAudience: targetAudience || null, offer: offer || null, platform, style, quality, variations, language,
-          briefing: briefing.trim() || null, videoDuration: isVideo ? duration : 5,
+          briefing: briefing.trim() || null, videoDuration: isVideo ? duration : 5, applyLogo: !!logoUrl && applyLogo,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -246,6 +248,24 @@ export function CampaignWizard({
                   <p className="text-xs text-muted-foreground">{t("languageHint")}</p>
                 </div>
 
+                <div className="mt-6 rounded-2xl border border-border p-4">
+                  {logoUrl ? (
+                    <label className="flex cursor-pointer items-center gap-4">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logoUrl} alt="" className="h-10 w-16 shrink-0 rounded-lg bg-muted object-contain p-1" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">{t("applyLogo")}</span>
+                        <span className="block text-xs text-muted-foreground">{t("applyLogoHint")}</span>
+                      </span>
+                      <input type="checkbox" checked={applyLogo} onChange={(e) => setApplyLogo(e.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--brand)]" />
+                    </label>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {t.rich("noLogo", { link: (chunks) => <Link href="/brand" className="font-medium text-brand underline">{chunks}</Link> })}
+                    </p>
+                  )}
+                </div>
+
                 <dl className="mt-6 grid gap-x-6 gap-y-3 rounded-2xl bg-muted/50 p-5 text-sm sm:grid-cols-2">
                   <Row k={t("summary.product")} v={product?.name} />
                   <Row k={t("summary.objective")} v={tcat(`objectives.${objective}.label`)} />
@@ -253,6 +273,7 @@ export function CampaignWizard({
                   <Row k={t("summary.style")} v={`${tcat(`styles.${style}`)} · ${tcat(`qualities.${quality}.label`)}`} />
                   <Row k={t("summary.language")} v={language === "auto" ? t("languageAuto") : AD_LANGUAGES[language][locale]} />
                   {isVideo && <Row k={t("summaryDuration")} v={t("durationOption", { s: duration })} />}
+                  {logoUrl && <Row k={t("summaryLogo")} v={applyLogo ? t("yes") : t("no")} />}
                 </dl>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border p-5">

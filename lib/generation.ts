@@ -8,6 +8,7 @@ import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame } from "./video-assembly";
+import { applyLogoToImage, loadLogoPng } from "./brand-assets";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
 import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
@@ -144,6 +145,8 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
           language: strategy.language,
           briefing: input.briefing,
           videoDuration,
+          // Só vale se o Brand Kit tiver logo (o cliente pode ter apagado depois de abrir o assistente).
+          applyLogo: input.applyLogo && !!brand?.logoUrl,
           variations: input.variations,
           strategyJson: JSON.stringify(strategy),
           creditsCharged: totalCost,
@@ -360,8 +363,19 @@ async function runImageJob(job: LoadedJob) {
     extraInstructions: extra,
   });
 
-  const ext = IMAGE_TYPES[out.mimeType as ImageMime] || "png";
-  const url = await saveFile(out.buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${creative.id}.${ext}`, out.mimeType);
+  let final: { buffer: Buffer; mimeType: string } = out;
+  if (campaign.applyLogo && brand?.logoUrl) {
+    // Logo é um acabamento: se falhar (arquivo apagado, formato estranho), entrega sem ele.
+    try {
+      const logo = await loadLogoPng(brand.logoUrl);
+      if (logo) final = await applyLogoToImage(out, logo);
+    } catch (error) {
+      console.warn("[generation] não foi possível aplicar o logo na imagem", error);
+    }
+  }
+
+  const ext = IMAGE_TYPES[final.mimeType as ImageMime] || "png";
+  const url = await saveFile(final.buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${creative.id}.${ext}`, final.mimeType);
 
   await db.$transaction([
     db.creative.update({ where: { id: creative.id }, data: { status: "COMPLETED", outputUrl: url, model: out.model } }),
@@ -387,11 +401,12 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, index: number, ima
   const config = await getAppConfig();
   if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
   const campaign = job.creative.campaign;
+  const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
   return submitVideo({
     falKey: config.secrets.wanKey,
     model: job.creative.model,
     imageUrl,
-    prompt: buildVideoPrompt(spec.scenes[index], STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic", spec.extra, { index, total: spec.scenes.length }),
+    prompt: buildVideoPrompt(spec.scenes[index], STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic", spec.extra, { index, total: spec.scenes.length }, brand?.primaryColor),
     aspectRatio: job.creative.aspectRatio || "9:16",
     premium: campaign.quality === "premium",
   });
@@ -470,9 +485,17 @@ async function pollVideoJob(job: LoadedJob) {
   const segments = await Promise.all(done.map(async (url, i) => (i === done.length - 1 && lastBuffer ? lastBuffer : (await readOwnMedia(url)).buffer)));
   const fresh = await db.creative.findUnique({ where: { id: job.creativeId }, select: { audioUrl: true } });
   const narration = fresh?.audioUrl ? await readOwnMedia(fresh.audioUrl).then((m) => m.buffer).catch(() => null) : null;
-  const final = await assembleVideo(segments, narration);
-
   const campaign = job.creative.campaign;
+  let logo: Buffer | null = null;
+  if (campaign.applyLogo) {
+    const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { logoUrl: true } });
+    logo = await loadLogoPng(brand?.logoUrl).catch((e) => {
+      console.warn("[generation] não foi possível carregar o logo para o vídeo", e);
+      return null;
+    });
+  }
+  const final = await assembleVideo(segments, narration, logo);
+
   const url = await saveFile(final.buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${job.creativeId}.mp4`, "video/mp4");
   const completed = await db.generationJob.updateMany({
     where: { id: job.id, status: "PROCESSING" },

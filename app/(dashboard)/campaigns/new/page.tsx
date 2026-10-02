@@ -16,7 +16,7 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
   const sp = await props.searchParams;
   const initialProductId = typeof sp.productId === "string" ? sp.productId : "";
 
-  const [products, balance, config] = await Promise.all([
+  const [products, balance, config, brand] = await Promise.all([
     db.product.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: "desc" },
@@ -24,6 +24,7 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
     }),
     getWorkspaceBalance(user.workspaceId),
     getAppConfig(),
+    db.brandKit.findUnique({ where: { workspaceId: user.workspaceId }, select: { logoUrl: true } }),
   ]);
 
   const locale = user.locale === "en" ? "en" : "pt";
@@ -38,6 +39,7 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
         availability={{ IMAGE: !!config.secrets.geminiKey, VIDEO: !!config.secrets.wanKey && (!!config.secrets.geminiKey || !!config.secrets.openAiKey) }}
         emailVerified={!!user.emailVerified}
         locale={locale}
+        logoUrl={brand?.logoUrl || null}
       />
     </>
   );

@@ -379,7 +379,13 @@
       "vyPolicyTitle": "Esse eu não posso fazer",
       "vyFooter": "A Vysify cria só anúncios de produtos e serviços. Ajuste o pedido e tente de novo, sem nenhum crédito cobrado.",
       "vyOk": "Ajustar o pedido",
-      "summaryDuration": "Duração"
+      "summaryDuration": "Duração",
+      "applyLogo": "Aplicar meu logotipo",
+      "applyLogoHint": "Coloca o logo do Brand Kit no canto inferior direito de cada imagem ou vídeo.",
+      "noLogo": "Envie um logotipo no <link>Brand Kit</link> para aplicá-lo nos criativos.",
+      "summaryLogo": "Logotipo",
+      "yes": "Sim",
+      "no": "Não"
     },
     "generating": {
       "title": "Gerando sua campanha",
@@ -508,12 +514,12 @@
   },
   "brand": {
     "title": "Brand Kit",
-    "subtitle": "A identidade da sua marca. A IA usa estas informações em todas as campanhas.",
+    "subtitle": "A identidade da sua marca. Preencha uma vez e a IA aplica em todas as campanhas.",
     "logo": "Logotipo",
     "currentLogo": "Logo atual",
     "uploadLogo": "Enviar logo",
     "changeLogo": "Trocar logo",
-    "logoHint": "PNG com fundo transparente funciona melhor.",
+    "logoHint": "Aparece no canto inferior direito das imagens e dos vídeos quando você marca “Aplicar meu logotipo” ao criar a campanha. PNG com fundo transparente fica melhor.",
     "name": "Nome da marca",
     "color": "Cor principal",
     "pickColor": "Escolher cor",
@@ -521,7 +527,11 @@
     "tonePlaceholder": "Ex.: Jovem e direto, com bom humor. Evitamos termos técnicos e nunca usamos gírias ofensivas.",
     "website": "Site",
     "saved": "Brand Kit salvo",
-    "error": "Não foi possível salvar"
+    "error": "Não foi possível salvar",
+    "nameHint": "A IA cita a marca nos textos e uma vez na locução dos vídeos.",
+    "colorHint": "Usada com sutileza no cenário das imagens e dos vídeos (fundo, objetos, luz). O produto nunca é repintado.",
+    "toneHint": "Guia o jeito de escrever títulos, textos e o roteiro da locução.",
+    "websiteHint": "Entra no fim da legenda como convite (ex.: “Confira em termix.com.br”). Não é falado na locução."
   },
   "settings": {
     "title": "Configurações",

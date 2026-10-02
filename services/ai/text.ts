@@ -4,6 +4,7 @@ import { getAppConfig } from "@/lib/config";
 import { readOwnMedia, toDataUri } from "@/lib/storage";
 import { PLATFORMS, type ObjectiveKey, type PlatformKey, type StyleKey } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
+import { colorName, websiteDomain } from "@/lib/brand-assets";
 
 export class PolicyViolationError extends Error {
   constructor(reason?: string) {
@@ -47,7 +48,7 @@ export interface StrategyInput {
   videoDuration?: number;
   /** Idioma da interface (para o motivo de uma eventual recusa). */
   uiLocale: "pt" | "en";
-  brand?: { brandName?: string | null; tone?: string | null; primaryColor?: string | null } | null;
+  brand?: { brandName?: string | null; tone?: string | null; primaryColor?: string | null; website?: string | null } | null;
 }
 
 const variantSchema = z.object({
@@ -140,7 +141,8 @@ function buildPrompt(input: StrategyInput): string {
       offer: input.offer || null,
       brand: input.brand?.brandName || null,
       brand_tone_of_voice: input.brand?.tone || null,
-      brand_color: input.brand?.primaryColor || null,
+      brand_color: input.brand?.primaryColor ? `${input.brand.primaryColor} (${colorName(input.brand.primaryColor)})` : null,
+      website: websiteDomain(input.brand?.website),
       briefing: input.briefing || null,
     },
     null,
@@ -168,6 +170,11 @@ For each variation:
 - "copy": ad copy/caption suited to the platform, with line breaks and at most 2 emojis.
 - "cta": short call to action.
 - "visualConcept": in ENGLISH, the art direction to ${isVideo ? `animate the product photo into a ${seconds}-second video (camera movement, setting, light; no on-screen text)` : "create an advertising photo of the SAME product shown in the image (setting, lighting, composition, props; no text, no invented logos)"}, consistent with the requested visual style.${videoFields}
+BRAND KIT (when present in USER_DATA)
+- "brand": use the brand name naturally in the copy${isVideo ? " and say it once in the voiceover" : ""}.
+- "brand_tone_of_voice": follow it in every text.
+- "brand_color": weave it subtly into the art direction (${isVideo ? "visualConcept and every scene" : "visualConcept"}): background, props or lighting — never recolor the product itself.
+- "website": end the "copy" with a short line inviting people to visit it, written exactly as the given domain (no https://). Never spell out URLs in the voiceover.
 Do not invent features that are not visible in the image or stated in the data. Avoid absolute claims ("best in the world", "cures").
 
 USER_DATA

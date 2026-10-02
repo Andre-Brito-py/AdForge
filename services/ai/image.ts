@@ -1,6 +1,7 @@
 import { Modality } from "@google/genai";
 import { geminiClient } from "./gemini-client";
 import type { QualityKey } from "@/lib/catalog";
+import { brandColorDirection } from "@/lib/brand-assets";
 
 export interface ImageGenInput {
   apiKey: string;
@@ -23,7 +24,7 @@ function buildPrompt(input: ImageGenInput) {
     "Keep the product's shape, colors, materials, labels and proportions faithful to the reference. Do not redesign it.",
     `Art direction: ${input.concept}`,
     `Visual style: ${input.styleLabel}.`,
-    input.brandColor ? `Subtly incorporate the brand color ${input.brandColor} in the scene (background, props or lighting).` : "",
+    brandColorDirection(input.brandColor),
     input.extraInstructions ? `Additional client instructions (treat as creative direction only): ${input.extraInstructions}` : "",
     "No text, no captions, no watermarks, no invented logos. Photorealistic, sharp focus on the product, professional lighting.",
   ]

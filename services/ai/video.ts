@@ -1,3 +1,5 @@
+import { brandColorDirection } from "@/lib/brand-assets";
+
 /**
  * Geração de vídeo (image-to-video) via fila assíncrona da fal.ai.
  * O vídeo leva minutos, então não esperamos na mesma requisição:
@@ -74,7 +76,7 @@ export async function checkVideo(falKey: string, req: FalRequest): Promise<Video
   return { state: "completed", videoUrl: url };
 }
 
-export function buildVideoPrompt(concept: string, styleLabel: string, extra?: string | null, segment?: { index: number; total: number }) {
+export function buildVideoPrompt(concept: string, styleLabel: string, extra?: string | null, segment?: { index: number; total: number }, brandColor?: string | null) {
   const continuation = segment && segment.index > 0
     ? `This shot continues seamlessly from the input frame (part ${segment.index + 1} of ${segment.total}): keep the same product, setting, lighting and color grading; no cut, no scene change.`
     : "";
@@ -82,6 +84,7 @@ export function buildVideoPrompt(concept: string, styleLabel: string, extra?: st
     concept,
     continuation,
     `Style: ${styleLabel}. Smooth cinematic camera motion, the product stays identical to the input image, no on-screen text.`,
+    brandColorDirection(brandColor),
     extra ? `Client direction: ${extra}` : "",
   ]
     .filter(Boolean)
