@@ -11,17 +11,17 @@ export const POST = handler(async (request: Request) => {
   await enforceRateLimit(request, "upload", 30, 60 * 60, user.id);
 
   const length = Number(request.headers.get("content-length") || 0);
-  if (length > MAX_BYTES + 64 * 1024) throw new HttpError(413, "A imagem pode ter no máximo 8 MB");
+  if (length > MAX_BYTES + 64 * 1024) throw new HttpError(413, "errors.imageTooLarge", undefined, { mb: 8 });
 
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
-  if (!file || typeof file === "string") throw new HttpError(400, "Envie um arquivo de imagem");
-  if (file.size > MAX_BYTES) throw new HttpError(413, "A imagem pode ter no máximo 8 MB");
+  if (!file || typeof file === "string") throw new HttpError(400, "errors.sendImageFile");
+  if (file.size > MAX_BYTES) throw new HttpError(413, "errors.imageTooLarge", undefined, { mb: 8 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
   // Valida pelo conteúdo real do arquivo, não pela extensão ou pelo Content-Type enviado.
   const mime = detectImageType(buffer);
-  if (!mime) throw new HttpError(415, "Formato não suportado. Use PNG, JPG ou WEBP.");
+  if (!mime) throw new HttpError(415, "errors.unsupportedFormat");
 
   const url = await saveFile(buffer, `uploads/${user.workspaceId}/${randomUUID()}.${IMAGE_TYPES[mime]}`, mime);
   return NextResponse.json({ success: true, url });

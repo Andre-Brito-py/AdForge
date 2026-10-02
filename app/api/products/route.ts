@@ -4,14 +4,17 @@ import { handler, HttpError, parseBody } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth";
 import { productSchema } from "@/lib/validation";
 import { isOwnStorageUrl } from "@/lib/storage";
+import { cookies } from "next/headers";
+import { isCurrency } from "@/lib/locale";
 
 export const POST = handler(async (request: Request) => {
   const user = await requireApiUser();
   const data = await parseBody(request, productSchema);
+  const currency = (await cookies()).get("CURRENCY")?.value;
 
   // Só aceitamos imagens que foram enviadas pelo nosso upload, e do próprio workspace.
   if (!isOwnStorageUrl(data.imageUrl) || !data.imageUrl.includes(`/uploads/${user.workspaceId}/`)) {
-    throw new HttpError(400, "Imagem inválida. Envie a foto novamente.");
+    throw new HttpError(400, "errors.invalidImage");
   }
 
   const product = await db.product.create({
@@ -24,6 +27,8 @@ export const POST = handler(async (request: Request) => {
       brandName: data.brandName,
       targetAudience: data.targetAudience,
       price: data.price ?? null,
+      // Moeda escolhida pelo cliente (cookie definido pela geolocalização ou nas Configurações).
+      currency: isCurrency(currency) ? currency : user.locale === "en" ? "USD" : "BRL",
     },
   });
   return NextResponse.json(product, { status: 201 });

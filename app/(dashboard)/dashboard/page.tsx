@@ -1,16 +1,22 @@
 import Link from "next/link";
 import { ArrowRight, Coins, Image as ImageIcon, Megaphone, Package, Plus } from "lucide-react";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceBalance } from "@/services/credits";
-import { PLATFORMS, labelFor } from "@/lib/catalog";
+import { platformLabel } from "@/lib/catalog-i18n";
 import { EmptyState, LinkButton, PageHeader, StatusBadge } from "@/components/app/ui-bits";
-import { timeAgo } from "@/lib/format";
 
-export const metadata = { title: "Painel" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("nav"))("dashboard") };
+}
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  const t = await getTranslations("dashboard");
+  const tc = await getTranslations("catalog");
+  const format = await getFormatter();
+  const now = new Date();
   const wId = user.workspaceId;
 
   const [balance, productCount, campaignCount, creativeCount, recent] = await Promise.all([
@@ -31,20 +37,20 @@ export default async function DashboardPage() {
 
   const firstName = (user.name || "").split(" ")[0];
   const stats = [
-    { label: "Créditos disponíveis", value: balance, icon: Coins, href: "/credits" },
-    { label: "Produtos", value: productCount, icon: Package, href: "/products" },
-    { label: "Campanhas", value: campaignCount, icon: Megaphone, href: "/campaigns" },
-    { label: "Criativos gerados", value: creativeCount, icon: ImageIcon, href: "/campaigns" },
+    { label: t("stats.credits"), value: balance, icon: Coins, href: "/credits" },
+    { label: t("stats.products"), value: productCount, icon: Package, href: "/products" },
+    { label: t("stats.campaigns"), value: campaignCount, icon: Megaphone, href: "/campaigns" },
+    { label: t("stats.creatives"), value: creativeCount, icon: ImageIcon, href: "/campaigns" },
   ];
 
   return (
     <>
       <PageHeader
-        title={firstName ? `Olá, ${firstName}` : "Seu painel"}
-        description="Crie anúncios a partir das fotos dos seus produtos."
+        title={firstName ? t("hello", { name: firstName }) : t("title")}
+        description={t("subtitle")}
         actions={
           <LinkButton href="/campaigns/new" variant="brand">
-            <Plus className="h-4 w-4" /> Nova campanha
+            <Plus className="h-4 w-4" /> {(await getTranslations("nav"))("newCampaign")}
           </LinkButton>
         }
       />
@@ -53,7 +59,7 @@ export default async function DashboardPage() {
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className="surface group p-5 transition hover:border-foreground/20">
             <s.icon className="h-4 w-4 text-muted-foreground transition group-hover:text-brand" />
-            <p className="mt-4 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">{s.value.toLocaleString("pt-BR")}</p>
+            <p className="mt-4 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">{format.number(s.value)}</p>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{s.label}</p>
           </Link>
         ))}
@@ -61,10 +67,10 @@ export default async function DashboardPage() {
 
       <section className="mt-10">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">Campanhas recentes</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t("recent")}</h2>
           {recent.length > 0 && (
             <Link href="/campaigns" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-              Ver todas <ArrowRight className="h-3.5 w-3.5" />
+              {t("seeAll")} <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}
         </div>
@@ -72,15 +78,15 @@ export default async function DashboardPage() {
         {recent.length === 0 ? (
           productCount === 0 ? (
             <EmptyState
-              title="Vamos criar seu primeiro anúncio"
-              description="Comece cadastrando um produto com uma boa foto. Depois é só escolher o objetivo e eu cuido do resto."
-              action={<LinkButton href="/products/new" variant="brand">Cadastrar produto</LinkButton>}
+              title={t("emptyFirstTitle")}
+              description={t("emptyFirstText")}
+              action={<LinkButton href="/products/new" variant="brand">{t("emptyFirstCta")}</LinkButton>}
             />
           ) : (
             <EmptyState
-              title="Nenhuma campanha ainda"
-              description="Você já tem produtos cadastrados. Que tal gerar a primeira campanha?"
-              action={<LinkButton href="/campaigns/new" variant="brand">Criar campanha</LinkButton>}
+              title={t("emptyTitle")}
+              description={t("emptyText")}
+              action={<LinkButton href="/campaigns/new" variant="brand">{t("emptyCta")}</LinkButton>}
             />
           )
         ) : (
@@ -103,7 +109,7 @@ export default async function DashboardPage() {
                   <div className="p-4">
                     <p className="truncate font-medium">{c.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {labelFor(PLATFORMS, c.platform)} · {timeAgo(c.createdAt)}
+                      {platformLabel(tc, c.platform)} · {format.relativeTime(c.createdAt, now)}
                     </p>
                   </div>
                 </Link>

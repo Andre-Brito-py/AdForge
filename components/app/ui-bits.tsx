@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, CircleDashed, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PixelMascot, type MascotMood } from "@/components/mascot/PixelMascot";
 
 export function PageHeader({
@@ -50,21 +51,22 @@ export function EmptyState({
   );
 }
 
-const STATUS: Record<string, { label: string; className: string; icon: React.ElementType; spin?: boolean }> = {
-  COMPLETED: { label: "Concluída", className: "bg-success/12 text-success", icon: CheckCircle2 },
-  PARTIAL: { label: "Parcial", className: "bg-warning/15 text-warning", icon: AlertCircle },
-  GENERATING: { label: "Gerando", className: "bg-brand-soft text-brand", icon: Loader2, spin: true },
-  PROCESSING: { label: "Gerando", className: "bg-brand-soft text-brand", icon: Loader2, spin: true },
-  QUEUED: { label: "Na fila", className: "bg-muted text-muted-foreground", icon: CircleDashed },
-  FAILED: { label: "Falhou", className: "bg-destructive/12 text-destructive", icon: AlertCircle },
+const STATUS: Record<string, { className: string; icon: React.ElementType; spin?: boolean }> = {
+  COMPLETED: { className: "bg-success/12 text-success", icon: CheckCircle2 },
+  PARTIAL: { className: "bg-warning/15 text-warning", icon: AlertCircle },
+  GENERATING: { className: "bg-brand-soft text-brand", icon: Loader2, spin: true },
+  PROCESSING: { className: "bg-brand-soft text-brand", icon: Loader2, spin: true },
+  QUEUED: { className: "bg-muted text-muted-foreground", icon: CircleDashed },
+  FAILED: { className: "bg-destructive/12 text-destructive", icon: AlertCircle },
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const s = STATUS[status] || { label: status, className: "bg-muted text-muted-foreground", icon: CircleDashed };
+  const t = useTranslations("status");
+  const s = STATUS[status] || { className: "bg-muted text-muted-foreground", icon: CircleDashed };
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${s.className}`}>
       <s.icon className={`h-3.5 w-3.5 ${s.spin ? "animate-spin" : ""}`} />
-      {s.label}
+      {t.has(status) ? t(status) : status}
     </span>
   );
 }

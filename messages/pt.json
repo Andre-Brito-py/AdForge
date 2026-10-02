@@ -1,31 +1,699 @@
 {
-  "Dashboard": {
-    "title": "Visão Geral",
-    "subtitle": "Pronto para criar sua próxima campanha, {name}?",
-    "newCampaign": "Criar Nova Campanha",
-    "balance": "Saldo Disponível",
-    "activeCampaigns": "Campanhas Ativas",
-    "generatedCreatives": "Criativos Gerados",
-    "recentCampaigns": "Campanhas Recentes",
-    "draft": "Rascunho",
-    "completed": "Concluído",
-    "processing": "Processando",
-    "failed": "Falhou"
+  "common": {
+    "back": "Voltar",
+    "continue": "Continuar",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "delete": "Excluir",
+    "deleted": "Excluído",
+    "credits": "{count, plural, one {# crédito} other {# créditos}}",
+    "creditsShort": "{count} cr",
+    "somethingWrong": "Algo deu errado",
+    "tryAgain": "Tentar de novo",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "soon": "Em breve",
+    "legal": {
+      "terms": "Termos de Uso",
+      "privacy": "Privacidade",
+      "cookies": "Cookies",
+      "cookieSettings": "Preferências de cookies"
+    }
   },
-  "Navigation": {
+  "nav": {
     "dashboard": "Painel",
     "products": "Produtos",
     "campaigns": "Campanhas",
-    "brandKit": "Brand Kit",
+    "brand": "Brand Kit",
+    "integrations": "Integrações",
     "credits": "Créditos",
-    "plans": "Planos",
-    "settings": "Config"
+    "billing": "Comprar créditos",
+    "settings": "Configurações",
+    "admin": "Admin",
+    "newCampaign": "Nova campanha",
+    "balance": "Saldo disponível",
+    "myAccount": "Minha conta",
+    "signOut": "Sair",
+    "signOutLabel": "Sair da conta",
+    "openMenu": "Abrir menu",
+    "closeMenu": "Fechar menu",
+    "mainNav": "Navegação principal",
+    "theme": "Alternar tema claro/escuro",
+    "creditsUnit": "{count, plural, one {crédito} other {créditos}}"
   },
-  "Plans": {
-    "title": "Planos e Faturamento",
-    "subtitle": "Faça upgrade para escalar suas campanhas.",
-    "currentPlan": "Plano Atual",
-    "mostPopular": "Mais Popular",
-    "subscribe": "Assinar {name}"
+  "verifyBanner": {
+    "text": "Confirme seu e-mail para liberar a geração de campanhas.",
+    "resend": "Reenviar link",
+    "sending": "Enviando...",
+    "sent": "Link enviado",
+    "sentToast": "Enviamos um novo link para o seu e-mail.",
+    "error": "Não foi possível reenviar agora."
+  },
+  "status": {
+    "COMPLETED": "Concluída",
+    "PARTIAL": "Parcial",
+    "GENERATING": "Gerando",
+    "PROCESSING": "Gerando",
+    "QUEUED": "Na fila",
+    "FAILED": "Falhou"
+  },
+  "time": {
+    "created": "criada {time}",
+    "added": "Adicionado {time}"
+  },
+  "mascot": {
+    "name": "Vy, o mascote da Vysify",
+    "tipTitle": "Dica do Vy",
+    "anotherTip": "Outra dica",
+    "open": "Abrir dicas do mascote",
+    "hide": "Ocultar mascote",
+    "hideHint": "Ocultar mascote (dá para reativar em Configurações)",
+    "tips": [
+      "Fotos com fundo limpo e boa luz geram criativos muito melhores.",
+      "Preencha o Brand Kit: eu uso sua cor e seu tom de voz nas gerações.",
+      "Teste 3 a 4 variações por campanha para achar o criativo vencedor.",
+      "Se uma geração falhar, os créditos voltam sozinhos para a sua conta.",
+      "No Premium eu uso um modelo mais caprichado e com resolução maior.",
+      "Dá para pedir uma nova versão de qualquer criativo com instruções extras.",
+      "Vende para outro país? Escolha o idioma do anúncio no último passo da campanha."
+    ]
+  },
+  "catalog": {
+    "objectives": {
+      "SALES": {
+        "label": "Vendas diretas",
+        "description": "Foco em conversão e urgência"
+      },
+      "AWARENESS": {
+        "label": "Reconhecimento de marca",
+        "description": "Fazer a marca ser lembrada"
+      },
+      "ENGAGEMENT": {
+        "label": "Engajamento",
+        "description": "Gerar comentários e interação"
+      },
+      "LAUNCH": {
+        "label": "Lançamento",
+        "description": "Apresentar um produto novo"
+      }
+    },
+    "platforms": {
+      "INSTAGRAM_FEED": {
+        "label": "Instagram Feed",
+        "hint": "Imagem 4:5"
+      },
+      "FACEBOOK_ADS": {
+        "label": "Facebook Ads",
+        "hint": "Imagem 1:1"
+      },
+      "STORIES": {
+        "label": "Stories",
+        "hint": "Imagem 9:16"
+      },
+      "REELS_TIKTOK": {
+        "label": "Reels / TikTok",
+        "hint": "Vídeo 9:16 + locução"
+      }
+    },
+    "styles": {
+      "CINEMATIC": "Cinematográfico",
+      "MINIMALIST": "Minimalista",
+      "STUDIO": "Estúdio profissional",
+      "LIFESTYLE": "Lifestyle",
+      "UGC": "UGC (conteúdo de usuário)",
+      "NEON": "Neon / Cyberpunk"
+    },
+    "qualities": {
+      "standard": {
+        "label": "Padrão",
+        "description": "Ótimo para testar várias ofertas rapidamente"
+      },
+      "premium": {
+        "label": "Premium",
+        "description": "Resolução maior e modelo mais avançado"
+      }
+    }
+  },
+  "auth": {
+    "tagline": "Da foto do produto ao anúncio pronto, em minutos.",
+    "taglineSub": "Estratégia, textos, imagens e vídeos com locução. Você só escolhe o objetivo e baixa os criativos.",
+    "google": "Continuar com Google",
+    "or": "ou",
+    "email": "E-mail",
+    "emailPlaceholder": "voce@empresa.com",
+    "password": "Senha",
+    "passwordHint": "Mínimo de 8 caracteres, com letras e números.",
+    "login": {
+      "title": "Entrar na sua conta",
+      "subtitle": "Que bom ver você de novo.",
+      "twoFactorTitle": "Verificação em duas etapas",
+      "twoFactorSubtitle": "Digite o código de 6 dígitos do seu app autenticador.",
+      "forgot": "Esqueci a senha",
+      "submit": "Entrar",
+      "verify": "Verificar",
+      "noAccount": "Ainda não tem conta?",
+      "createAccount": "Criar conta",
+      "codeLabel": "Código de 6 dígitos",
+      "errors": {
+        "INVALID_CREDENTIALS": "E-mail ou senha incorretos.",
+        "ACCOUNT_LOCKED": "Muitas tentativas erradas. Por segurança, a conta foi bloqueada por 15 minutos. Você pode redefinir a senha.",
+        "RATE_LIMITED": "Muitas tentativas a partir desta rede. Aguarde alguns minutos.",
+        "INVALID_2FA": "Código de verificação inválido. Confira o app autenticador.",
+        "OAuthAccountNotLinked": "Este e-mail já está cadastrado com outro método de login.",
+        "AccessDenied": "Não foi possível entrar com esta conta.",
+        "expired": "Sua sessão expirou. Entre novamente.",
+        "generic": "Não foi possível entrar. Tente novamente."
+      }
+    },
+    "signup": {
+      "title": "Crie sua conta",
+      "subtitleCredits": "Você começa com {count} créditos grátis para testar. Sem cartão de crédito.",
+      "subtitle": "Comece em menos de um minuto.",
+      "name": "Nome",
+      "accept": "Li e aceito os <terms>Termos de Uso</terms> e a <privacy>Política de Privacidade</privacy>.",
+      "googleNotice": "Ao continuar com o Google, você aceita os Termos e a Política de Privacidade.",
+      "submit": "Criar conta",
+      "hasAccount": "Já tem conta?",
+      "signIn": "Entrar",
+      "errors": {
+        "weakPassword": "A senha precisa ter 8+ caracteres, com letras e números.",
+        "acceptTerms": "É preciso aceitar os Termos de Uso e a Política de Privacidade.",
+        "generic": "Não foi possível criar a conta."
+      }
+    },
+    "forgot": {
+      "title": "Esqueceu a senha?",
+      "subtitle": "Enviamos um link para você criar uma nova senha.",
+      "sentTitle": "Confira seu e-mail",
+      "sent": "Se existir uma conta para <b>{email}</b>, você vai receber um link válido por 1 hora. Confira também a caixa de spam.",
+      "emailLabel": "E-mail da conta",
+      "submit": "Enviar link",
+      "back": "Voltar para o login",
+      "error": "Tente novamente em instantes."
+    },
+    "reset": {
+      "title": "Criar nova senha",
+      "newPassword": "Nova senha",
+      "submit": "Salvar nova senha",
+      "requestNew": "Pedir um novo link",
+      "doneTitle": "Senha alterada",
+      "doneSubtitle": "Por segurança, encerramos as sessões abertas com a senha antiga.",
+      "loginWithNew": "Entrar com a nova senha",
+      "incomplete": "Link incompleto. Abra o link do e-mail novamente.",
+      "error": "Não foi possível redefinir a senha."
+    },
+    "verify": {
+      "loading": "Confirmando seu e-mail...",
+      "okTitle": "E-mail confirmado!",
+      "okSubtitle": "Tudo certo. Agora você já pode gerar campanhas.",
+      "goDashboard": "Ir para o painel",
+      "errorTitle": "Não foi possível confirmar",
+      "incomplete": "Link incompleto.",
+      "invalid": "Link inválido ou expirado.",
+      "connection": "Erro de conexão.",
+      "errorHelp": "Entre na sua conta e use o botão “Reenviar link” no aviso do topo da página.",
+      "signIn": "Entrar"
+    }
+  },
+  "onboarding": {
+    "step": "Etapa {current} de {total}",
+    "hello": "Oi! Eu sou o Vy.",
+    "helloSub": "Me conta: como você vai usar a Vysify?",
+    "goalTitle": "E o que você quer criar?",
+    "goalSub": "Assim eu já deixo tudo do seu jeito.",
+    "roles": {
+      "owner": "Tenho uma loja ou marca",
+      "agency": "Trabalho em agência",
+      "social": "Sou social media / gestor de tráfego",
+      "other": "Outro"
+    },
+    "goals": {
+      "images": "Imagens para anúncios",
+      "videos": "Vídeos curtos (Reels/TikTok)",
+      "posts": "Posts para redes sociais",
+      "idk": "Ainda estou descobrindo"
+    },
+    "doneTitle": "Tudo pronto!",
+    "doneWithCredits": "Você já tem {count} créditos para testar. O primeiro passo é cadastrar o produto que você quer anunciar.",
+    "doneNoCredits": "O primeiro passo é cadastrar o produto que você quer anunciar. Quando quiser gerar, é só escolher um pacote de créditos.",
+    "cta": "Cadastrar meu primeiro produto",
+    "error": "Não foi possível salvar. Tente novamente."
+  },
+  "dashboard": {
+    "title": "Seu painel",
+    "hello": "Olá, {name}",
+    "subtitle": "Crie anúncios a partir das fotos dos seus produtos.",
+    "stats": {
+      "credits": "Créditos disponíveis",
+      "products": "Produtos",
+      "campaigns": "Campanhas",
+      "creatives": "Criativos gerados"
+    },
+    "recent": "Campanhas recentes",
+    "seeAll": "Ver todas",
+    "emptyFirstTitle": "Vamos criar seu primeiro anúncio",
+    "emptyFirstText": "Comece cadastrando um produto com uma boa foto. Depois é só escolher o objetivo e eu cuido do resto.",
+    "emptyFirstCta": "Cadastrar produto",
+    "emptyTitle": "Nenhuma campanha ainda",
+    "emptyText": "Você já tem produtos cadastrados. Que tal gerar a primeira campanha?",
+    "emptyCta": "Criar campanha"
+  },
+  "products": {
+    "title": "Produtos",
+    "subtitle": "Os produtos que você quer anunciar. Cada um pode ter várias campanhas.",
+    "add": "Adicionar produto",
+    "campaignsCount": "{count, plural, one {# campanha} other {# campanhas}}",
+    "emptyTitle": "Nenhum produto ainda",
+    "emptyText": "Para criar anúncios, a IA precisa conhecer o seu produto. Envie uma foto nítida e bem iluminada.",
+    "emptyCta": "Adicionar meu primeiro produto",
+    "new": {
+      "title": "Adicionar produto",
+      "subtitle": "Quanto mais contexto você der, melhores ficam os anúncios.",
+      "photo": "Foto do produto *",
+      "photoTip": "Dica: fundo simples, produto inteiro no quadro e boa iluminação. Envie apenas imagens de produtos que você tem direito de usar.",
+      "name": "Nome do produto *",
+      "namePlaceholder": "Ex.: Garrafa térmica inox 750 ml",
+      "description": "Descrição e benefícios",
+      "descriptionPlaceholder": "O que é, para quem serve, diferenciais, materiais...",
+      "category": "Categoria",
+      "categoryPlaceholder": "Ex.: Casa e cozinha",
+      "brand": "Marca",
+      "brandPlaceholder": "Ex.: Termix",
+      "audience": "Público-alvo",
+      "audiencePlaceholder": "Ex.: quem treina e trabalha fora",
+      "price": "Preço",
+      "pricePlaceholder": "Ex.: 89,90",
+      "submit": "Salvar produto",
+      "photoRequired": "Adicione a foto do produto.",
+      "nameRequired": "Informe o nome do produto.",
+      "created": "Produto cadastrado!",
+      "error": "Não foi possível salvar o produto"
+    },
+    "detail": {
+      "deleteConfirm": "Excluir este produto e todas as campanhas dele? Esta ação não pode ser desfeita.",
+      "category": "Categoria",
+      "brand": "Marca",
+      "audience": "Público-alvo",
+      "price": "Preço",
+      "campaigns": "Campanhas deste produto",
+      "creatives": "{count, plural, one {# criativo} other {# criativos}}",
+      "emptyTitle": "Nenhuma campanha ainda",
+      "emptyText": "Gere a primeira campanha para este produto em poucos cliques."
+    }
+  },
+  "dropzone": {
+    "label": "Arraste a foto aqui ou clique para escolher",
+    "hint": "PNG, JPG ou WEBP · até {mb} MB",
+    "change": "Trocar",
+    "preview": "Pré-visualização",
+    "invalidType": "Use uma imagem PNG, JPG ou WEBP.",
+    "tooLarge": "A imagem pode ter no máximo {mb} MB.",
+    "uploadFailed": "Falha no upload da imagem"
+  },
+  "campaigns": {
+    "title": "Campanhas",
+    "subtitle": "Tudo o que você já gerou, do mais recente para o mais antigo.",
+    "new": "Nova campanha",
+    "emptyTitle": "Nenhuma campanha ainda",
+    "emptyText": "Escolha um produto, defina o objetivo e eu gero estratégia, textos e criativos para você.",
+    "emptyCta": "Criar primeira campanha",
+    "creatives": "{count, plural, one {# criativo} other {# criativos}}",
+    "wizard": {
+      "title": "Nova campanha",
+      "subtitle": "Quatro passos e a IA monta tudo para você.",
+      "steps": [
+        "Produto",
+        "Objetivo",
+        "Formato",
+        "Revisão"
+      ],
+      "stepsLabel": "Etapas",
+      "productTitle": "Qual produto vamos anunciar?",
+      "noProducts": "Você ainda não tem produtos cadastrados.",
+      "addProduct": "Cadastrar produto",
+      "newProduct": "Novo produto",
+      "objectiveTitle": "Qual é o objetivo?",
+      "objectiveSub": "Isso orienta a estratégia e o tom dos textos.",
+      "audience": "Público (opcional)",
+      "audiencePlaceholder": "Deixe em branco para a IA definir a partir do produto",
+      "offer": "Oferta (opcional)",
+      "offerPlaceholder": "Ex.: 20% off na primeira compra e frete grátis",
+      "formatTitle": "Onde o anúncio vai rodar?",
+      "unavailable": "Indisponível no momento",
+      "style": "Estilo visual",
+      "quality": "Qualidade",
+      "perVariation": "{count} créditos por variação",
+      "reviewTitle": "Revise e gere",
+      "variations": "Quantas variações?",
+      "language": "Idioma do anúncio",
+      "languageHint": "A IA escreve os textos e a locução nesse idioma, ideal para vender em outros países.",
+      "summary": {
+        "product": "Produto",
+        "objective": "Objetivo",
+        "format": "Formato",
+        "style": "Estilo",
+        "language": "Idioma"
+      },
+      "totalCost": "Custo total",
+      "yourBalance": "Seu saldo: {count} créditos",
+      "refundNote": "Se alguma variação falhar, os créditos dela voltam automaticamente.",
+      "videoTime": "Vídeos levam alguns minutos.",
+      "imageTime": "Imagens levam cerca de 1 minuto.",
+      "verifyFirst": "Confirme seu e-mail (link no aviso do topo) para gerar campanhas.",
+      "notEnough": "Saldo insuficiente. <buy>Comprar créditos</buy> ou reduza as variações.",
+      "creating": "Criando estratégia...",
+      "generate": "Gerar campanha · {count} créditos",
+      "error": "Não foi possível iniciar a campanha"
+    },
+    "generating": {
+      "title": "Gerando sua campanha",
+      "done": "Prontinho!",
+      "opening": "Abrindo seus criativos...",
+      "messages": [
+        "Analisando a foto do produto...",
+        "Escrevendo headlines e textos...",
+        "Montando os cenários...",
+        "Ajustando luz e composição...",
+        "Quase lá, caprichando nos detalhes..."
+      ],
+      "progress": "{done} de {total}",
+      "images": "imagens",
+      "videos": "vídeos",
+      "variation": "Variação {n}",
+      "videoNote": "Vídeos podem levar alguns minutos. Pode fechar esta página: a geração continua e você recebe um e-mail quando terminar.",
+      "back": "Voltar para campanhas",
+      "connectionError": "Erro de conexão"
+    },
+    "gallery": {
+      "deleteConfirm": "Excluir esta campanha e todos os criativos? Esta ação não pode ser desfeita.",
+      "newVariation": "Nova variação",
+      "failedNotice": "{count, plural, one {1 variação não pôde ser gerada} other {# variações não puderam ser geradas}}. Os créditos correspondentes já voltaram para o seu saldo.",
+      "strategy": "Estratégia criada pela IA",
+      "show": "Mostrar",
+      "copyHook": "Copiar gancho",
+      "failed": "Não foi possível gerar esta variação.",
+      "refunded": "Os {count} créditos foram estornados.",
+      "queued": "Na fila...",
+      "generatingVideo": "Gerando vídeo...",
+      "generatingImage": "Gerando imagem...",
+      "publish": "Publicar",
+      "download": "Baixar",
+      "copyText": "Copiar texto",
+      "textCopied": "Texto copiado",
+      "newVersion": "Nova versão",
+      "regenTitleOne": "Nova versão deste criativo",
+      "regenTitle": "Nova variação",
+      "regenDescription": "Gera mais um criativo nesta campanha por <b>{count} créditos</b>. Se falhar, os créditos voltam automaticamente.",
+      "instructions": "Instruções extras (opcional)",
+      "instructionsPlaceholder": "Ex.: fundo de mármore claro, luz de fim de tarde, produto em close",
+      "generate": "Gerar",
+      "regenStarted": "Nova variação em geração. Ela aparece aqui em instantes.",
+      "regenError": "Não foi possível gerar a nova versão"
+    }
+  },
+  "publish": {
+    "title": "Publicar criativo",
+    "description": "Publica agora, na conta escolhida, como um post orgânico.",
+    "unavailable": "A publicação direta estará disponível em breve. Por enquanto, use “Baixar” e “Copiar texto”.",
+    "expired": "Sua conexão com a Meta expirou.",
+    "connectPrompt": "Conecte sua conta do Facebook/Instagram para publicar daqui.",
+    "reconnect": "Reconectar",
+    "connect": "Conectar conta",
+    "noAccounts": "Nenhuma conta compatível. Para o Instagram, a conta precisa ser profissional e estar vinculada a uma Página. Confira em <link>Integrações</link>.",
+    "where": "Onde publicar",
+    "storyNoCaption": "Stories não têm legenda. Se quiser texto, ele precisa estar na própria imagem.",
+    "caption": "Legenda",
+    "responsibility": "Revise preço, características e promessas antes de publicar: você é responsável pelo conteúdo veiculado.",
+    "submit": "Publicar agora",
+    "sentVideo": "Enviado! Vídeos levam alguns minutos para o Instagram processar.",
+    "sent": "Publicação enviada!",
+    "error": "Não foi possível publicar",
+    "viewPost": "ver post",
+    "publishing": "publicando…",
+    "targets": {
+      "INSTAGRAM_FEED": "Instagram · Feed",
+      "INSTAGRAM_REELS": "Instagram · Reels",
+      "INSTAGRAM_STORY": "Instagram · Stories",
+      "FACEBOOK_PAGE": "Facebook · Página",
+      "MERCADOLIVRE_ITEM": "Mercado Livre",
+      "NUVEMSHOP_PRODUCT": "Nuvemshop"
+    }
+  },
+  "billing": {
+    "title": "Comprar créditos",
+    "subtitle": "Você tem <b>{count} créditos</b>. Pacotes avulsos, sem assinatura e sem renovação automática. Créditos não expiram.",
+    "noPlans": "Nenhum pacote disponível nesta moeda no momento.",
+    "popular": "Mais escolhido",
+    "perCredit": "{credits} créditos · {price} por crédito",
+    "buy": "Comprar {name}",
+    "opening": "Abrindo pagamento...",
+    "secureBR": "Pagamento processado por Mercado Pago (Pix, cartão e boleto) ou Stripe. Não armazenamos dados de cartão.",
+    "secureIntl": "Pagamento processado pela Stripe, com recibo e nota (invoice) por e-mail. Não armazenamos dados de cartão.",
+    "refund": "Créditos não utilizados podem ser reembolsados em até {days} dias após a compra.",
+    "currency": "Moeda",
+    "history": "Histórico de compras",
+    "noHistory": "Nenhuma compra ainda.",
+    "cols": {
+      "date": "Data",
+      "pack": "Pacote",
+      "credits": "Créditos",
+      "amount": "Valor",
+      "via": "Via"
+    },
+    "toast": {
+      "success": "Pagamento recebido! Os créditos aparecem em instantes.",
+      "pending": "Pagamento pendente. Assim que for confirmado, os créditos entram automaticamente.",
+      "canceled": "Pagamento cancelado. Nenhuma cobrança foi feita."
+    },
+    "checkoutError": "Não foi possível iniciar o pagamento"
+  },
+  "credits": {
+    "title": "Créditos",
+    "subtitle": "Seu saldo e todas as movimentações.",
+    "buy": "Comprar créditos",
+    "available": "Saldo disponível",
+    "pricing": "Quanto custa",
+    "image": "Imagem",
+    "video": "Vídeo + locução",
+    "premium": "Qualidade Premium",
+    "pricingNote": "Estratégia e textos estão inclusos. Falhas são estornadas automaticamente.",
+    "statement": "Extrato",
+    "empty": "Nenhuma movimentação ainda.",
+    "types": {
+      "CONSUME": "Uso",
+      "REFUND": "Estorno",
+      "PURCHASE": "Compra",
+      "BONUS": "Bônus",
+      "ADJUSTMENT": "Ajuste"
+    }
+  },
+  "brand": {
+    "title": "Brand Kit",
+    "subtitle": "A identidade da sua marca. A IA usa estas informações em todas as campanhas.",
+    "logo": "Logotipo",
+    "currentLogo": "Logo atual",
+    "uploadLogo": "Enviar logo",
+    "changeLogo": "Trocar logo",
+    "logoHint": "PNG com fundo transparente funciona melhor.",
+    "name": "Nome da marca",
+    "color": "Cor principal",
+    "pickColor": "Escolher cor",
+    "tone": "Tom de voz",
+    "tonePlaceholder": "Ex.: Jovem e direto, com bom humor. Evitamos termos técnicos e nunca usamos gírias ofensivas.",
+    "website": "Site",
+    "saved": "Brand Kit salvo",
+    "error": "Não foi possível salvar"
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Sua conta, segurança e privacidade.",
+    "profile": "Perfil",
+    "name": "Nome",
+    "email": "E-mail",
+    "profileSaved": "Perfil atualizado",
+    "notifyComplete": "Avisar por e-mail quando uma campanha ficar pronta",
+    "marketing": "Receber novidades e dicas da Vysify",
+    "marketingHint": "No máximo 2 e-mails por mês. Cancele quando quiser.",
+    "preferences": "Preferências",
+    "language": "Idioma",
+    "currency": "Moeda dos preços",
+    "currencies": {
+      "BRL": "Real (R$)",
+      "USD": "Dólar (US$)",
+      "EUR": "Euro (€)"
+    },
+    "mascot": "Mostrar o Vy, o mascote",
+    "mascotHint": "Ele fica no canto da tela com dicas rápidas.",
+    "cookies": "Preferências de cookies",
+    "passwordChange": "Alterar senha",
+    "passwordCreate": "Criar senha",
+    "passwordChangeHint": "Você será desconectado dos outros dispositivos.",
+    "passwordCreateHint": "Sua conta usa o Google. Crie uma senha para entrar também por e-mail.",
+    "currentPassword": "Senha atual",
+    "newPassword": "Nova senha",
+    "passwordChanged": "Senha alterada. Entre novamente com a nova senha.",
+    "twoFactor": "Verificação em duas etapas (2FA)",
+    "twoFactorHint": "Peça um código do Google Authenticator (ou similar) ao entrar.",
+    "enabled": "Ativada",
+    "disable": "Desativar",
+    "enable": "Ativar",
+    "disablePrompt": "Digite um código do app autenticador para desativar.",
+    "scanQr": "1. Escaneie o QR Code com o app autenticador.",
+    "qrAlt": "QR Code para o app autenticador",
+    "orKey": "Ou digite a chave:",
+    "typeCode": "2. Digite o código de 6 dígitos gerado.",
+    "setup2fa": "Configurar autenticador",
+    "twoFactorOn": "Verificação em duas etapas ativada",
+    "twoFactorOff": "Verificação em duas etapas desativada",
+    "privacy": "Privacidade e dados",
+    "privacyHint": "Baixe uma cópia dos seus dados ou exclua sua conta definitivamente.",
+    "export": "Exportar meus dados (JSON)",
+    "deleteAccount": "Excluir minha conta",
+    "deleteWarning": "Isto apaga sua conta, produtos, campanhas, criativos e créditos restantes. <b>Não dá para desfazer.</b> Registros de pagamento são mantidos pelo prazo exigido pela legislação fiscal.",
+    "yourPassword": "Sua senha",
+    "confirmWord": "EXCLUIR",
+    "confirmPlaceholder": "Digite \"{word}\" para confirmar",
+    "deleteForever": "Excluir definitivamente",
+    "deleted": "Conta excluída. Sentiremos sua falta!"
+  },
+  "integrations": {
+    "title": "Integrações",
+    "subtitle": "Conecte suas contas para publicar os criativos sem sair da Vysify.",
+    "soon": "Em breve",
+    "metaTitle": "Instagram e Facebook",
+    "metaText": "Publique no Feed, Reels e Stories do Instagram e na sua Página do Facebook.",
+    "connectFacebook": "Conectar com Facebook",
+    "reconnect": "Reconectar",
+    "refresh": "Atualizar contas",
+    "disconnect": "Desconectar",
+    "disconnectConfirm": "Desconectar a conta da Meta? A Vysify deixará de poder publicar nela.",
+    "refreshed": "Lista de contas atualizada",
+    "disconnected": "Conta desconectada",
+    "expiredNotice": "A conexão expirou ou foi removida no Facebook. Reconecte para voltar a publicar.",
+    "connectedAs": "Conectado como <b>{name}</b>",
+    "validUntil": " · válido até {date}",
+    "metaAccount": "conta da Meta",
+    "noPages": "Nenhuma Página encontrada. Crie ou peça acesso a uma Página do Facebook e clique em “Atualizar contas”.",
+    "noIg": "Sem Instagram profissional vinculado",
+    "renewNote": "Por segurança, a Meta pede uma nova autorização a cada ~60 dias. Avisaremos aqui quando for preciso reconectar.",
+    "stores": {
+      "mercadolivre": "Atualizar as fotos dos seus anúncios com os criativos gerados.",
+      "nuvemshop": "Enviar imagens direto para os produtos da sua loja.",
+      "shopify": "Adicionar imagens e vídeos aos produtos da loja.",
+      "tiktok": "Publicar os vídeos verticais no seu perfil."
+    },
+    "messages": {
+      "connected": "Conta da Meta conectada! Agora você pode publicar direto da galeria da campanha.",
+      "missing_scopes": "Conectado, mas algumas permissões não foram concedidas. Reconecte e marque todas as opções para publicar.",
+      "no_pages": "Conectado, mas nenhuma Página do Facebook foi encontrada. Para publicar, você precisa administrar uma Página (e, para o Instagram, ter uma conta profissional vinculada a ela).",
+      "denied": "A conexão foi cancelada no Facebook.",
+      "invalid_state": "A sessão de conexão expirou. Tente conectar novamente.",
+      "exchange_failed": "Não foi possível concluir a conexão com a Meta. Tente novamente em instantes.",
+      "not_configured": "A integração com a Meta ainda não está disponível.",
+      "rate_limited": "Muitas tentativas. Aguarde alguns minutos."
+    }
+  },
+  "cookies": {
+    "bannerTitle": "Sua privacidade",
+    "bannerText": "Usamos cookies essenciais para o site funcionar e, com a sua permissão, cookies de análise e marketing para entender o uso e medir anúncios.",
+    "acceptAll": "Aceitar todos",
+    "rejectAll": "Recusar opcionais",
+    "customize": "Personalizar",
+    "save": "Salvar escolhas",
+    "learnMore": "Política de cookies",
+    "categories": {
+      "essential": {
+        "title": "Essenciais",
+        "text": "Login, segurança, idioma, moeda e tema. Sempre ativos."
+      },
+      "analytics": {
+        "title": "Análise",
+        "text": "Estatísticas anônimas de uso (Google Analytics) para melhorar o produto."
+      },
+      "marketing": {
+        "title": "Marketing",
+        "text": "Medição de campanhas de anúncios (Meta Pixel)."
+      }
+    },
+    "alwaysOn": "Sempre ativo",
+    "onlyEssential": "No momento usamos apenas cookies essenciais (login, segurança, idioma, moeda e tema). Não há cookies de rastreamento."
+  },
+  "errorPages": {
+    "notFoundCode": "Erro 404",
+    "notFoundTitle": "Não encontrei esta página",
+    "notFoundText": "O link pode estar errado ou o conteúdo foi removido.",
+    "home": "Página inicial",
+    "dashboard": "Ir para o painel",
+    "errorTitle": "Algo deu errado por aqui",
+    "errorText": "Já registramos o problema. Tente novamente; se continuar, fale com o suporte.",
+    "code": "Código: {code}",
+    "backDashboard": "Voltar ao painel"
+  },
+  "metaDeletion": {
+    "title": "Exclusão de dados do Facebook/Instagram",
+    "text": "Removemos os tokens de acesso e a lista de Páginas e contas do Instagram associados à sua conta da Meta. A Vysify não consegue mais publicar em seu nome.",
+    "code": "Código de confirmação:",
+    "more": "Para excluir também a sua conta na Vysify (produtos, campanhas e criativos), acesse Configurações › Privacidade ou escreva para <mail>{email}</mail>. Veja a <privacy>Política de Privacidade</privacy>."
+  },
+  "errors": {
+    "internal": "Erro interno. Tente novamente em instantes.",
+    "badBody": "Corpo da requisição inválido.",
+    "rateLimited": "Muitas tentativas. Aguarde um pouco e tente novamente.",
+    "unauthenticated": "Faça login para continuar.",
+    "emailNotVerified": "Confirme seu e-mail para usar este recurso.",
+    "forbidden": "Acesso restrito.",
+    "emailTaken": "Já existe uma conta com este e-mail. Faça login ou recupere sua senha.",
+    "verifyLinkInvalid": "Link inválido ou expirado. Peça um novo no seu painel.",
+    "resetLinkInvalid": "Link inválido ou expirado. Solicite uma nova redefinição.",
+    "wrongPassword": "Senha incorreta.",
+    "currentPasswordWrong": "Senha atual incorreta.",
+    "setupAuthenticatorFirst": "Configure o autenticador primeiro.",
+    "invalid2fa": "Código inválido. Confira o horário do celular e tente de novo.",
+    "twoFactorAlreadyOn": "O 2FA já está ativo. Desative antes de configurar de novo.",
+    "invalidLogo": "Logo inválido. Envie o arquivo novamente.",
+    "invalidImage": "Imagem inválida. Envie a foto novamente.",
+    "sendImageFile": "Envie um arquivo de imagem.",
+    "imageTooLarge": "A imagem pode ter no máximo {mb} MB.",
+    "unsupportedFormat": "Formato não suportado. Use PNG, JPG ou WEBP.",
+    "productNotFound": "Produto não encontrado.",
+    "waitCampaignsDelete": "Aguarde as campanhas em geração terminarem antes de excluir.",
+    "campaignNotFound": "Campanha não encontrada.",
+    "waitGenerationDelete": "Aguarde a geração terminar para excluir.",
+    "campaignRequired": "Informe a campanha.",
+    "aiUnavailable": "A geração está temporariamente indisponível. Tente novamente mais tarde.",
+    "imageUnavailable": "A geração de imagens está temporariamente indisponível.",
+    "videoUnavailable": "A geração de vídeos está temporariamente indisponível.",
+    "productImageMissing": "Não conseguimos abrir a foto deste produto. Cadastre o produto novamente com a foto.",
+    "insufficientCredits": "Saldo de créditos insuficiente.",
+    "policyViolation": "Não podemos gerar esta campanha: {reason} A plataforma é exclusiva para anúncios de produtos e serviços legítimos.",
+    "legacyCampaign": "Esta campanha foi criada numa versão antiga e não pode gerar novas variações.",
+    "noBaseCreative": "Nenhum criativo base encontrado.",
+    "packNotFound": "Pacote não encontrado.",
+    "packUnavailableCurrency": "Este pacote não está disponível nesta moeda.",
+    "checkoutFailed": "Não foi possível iniciar o pagamento.",
+    "paymentsUnavailable": "Pagamentos temporariamente indisponíveis. Tente novamente mais tarde.",
+    "creativeNotFound": "Criativo não encontrado.",
+    "creativeNotReady": "Este criativo ainda não está pronto.",
+    "formatNotAccepted": "Este formato não é aceito nesse destino.",
+    "metaNotConnected": "Conecte (ou reconecte) sua conta da Meta em Integrações.",
+    "metaNoConnection": "Nenhuma conta da Meta conectada.",
+    "metaExpired": "A conexão expirou. Conecte novamente.",
+    "targetAccountNotFound": "Conta de destino não encontrada. Atualize a conexão em Integrações."
+  },
+  "validation": {
+    "emailInvalid": "E-mail inválido.",
+    "passwordMin": "A senha precisa ter pelo menos 8 caracteres.",
+    "passwordMax": "A senha pode ter no máximo 128 caracteres.",
+    "passwordLettersNumbers": "Use letras e números na senha.",
+    "nameRequired": "Informe seu nome.",
+    "acceptTerms": "É preciso aceitar os Termos de Uso.",
+    "productNameRequired": "Informe o nome do produto.",
+    "colorInvalid": "Cor inválida.",
+    "websiteHttps": "Use um endereço começando com https://",
+    "otpFormat": "Informe o código de 6 dígitos.",
+    "confirmDelete": "Digite EXCLUIR para confirmar.",
+    "captionTooLong": "A legenda pode ter até 2.200 caracteres.",
+    "accountInvalid": "Conta inválida."
   }
 }

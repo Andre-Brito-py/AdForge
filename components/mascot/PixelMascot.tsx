@@ -64,7 +64,7 @@ export const PixelMascot = memo(function PixelMascot({
   mood = "idle",
   size = 48,
   className = "",
-  title = "Vy, o mascote da Vysify",
+  title = "Vy",
 }: {
   mood?: MascotMood;
   size?: number;

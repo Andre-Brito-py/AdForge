@@ -14,7 +14,7 @@ export const GET = handler(async () => {
 export const PUT = handler(async (request: Request) => {
   const user = await requireApiUser();
   const data = await parseBody(request, brandKitSchema);
-  if (data.logoUrl && !isOwnStorageUrl(data.logoUrl)) throw new HttpError(400, "Logo inválido. Envie o arquivo novamente.");
+  if (data.logoUrl && !isOwnStorageUrl(data.logoUrl)) throw new HttpError(400, "errors.invalidLogo");
 
   const brand = await db.brandKit.upsert({
     where: { workspaceId: user.workspaceId },

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { Download, KeyRound, Loader2, ShieldCheck, Trash2, User, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { CookieSettingsButton } from "@/components/consent/ConsentManager";
 import { buttonClass } from "@/components/app/ui-bits";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { setMascotHidden, useMascotHidden } from "@/components/mascot/mascot-events";
@@ -15,7 +17,7 @@ interface SettingsUser {
 async function send(url: string, method: string, body?: unknown) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Algo deu errado");
+  if (!res.ok) throw new Error(data.error || "Error");
   return data;
 }
 
@@ -55,6 +57,8 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
 }
 
 export function SettingsClient({ user, locale, currency }: { user: SettingsUser; locale: string; currency: string }) {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [name, setName] = useState(user.name);
   const [prefs, setPrefs] = useState({ notifyOnComplete: user.notifyOnComplete, marketingOptIn: user.marketingOptIn });
   const [savingProfile, setSavingProfile] = useState(false);
@@ -65,7 +69,7 @@ export function SettingsClient({ user, locale, currency }: { user: SettingsUser;
     setSavingProfile(true);
     try {
       await send("/api/user/profile", "PATCH", { name });
-      toast.success("Perfil atualizado");
+      toast.success(t("profileSaved"));
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -87,45 +91,50 @@ export function SettingsClient({ user, locale, currency }: { user: SettingsUser;
     document.cookie = `${k}=${v}; path=/; max-age=31536000; samesite=lax`;
     window.location.reload();
   };
+  // Idioma: grava no perfil (e-mails seguem a escolha) e no cookie (interface).
+  const changeLocale = async (v: string) => {
+    await send("/api/user/profile", "PATCH", { locale: v }).catch(() => undefined);
+    setCookie("NEXT_LOCALE", v);
+  };
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <Card icon={User} title="Perfil">
+      <Card icon={User} title={t("profile")}>
         <form onSubmit={saveProfile} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="name" className="label-base">Nome</label>
+            <label htmlFor="name" className="label-base">{t("name")}</label>
             <input id="name" className="input-base" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <label htmlFor="email" className="label-base">E-mail</label>
+            <label htmlFor="email" className="label-base">{t("email")}</label>
             <input id="email" className="input-base" value={user.email} disabled />
           </div>
           <button type="submit" disabled={savingProfile || name.trim().length < 2} className={buttonClass("primary")}>
-            {savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Salvar
+            {savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} {tc("save")}
           </button>
         </form>
         <div className="mt-6 space-y-1 border-t border-border pt-4">
-          <Toggle checked={prefs.notifyOnComplete} onChange={(v) => updatePref("notifyOnComplete", v)} label="Avisar por e-mail quando uma campanha ficar pronta" />
-          <Toggle checked={prefs.marketingOptIn} onChange={(v) => updatePref("marketingOptIn", v)} label="Receber novidades e dicas da Vysify" hint="No máximo 2 e-mails por mês. Cancele quando quiser." />
+          <Toggle checked={prefs.notifyOnComplete} onChange={(v) => updatePref("notifyOnComplete", v)} label={t("notifyComplete")} />
+          <Toggle checked={prefs.marketingOptIn} onChange={(v) => updatePref("marketingOptIn", v)} label={t("marketing")} hint={t("marketingHint")} />
         </div>
       </Card>
 
-      <Card icon={SlidersHorizontal} title="Preferências">
+      <Card icon={SlidersHorizontal} title={t("preferences")}>
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="lang" className="label-base">Idioma</label>
-              <select id="lang" className="input-base" defaultValue={locale} onChange={(e) => setCookie("NEXT_LOCALE", e.target.value)}>
+              <label htmlFor="lang" className="label-base">{t("language")}</label>
+              <select id="lang" className="input-base" defaultValue={locale} onChange={(e) => changeLocale(e.target.value)}>
                 <option value="pt">Português (Brasil)</option>
                 <option value="en">English</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="cur" className="label-base">Moeda dos preços</label>
+              <label htmlFor="cur" className="label-base">{t("currency")}</label>
               <select id="cur" className="input-base" defaultValue={currency} onChange={(e) => setCookie("CURRENCY", e.target.value)}>
-                <option value="BRL">Real (R$)</option>
-                <option value="USD">Dólar (US$)</option>
-                <option value="EUR">Euro (€)</option>
+                <option value="BRL">{t("currencies.BRL")}</option>
+                <option value="USD">{t("currencies.USD")}</option>
+                <option value="EUR">{t("currencies.EUR")}</option>
               </select>
             </div>
           </div>
@@ -135,8 +144,8 @@ export function SettingsClient({ user, locale, currency }: { user: SettingsUser;
               <Toggle
                 checked={mascotOn}
                 onChange={(v) => setMascotHidden(!v)}
-                label="Mostrar o Vy, o mascote"
-                hint="Ele fica no canto da tela com dicas rápidas."
+                label={t("mascot")}
+                hint={t("mascotHint")}
               />
             </div>
           </div>
@@ -151,6 +160,8 @@ export function SettingsClient({ user, locale, currency }: { user: SettingsUser;
 }
 
 function PasswordCard({ hasPassword }: { hasPassword: boolean }) {
+  const ta = useTranslations("auth");
+  const t = useTranslations("settings");
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [loading, setLoading] = useState(false);
@@ -160,7 +171,7 @@ function PasswordCard({ hasPassword }: { hasPassword: boolean }) {
     setLoading(true);
     try {
       await send("/api/user/password", "POST", { currentPassword: current || undefined, newPassword: next });
-      toast.success("Senha alterada. Entre novamente com a nova senha.");
+      toast.success(t("passwordChanged"));
       setTimeout(() => signOut({ callbackUrl: "/login" }), 1200);
     } catch (err) {
       toast.error((err as Error).message);
@@ -169,21 +180,21 @@ function PasswordCard({ hasPassword }: { hasPassword: boolean }) {
   };
 
   return (
-    <Card icon={KeyRound} title={hasPassword ? "Alterar senha" : "Criar senha"} description={hasPassword ? "Você será desconectado dos outros dispositivos." : "Sua conta usa o Google. Crie uma senha para entrar também por e-mail."}>
+    <Card icon={KeyRound} title={hasPassword ? t("passwordChange") : t("passwordCreate")} description={hasPassword ? t("passwordChangeHint") : t("passwordCreateHint")}>
       <form onSubmit={submit} className="space-y-4">
         {hasPassword && (
           <div className="space-y-2">
-            <label htmlFor="cur-pw" className="label-base">Senha atual</label>
+            <label htmlFor="cur-pw" className="label-base">{t("currentPassword")}</label>
             <input id="cur-pw" type="password" autoComplete="current-password" className="input-base" value={current} onChange={(e) => setCurrent(e.target.value)} required />
           </div>
         )}
         <div className="space-y-2">
-          <label htmlFor="new-pw" className="label-base">Nova senha</label>
+          <label htmlFor="new-pw" className="label-base">{t("newPassword")}</label>
           <input id="new-pw" type="password" autoComplete="new-password" className="input-base" value={next} onChange={(e) => setNext(e.target.value)} minLength={8} required />
-          <p className="text-xs text-muted-foreground">Mínimo de 8 caracteres, com letras e números.</p>
+          <p className="text-xs text-muted-foreground">{ta("passwordHint")}</p>
         </div>
         <button type="submit" disabled={loading || next.length < 8} className={buttonClass("primary")}>
-          {loading && <Loader2 className="h-4 w-4 animate-spin" />} {hasPassword ? "Alterar senha" : "Criar senha"}
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />} {hasPassword ? t("passwordChange") : t("passwordCreate")}
         </button>
       </form>
     </Card>
@@ -191,6 +202,8 @@ function PasswordCard({ hasPassword }: { hasPassword: boolean }) {
 }
 
 function TwoFactorCard({ initiallyEnabled }: { initiallyEnabled: boolean }) {
+  const ta = useTranslations("auth");
+  const t = useTranslations("settings");
   const [enabled, setEnabled] = useState(initiallyEnabled);
   const [setup, setSetup] = useState<{ qrCodeUrl: string; secret: string } | null>(null);
   const [token, setToken] = useState("");
@@ -216,7 +229,7 @@ function TwoFactorCard({ initiallyEnabled }: { initiallyEnabled: boolean }) {
       setSetup(null);
       setDisabling(false);
       setToken("");
-      toast.success(method === "POST" ? "Verificação em duas etapas ativada" : "Verificação em duas etapas desativada");
+      toast.success(method === "POST" ? t("twoFactorOn") : t("twoFactorOff"));
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -230,40 +243,40 @@ function TwoFactorCard({ initiallyEnabled }: { initiallyEnabled: boolean }) {
         className="input-base max-w-40 text-center font-mono tracking-[0.4em]"
         inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000"
         value={token} onChange={(e) => setToken(e.target.value.replace(/\D/g, ""))}
-        aria-label="Código de 6 dígitos"
+        aria-label={ta("login.codeLabel")}
       />
       <button onClick={() => confirm(setup ? "POST" : "DELETE")} disabled={loading || token.length !== 6} className={buttonClass(setup ? "brand" : "danger")}>
-        {loading && <Loader2 className="h-4 w-4 animate-spin" />} {setup ? "Ativar" : "Desativar"}
+        {loading && <Loader2 className="h-4 w-4 animate-spin" />} {setup ? t("enable") : t("disable")}
       </button>
     </div>
   );
 
   return (
-    <Card icon={ShieldCheck} title="Verificação em duas etapas (2FA)" description="Peça um código do Google Authenticator (ou similar) ao entrar.">
+    <Card icon={ShieldCheck} title={t("twoFactor")} description={t("twoFactorHint")}>
       {enabled ? (
         disabling ? (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Digite um código do app autenticador para desativar.</p>
+            <p className="text-sm text-muted-foreground">{t("disablePrompt")}</p>
             {codeInput}
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3 rounded-xl bg-success/10 p-3">
-            <span className="text-sm font-medium text-success">Ativada</span>
-            <button onClick={() => setDisabling(true)} className={buttonClass("ghost", "sm")}>Desativar</button>
+            <span className="text-sm font-medium text-success">{t("enabled")}</span>
+            <button onClick={() => setDisabling(true)} className={buttonClass("ghost", "sm")}>{t("disable")}</button>
           </div>
         )
       ) : setup ? (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">1. Escaneie o QR Code com o app autenticador.</p>
+          <p className="text-sm text-muted-foreground">{t("scanQr")}</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={setup.qrCodeUrl} alt="QR Code para o app autenticador" className="h-44 w-44 rounded-xl border border-border bg-white p-2" />
-          <p className="text-xs text-muted-foreground">Ou digite a chave: <code className="break-all font-mono">{setup.secret}</code></p>
-          <p className="text-sm text-muted-foreground">2. Digite o código de 6 dígitos gerado.</p>
+          <img src={setup.qrCodeUrl} alt={t("qrAlt")} className="h-44 w-44 rounded-xl border border-border bg-white p-2" />
+          <p className="text-xs text-muted-foreground">{t("orKey")} <code className="break-all font-mono">{setup.secret}</code></p>
+          <p className="text-sm text-muted-foreground">{t("typeCode")}</p>
           {codeInput}
         </div>
       ) : (
         <button onClick={start} disabled={loading} className={buttonClass("primary")}>
-          {loading && <Loader2 className="h-4 w-4 animate-spin" />} Configurar autenticador
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />} {t("setup2fa")}
         </button>
       )}
     </Card>
@@ -271,6 +284,9 @@ function TwoFactorCard({ initiallyEnabled }: { initiallyEnabled: boolean }) {
 }
 
 function PrivacyCard({ hasPassword }: { hasPassword: boolean }) {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
+  const word = t("confirmWord");
   const [confirming, setConfirming] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -280,7 +296,7 @@ function PrivacyCard({ hasPassword }: { hasPassword: boolean }) {
     setLoading(true);
     try {
       await send("/api/user/account", "DELETE", { password: password || undefined, confirmation });
-      toast.success("Conta excluída. Sentiremos sua falta!");
+      toast.success(t("deleted"));
       setTimeout(() => signOut({ callbackUrl: "/" }), 1000);
     } catch (err) {
       toast.error((err as Error).message);
@@ -293,33 +309,34 @@ function PrivacyCard({ hasPassword }: { hasPassword: boolean }) {
       <div className="mb-5 flex items-start gap-3">
         <Download className="mt-0.5 h-5 w-5 text-brand" />
         <div>
-          <h2 className="font-semibold">Privacidade e dados (LGPD)</h2>
-          <p className="text-sm text-muted-foreground">Baixe uma cópia dos seus dados ou exclua sua conta definitivamente.</p>
+          <h2 className="font-semibold">{t("privacy")}</h2>
+          <p className="text-sm text-muted-foreground">{t("privacyHint")}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
         <a href="/api/user/account" className={buttonClass("outline")} download>
-          <Download className="h-4 w-4" /> Exportar meus dados (JSON)
+          <Download className="h-4 w-4" /> {t("export")}
         </a>
+        <CookieSettingsButton className={buttonClass("outline")} />
         {!confirming && (
           <button onClick={() => setConfirming(true)} className={buttonClass("danger")}>
-            <Trash2 className="h-4 w-4" /> Excluir minha conta
+            <Trash2 className="h-4 w-4" /> {t("deleteAccount")}
           </button>
         )}
       </div>
       {confirming && (
         <div className="mt-5 space-y-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
           <p className="text-sm">
-            Isto apaga sua conta, produtos, campanhas, criativos e créditos restantes. <strong>Não dá para desfazer.</strong> Registros de pagamento são mantidos pelo prazo exigido pela legislação fiscal.
+            {t.rich("deleteWarning", { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
           {hasPassword && (
-            <input type="password" className="input-base max-w-sm" placeholder="Sua senha" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+            <input type="password" className="input-base max-w-sm" placeholder={t("yourPassword")} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
           )}
-          <input className="input-base max-w-sm" placeholder='Digite "EXCLUIR" para confirmar' value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+          <input className="input-base max-w-sm" placeholder={t("confirmPlaceholder", { word })} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
           <div className="flex gap-2">
-            <button onClick={() => setConfirming(false)} className={buttonClass("ghost")}>Cancelar</button>
-            <button onClick={remove} disabled={loading || confirmation !== "EXCLUIR"} className={buttonClass("danger")}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />} Excluir definitivamente
+            <button onClick={() => setConfirming(false)} className={buttonClass("ghost")}>{tc("cancel")}</button>
+            <button onClick={remove} disabled={loading || confirmation !== word} className={buttonClass("danger")}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />} {t("deleteForever")}
             </button>
           </div>
         </div>

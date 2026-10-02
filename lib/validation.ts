@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { MAX_VARIATIONS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS } from "./catalog";
+import { AD_LANGUAGE_KEYS, LOCALES } from "./locale";
 
-// Mensagens de erro padrão em português.
-z.config(z.locales.pt());
+// Mensagens padrão do Zod: o idioma é escolhido por requisição em lib/api.ts (parseBody).
+
 
 const trimmed = (max: number) => z.string().trim().max(max);
 const optionalText = (max: number) =>
@@ -18,19 +19,19 @@ export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .pipe(z.email({ message: "E-mail inválido" }).max(254));
+  .pipe(z.email({ message: "validation.emailInvalid" }).max(254));
 
 export const passwordSchema = z
   .string()
-  .min(8, "A senha precisa ter pelo menos 8 caracteres")
-  .max(128, "A senha pode ter no máximo 128 caracteres")
-  .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), "Use letras e números na senha");
+  .min(8, "validation.passwordMin")
+  .max(128, "validation.passwordMax")
+  .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), "validation.passwordLettersNumbers");
 
 export const registerSchema = z.object({
-  name: trimmed(80).min(2, "Informe seu nome"),
+  name: trimmed(80).min(2, "validation.nameRequired"),
   email: emailSchema,
   password: passwordSchema,
-  acceptTerms: z.literal(true, { message: "É preciso aceitar os Termos de Uso" }),
+  acceptTerms: z.literal(true, { message: "validation.acceptTerms" }),
 });
 
 export const forgotPasswordSchema = z.object({ email: emailSchema });
@@ -47,6 +48,7 @@ export const changePasswordSchema = z.object({
 
 export const profileSchema = z.object({
   name: trimmed(80).min(2).optional(),
+  locale: z.enum(LOCALES).optional(),
   notifyOnComplete: z.boolean().optional(),
   marketingOptIn: z.boolean().optional(),
 });
@@ -57,11 +59,11 @@ export const onboardingSchema = z.object({
 });
 
 export const twoFactorTokenSchema = z.object({
-  token: z.string().regex(/^\d{6}$/, "Código de 6 dígitos"),
+  token: z.string().regex(/^\d{6}$/, "validation.otpFormat"),
 });
 
 export const productSchema = z.object({
-  name: trimmed(120).min(1, "Informe o nome do produto"),
+  name: trimmed(120).min(1, "validation.productNameRequired"),
   description: optionalText(2000),
   imageUrl: z.string().min(1).max(1000),
   category: optionalText(80),
@@ -79,6 +81,7 @@ export const campaignSchema = z.object({
   platform: z.enum(PLATFORM_KEYS),
   style: z.enum(STYLE_KEYS),
   quality: z.enum(QUALITY_KEYS).default("standard"),
+  language: z.enum(AD_LANGUAGE_KEYS).default("pt-BR"),
   variations: z.number().int().min(1).max(MAX_VARIATIONS),
 });
 
@@ -86,7 +89,7 @@ export const regenerateSchema = z.object({
   instructions: optionalText(500),
 });
 
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida");
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "validation.colorInvalid");
 
 export const brandKitSchema = z.object({
   brandName: optionalText(80),
@@ -99,7 +102,7 @@ export const brandKitSchema = z.object({
     .optional()
     .nullable()
     .transform((v) => (v ? v : null))
-    .refine((v) => !v || /^https?:\/\//i.test(v), "Use um endereço começando com https://"),
+    .refine((v) => !v || /^https?:\/\//i.test(v), "validation.websiteHttps"),
   logoUrl: optionalText(1000),
 });
 
@@ -109,6 +112,7 @@ export const planSchema = z.object({
   id: z.string().trim().min(1).max(60).regex(/^[a-zA-Z0-9_-]+$/),
   name: trimmed(60).min(1),
   description: optionalText(200),
+  description_en: optionalText(200),
   price_brl: z.number().nonnegative().max(1_000_000).default(0),
   price_usd: z.number().nonnegative().max(1_000_000).default(0),
   price_eur: z.number().nonnegative().max(1_000_000).optional().nullable(),

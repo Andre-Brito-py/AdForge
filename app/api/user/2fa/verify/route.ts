@@ -7,9 +7,9 @@ import { twoFactorTokenSchema } from "@/lib/validation";
 
 async function checkToken(userId: string, token: string) {
   const record = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { twoFactorSecret: true } });
-  if (!record.twoFactorSecret) throw new HttpError(400, "Configure o autenticador primeiro");
+  if (!record.twoFactorSecret) throw new HttpError(400, "errors.setupAuthenticatorFirst");
   const ok = speakeasy.totp.verify({ secret: record.twoFactorSecret, encoding: "base32", token, window: 1 });
-  if (!ok) throw new HttpError(400, "Código inválido. Confira o horário do celular e tente de novo.", "INVALID_2FA");
+  if (!ok) throw new HttpError(400, "errors.invalid2fa", "INVALID_2FA");
 }
 
 // Ativa o 2FA após confirmar o primeiro código.

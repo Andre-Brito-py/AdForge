@@ -13,7 +13,7 @@ export const GET = handler(async (_request: Request, ctx: RouteContext<"/api/cam
   const user = await requireApiUser();
 
   const owned = await db.campaign.findFirst({ where: { id, workspaceId: user.workspaceId }, select: { status: true } });
-  if (!owned) throw new HttpError(404, "Campanha não encontrada");
+  if (!owned) throw new HttpError(404, "errors.campaignNotFound");
 
   if (owned.status === "GENERATING") await advanceCampaign(id);
 
@@ -34,8 +34,8 @@ export const DELETE = handler(async (_request: Request, ctx: RouteContext<"/api/
   const { id } = await ctx.params;
   const user = await requireApiUser();
   const campaign = await db.campaign.findFirst({ where: { id, workspaceId: user.workspaceId } });
-  if (!campaign) throw new HttpError(404, "Campanha não encontrada");
-  if (campaign.status === "GENERATING") throw new HttpError(409, "Aguarde a geração terminar para excluir.");
+  if (!campaign) throw new HttpError(404, "errors.campaignNotFound");
+  if (campaign.status === "GENERATING") throw new HttpError(409, "errors.waitGenerationDelete");
   await db.campaign.delete({ where: { id } });
   return NextResponse.json({ success: true });
 });

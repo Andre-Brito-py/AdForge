@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { EmptyState, LinkButton, PageHeader, StatusBadge } from "@/components/app/ui-bits";
-import { OBJECTIVES, PLATFORMS, labelFor } from "@/lib/catalog";
-import { timeAgo } from "@/lib/format";
+import { objectiveLabel, platformLabel } from "@/lib/catalog-i18n";
 
-export const metadata = { title: "Campanhas" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("nav"))("campaigns") };
+}
 
 export default async function CampaignsPage() {
   const user = await requireUser();
+  const t = await getTranslations("campaigns");
+  const tcat = await getTranslations("catalog");
+  const format = await getFormatter();
+  const now = new Date();
   const campaigns = await db.campaign.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: { createdAt: "desc" },
@@ -23,15 +29,15 @@ export default async function CampaignsPage() {
   return (
     <>
       <PageHeader
-        title="Campanhas"
-        description="Tudo o que você já gerou, do mais recente para o mais antigo."
-        actions={<LinkButton href="/campaigns/new" variant="brand"><Plus className="h-4 w-4" /> Nova campanha</LinkButton>}
+        title={t("title")}
+        description={t("subtitle")}
+        actions={<LinkButton href="/campaigns/new" variant="brand"><Plus className="h-4 w-4" /> {t("new")}</LinkButton>}
       />
       {campaigns.length === 0 ? (
         <EmptyState
-          title="Nenhuma campanha ainda"
-          description="Escolha um produto, defina o objetivo e eu gero estratégia, textos e criativos para você."
-          action={<LinkButton href="/campaigns/new" variant="brand">Criar primeira campanha</LinkButton>}
+          title={t("emptyTitle")}
+          description={t("emptyText")}
+          action={<LinkButton href="/campaigns/new" variant="brand">{t("emptyCta")}</LinkButton>}
         />
       ) : (
         <div className="surface overflow-hidden">
@@ -44,7 +50,7 @@ export default async function CampaignsPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{c.name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {labelFor(OBJECTIVES, c.objective)} · {labelFor(PLATFORMS, c.platform)} · {c._count.creatives} criativos · {timeAgo(c.createdAt)}
+                      {objectiveLabel(tcat, c.objective)} · {platformLabel(tcat, c.platform)} · {c.language} · {t("creatives", { count: c._count.creatives })} · {format.relativeTime(c.createdAt, now)}
                     </p>
                   </div>
                   <StatusBadge status={c.status} />

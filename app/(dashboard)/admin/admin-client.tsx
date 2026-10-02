@@ -8,7 +8,7 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 
 type SecretInfo = { configured: boolean; hint: string | null; source: "painel" | "env" | null };
 interface Plan {
-  id: string; name: string; description?: string | null; price_brl: number; price_usd: number; price_eur?: number | null;
+  id: string; name: string; description?: string | null; description_en?: string | null; price_brl: number; price_usd: number; price_eur?: number | null;
   credits: number; isFeatured?: boolean; isFree?: boolean; isHidden?: boolean; features_pt: string[]; features_en: string[];
 }
 interface ConfigResponse {
@@ -341,7 +341,10 @@ function PlansTab({ initial, onSaved }: { initial: Plan[]; onSaved: () => void }
             <NumberField label="Preço US$" value={p.price_usd} step={0.01} onChange={(v) => update(i, { price_usd: v })} />
             <NumberField label="Preço € (opcional)" value={p.price_eur || 0} step={0.01} onChange={(v) => update(i, { price_eur: v || null })} />
           </div>
-          <TextField label="Descrição" value={p.description || ""} onChange={(v) => update(i, { description: v })} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TextField label="Descrição (PT)" value={p.description || ""} onChange={(v) => update(i, { description: v })} />
+            <TextField label="Descrição (EN)" value={p.description_en || ""} onChange={(v) => update(i, { description_en: v })} />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="label-base">Benefícios PT (um por linha)</label>

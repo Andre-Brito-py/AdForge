@@ -27,6 +27,10 @@ model User {
   lockedUntil         DateTime?
   notifyOnComplete    Boolean   @default(true)
   marketingOptIn      Boolean   @default(false)
+  // Idioma da interface e dos e-mails (pt, en)
+  locale              String    @default("pt")
+  // País detectado no cadastro (ISO 3166-1 alpha-2), para moeda/impostos
+  country             String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -183,6 +187,8 @@ model Campaign {
   format         String?
   style          String?
   quality        String   @default("standard")
+  // Idioma dos textos do anúncio (pode ser diferente do idioma da interface)
+  language       String   @default("pt-BR")
   variations     Int      @default(3)
   strategyJson   String?
   creditsCharged Int      @default(0)

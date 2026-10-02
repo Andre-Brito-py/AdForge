@@ -6,6 +6,7 @@ import { enforceRateLimit, handler, HttpError, parseBody } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth";
 import { getAppConfig, purchasablePlans } from "@/lib/config";
 import { appUrl } from "@/services/email";
+import { refundWindowDays } from "@/lib/locale";
 
 const bodySchema = z.object({
   planId: z.string().min(1).max(60),
@@ -19,10 +20,10 @@ export const POST = handler(async (request: Request) => {
 
   const config = await getAppConfig();
   const plan = purchasablePlans(config.plans).find((p) => p.id === planId);
-  if (!plan) throw new HttpError(404, "Pacote não encontrado");
+  if (!plan) throw new HttpError(404, "errors.packNotFound");
 
   const price = currency === "BRL" ? plan.price_brl : currency === "EUR" ? plan.price_eur ?? 0 : plan.price_usd;
-  if (!price || price <= 0) throw new HttpError(400, "Este pacote não está disponível nesta moeda");
+  if (!price || price <= 0) throw new HttpError(400, "errors.packUnavailableCurrency");
 
   const base = appUrl();
   const metadata = { userId: user.id, workspaceId: user.workspaceId, planId: plan.id, planName: plan.name, credits: String(plan.credits) };
@@ -46,34 +47,55 @@ export const POST = handler(async (request: Request) => {
         statement_descriptor: "VYSIFY",
       },
     });
-    if (!preference.init_point) throw new HttpError(502, "Não foi possível iniciar o pagamento");
+    if (!preference.init_point) throw new HttpError(502, "errors.checkoutFailed");
     return NextResponse.json({ url: preference.init_point });
   }
 
   if (config.secrets.stripeSecretKey) {
     const stripe = new Stripe(config.secrets.stripeSecretKey);
+    const en = user.locale === "en";
+    // Impostos automáticos (VAT/GST/sales tax) exigem o Stripe Tax ativado no painel da Stripe.
+    const automaticTax = process.env.STRIPE_AUTOMATIC_TAX === "true";
+    const refundDays = refundWindowDays(currency);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: user.email,
+      locale: "auto",
       line_items: [
         {
           price_data: {
             currency: currency.toLowerCase(),
-            product_data: { name: `Vysify · Pacote ${plan.name}`, description: `${plan.credits} créditos (não expiram)` },
+            product_data: {
+              name: en ? `Vysify · ${plan.name} pack` : `Vysify · Pacote ${plan.name}`,
+              description: en ? `${plan.credits} credits (never expire)` : `${plan.credits} créditos (não expiram)`,
+            },
             unit_amount: Math.round(price * 100),
+            ...(automaticTax ? { tax_behavior: "exclusive" as const } : {}),
           },
           quantity: 1,
         },
       ],
+      automatic_tax: { enabled: automaticTax },
+      billing_address_collection: automaticTax ? "required" : "auto",
+      // Empresas podem informar VAT/CNPJ/EIN; a Stripe emite a invoice com esses dados.
+      tax_id_collection: { enabled: true },
+      invoice_creation: { enabled: true },
+      custom_text: {
+        submit: {
+          message: en
+            ? `Credits are added right after payment and never expire. Unused credits can be refunded within ${refundDays} days.`
+            : `Os créditos entram logo após o pagamento e não expiram. Créditos não utilizados podem ser reembolsados em até ${refundDays} dias.`,
+        },
+      },
       success_url: `${base}/billing?status=success`,
       cancel_url: `${base}/billing?status=canceled`,
       client_reference_id: user.id,
       metadata,
       payment_intent_data: { metadata },
     });
-    if (!session.url) throw new HttpError(502, "Não foi possível iniciar o pagamento");
+    if (!session.url) throw new HttpError(502, "errors.checkoutFailed");
     return NextResponse.json({ url: session.url });
   }
 
-  throw new HttpError(503, "Pagamentos temporariamente indisponíveis. Tente novamente mais tarde.", "PAYMENTS_NOT_CONFIGURED");
+  throw new HttpError(503, "errors.paymentsUnavailable", "PAYMENTS_NOT_CONFIGURED");
 });

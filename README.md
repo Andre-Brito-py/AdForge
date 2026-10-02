@@ -21,7 +21,8 @@ foto + configurações  →  campanha gerada pela IA  →  download  ou  publica
 | Brand Kit | Cor, tom de voz e logo aplicados nas gerações | ✅ Pronto |
 | Admin | Métricas reais, usuários e ajuste de créditos, chaves de IA/pagamento/Meta (criptografadas), custos, modelos, pacotes | ✅ Pronto |
 | LGPD | Exportar dados, excluir conta, Termos e Privacidade, callbacks de exclusão de dados da Meta | ✅ Pronto (revisão jurídica pendente) |
-| Interface | Tema claro/escuro, mobile, mascote "Vy" em pixel art (pode ser ocultado), PT/EN na landing | ✅ Pronto |
+| Interface | Tema claro/escuro, mobile, mascote "Vy" em pixel art (pode ser ocultado) | ✅ Pronto |
+| Internacional | App, e-mails e documentos legais em PT/EN; idioma e moeda (BRL/USD/EUR) pelo país; anúncios em 9 idiomas; Stripe com impostos automáticos e VAT ID; fuso horário do cliente; consentimento de cookies (GDPR) | ✅ Pronto · ver [Go Live §11](docs/GO_LIVE.md) |
 
 ## Stack
 

@@ -10,7 +10,7 @@ export const POST = handler(async (request: Request) => {
   const user = await requireApiUser();
   await enforceRateLimit(request, "meta-refresh", 20, 15 * 60, user.id);
   const conn = await getMetaConnection(user.workspaceId);
-  if (!conn?.token) throw new HttpError(404, "Nenhuma conta da Meta conectada");
+  if (!conn?.token) throw new HttpError(404, "errors.metaNoConnection");
   try {
     const assets = await fetchAssets(conn.token);
     await db.connection.update({ where: { id: conn.id }, data: { assetsJson: JSON.stringify(assets), status: "ACTIVE" } });
@@ -18,7 +18,7 @@ export const POST = handler(async (request: Request) => {
   } catch (error) {
     if (error instanceof MetaApiError && error.isAuthError) {
       await markConnectionExpired(conn.id);
-      throw new HttpError(409, "A conexão expirou. Conecte novamente.", "META_EXPIRED");
+      throw new HttpError(409, "errors.metaExpired", "META_EXPIRED");
     }
     throw error;
   }

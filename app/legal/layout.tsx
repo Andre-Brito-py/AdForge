@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { getTranslations } from "next-intl/server";
 import { COMPANY } from "@/lib/company";
 
-export default function LegalLayout({ children }: { children: React.ReactNode }) {
+export default async function LegalLayout({ children }: { children: React.ReactNode }) {
+  const t = await getTranslations("common.legal");
   return (
     <div className="min-h-screen">
       <header className="border-b border-border">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4 sm:px-6">
           <Logo />
           <nav className="flex gap-4 text-sm text-muted-foreground">
-            <Link href="/legal/terms" className="hover:text-foreground">Termos</Link>
-            <Link href="/legal/privacy" className="hover:text-foreground">Privacidade</Link>
+            <Link href="/legal/terms" className="hover:text-foreground">{t("terms")}</Link>
+            <Link href="/legal/privacy" className="hover:text-foreground">{t("privacy")}</Link>
+            <Link href="/legal/cookies" className="hover:text-foreground">{t("cookies")}</Link>
           </nav>
         </div>
       </header>

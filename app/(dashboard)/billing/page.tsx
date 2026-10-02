@@ -1,20 +1,24 @@
 import { cookies } from "next/headers";
 import { Check, ShieldCheck } from "lucide-react";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getAppConfig, purchasablePlans } from "@/lib/config";
 import { getWorkspaceBalance } from "@/services/credits";
 import { PageHeader } from "@/components/app/ui-bits";
 import { CheckoutButton } from "@/components/checkout-button";
+import { CurrencySwitcher } from "@/components/currency-switcher";
 import { CheckoutStatusToast } from "./status-toast";
-import { formatDateTime, formatMoney } from "@/lib/format";
+import { isCurrency, refundWindowDays, type Currency } from "@/lib/locale";
 
-export const metadata = { title: "Comprar créditos" };
-
-type Currency = "BRL" | "USD" | "EUR";
+export async function generateMetadata() {
+  return { title: (await getTranslations("nav"))("billing") };
+}
 
 export default async function BillingPage() {
   const user = await requireUser();
+  const t = await getTranslations("billing");
+  const format = await getFormatter();
   const [config, balance, payments] = await Promise.all([
     getAppConfig(),
     getWorkspaceBalance(user.workspaceId),
@@ -22,35 +26,42 @@ export default async function BillingPage() {
   ]);
 
   const cookieCurrency = (await cookies()).get("CURRENCY")?.value;
-  const currency: Currency = cookieCurrency === "USD" || cookieCurrency === "EUR" ? cookieCurrency : "BRL";
-  const priceOf = (p: (typeof config.plans)[number]) => (currency === "BRL" ? p.price_brl : currency === "EUR" ? p.price_eur ?? 0 : p.price_usd);
-  const plans = purchasablePlans(config.plans).filter((p) => priceOf(p) > 0);
+  const preferred: Currency = isCurrency(cookieCurrency) ? cookieCurrency : user.locale === "en" ? "USD" : "BRL";
+  const priceOf = (p: (typeof config.plans)[number], c: Currency) => (c === "BRL" ? p.price_brl : c === "EUR" ? p.price_eur ?? 0 : p.price_usd);
+  const all = purchasablePlans(config.plans);
+  // Sem preço em euro configurado, mostramos em dólar (a Stripe cobra no cartão em qualquer país).
+  const currency: Currency = all.some((p) => priceOf(p, preferred) > 0) ? preferred : "USD";
+  const plans = all.filter((p) => priceOf(p, currency) > 0);
+  const available = (["BRL", "USD", "EUR"] as Currency[]).filter((c) => all.some((p) => priceOf(p, c) > 0));
+  const money = (v: number, c: string) => format.number(v, { style: "currency", currency: c });
+  const en = user.locale === "en";
 
   return (
     <>
       <CheckoutStatusToast />
       <PageHeader
-        title="Comprar créditos"
-        description={<>Você tem <strong className="text-foreground">{balance} créditos</strong>. Pacotes avulsos, sem assinatura e sem renovação automática. Créditos não expiram.</>}
+        title={t("title")}
+        description={t.rich("subtitle", { count: balance, b: (chunks) => <strong className="text-foreground">{chunks}</strong> })}
+        actions={available.length > 1 ? <CurrencySwitcher value={currency} options={available} label={t("currency")} /> : undefined}
       />
 
       {plans.length === 0 ? (
-        <div className="surface p-8 text-center text-muted-foreground">Nenhum pacote disponível nesta moeda no momento.</div>
+        <div className="surface p-8 text-center text-muted-foreground">{t("noPlans")}</div>
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           {plans.map((plan) => {
-            const price = priceOf(plan);
-            const features = plan.features_pt.filter((f) => f.trim());
+            const price = priceOf(plan, currency);
+            const features = (en ? plan.features_en : plan.features_pt).filter((f) => f.trim());
             return (
               <div key={plan.id} className={`surface relative flex flex-col p-6 ${plan.isFeatured ? "border-brand ring-1 ring-brand" : ""}`}>
                 {plan.isFeatured && (
-                  <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">Mais escolhido</span>
+                  <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">{t("popular")}</span>
                 )}
                 <h3 className="text-lg font-semibold">{plan.name}</h3>
-                {plan.description && <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>}
-                <p className="mt-5 text-3xl font-semibold tracking-tight">{formatMoney(price, currency)}</p>
+                {(en ? plan.description_en || plan.description : plan.description) && <p className="mt-1 text-sm text-muted-foreground">{en ? plan.description_en || plan.description : plan.description}</p>}
+                <p className="mt-5 text-3xl font-semibold tracking-tight">{money(price, currency)}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {plan.credits.toLocaleString("pt-BR")} créditos · {formatMoney(price / plan.credits, currency)} por crédito
+                  {t("perCredit", { credits: format.number(plan.credits), price: money(price / plan.credits, currency) })}
                 </p>
                 <ul className="mt-6 flex-1 space-y-2.5 text-sm">
                   {features.map((f) => (
@@ -58,7 +69,7 @@ export default async function BillingPage() {
                   ))}
                 </ul>
                 <div className="mt-6">
-                  <CheckoutButton planId={plan.id} label={`Comprar ${plan.name}`} featured={plan.isFeatured} currency={currency} />
+                  <CheckoutButton planId={plan.id} label={t("buy", { name: plan.name })} featured={plan.isFeatured} currency={currency} />
                 </div>
               </div>
             );
@@ -66,29 +77,34 @@ export default async function BillingPage() {
         </div>
       )}
 
-      <p className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
-        <ShieldCheck className="h-4 w-4" />
-        Pagamento processado por {currency === "BRL" ? "Mercado Pago (Pix, cartão e boleto) ou Stripe" : "Stripe"}. Não armazenamos dados de cartão.
-        Direito de arrependimento em até 7 dias para créditos não utilizados.
+      <p className="mt-6 flex items-start gap-2 text-xs text-muted-foreground">
+        <ShieldCheck className="h-4 w-4 shrink-0" />
+        <span>{currency === "BRL" ? t("secureBR") : t("secureIntl")} {t("refund", { days: refundWindowDays(currency) })}</span>
       </p>
 
       <section className="mt-12">
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">Histórico de compras</h2>
+        <h2 className="mb-4 text-lg font-semibold tracking-tight">{t("history")}</h2>
         {payments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma compra ainda.</p>
+          <p className="text-sm text-muted-foreground">{t("noHistory")}</p>
         ) : (
           <div className="surface overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-border text-left text-xs text-muted-foreground">
-                <tr><th className="px-4 py-3 font-medium">Data</th><th className="px-4 py-3 font-medium">Pacote</th><th className="px-4 py-3 font-medium">Créditos</th><th className="px-4 py-3 font-medium">Valor</th><th className="px-4 py-3 font-medium">Via</th></tr>
+                <tr>
+                  <th className="px-4 py-3 font-medium">{t("cols.date")}</th>
+                  <th className="px-4 py-3 font-medium">{t("cols.pack")}</th>
+                  <th className="px-4 py-3 font-medium">{t("cols.credits")}</th>
+                  <th className="px-4 py-3 font-medium">{t("cols.amount")}</th>
+                  <th className="px-4 py-3 font-medium">{t("cols.via")}</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {payments.map((p) => (
                   <tr key={p.id}>
-                    <td className="whitespace-nowrap px-4 py-3">{formatDateTime(p.createdAt)}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{format.dateTime(p.createdAt, "short")}</td>
                     <td className="px-4 py-3">{config.plans.find((x) => x.id === p.planId)?.name || p.planId || "—"}</td>
-                    <td className="px-4 py-3 tabular-nums">+{p.credits}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatMoney(p.amount, p.currency)}</td>
+                    <td className="px-4 py-3 tabular-nums">+{format.number(p.credits)}</td>
+                    <td className="px-4 py-3 tabular-nums">{money(p.amount, p.currency)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.provider === "STRIPE" ? "Stripe" : "Mercado Pago"}</td>
                   </tr>
                 ))}

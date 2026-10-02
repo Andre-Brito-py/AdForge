@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImagePlus, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const MAX_MB = 8;
 const ACCEPT = ["image/png", "image/jpeg", "image/webp"];
@@ -10,7 +11,7 @@ const ACCEPT = ["image/png", "image/jpeg", "image/webp"];
 export function ImageDropzone({
   file,
   onChange,
-  label = "Arraste a foto aqui ou clique para escolher",
+  label,
   aspect = "aspect-[4/3]",
 }: {
   file: File | null;
@@ -18,6 +19,7 @@ export function ImageDropzone({
   label?: string;
   aspect?: string;
 }) {
+  const t = useTranslations("dropzone");
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
@@ -26,8 +28,8 @@ export function ImageDropzone({
 
   const pick = (f: File | undefined | null) => {
     if (!f) return;
-    if (!ACCEPT.includes(f.type)) return onChange(null, "Use uma imagem PNG, JPG ou WEBP.");
-    if (f.size > MAX_MB * 1024 * 1024) return onChange(null, `A imagem pode ter no máximo ${MAX_MB} MB.`);
+    if (!ACCEPT.includes(f.type)) return onChange(null, t("invalidType"));
+    if (f.size > MAX_MB * 1024 * 1024) return onChange(null, t("tooLarge", { mb: MAX_MB }));
     onChange(f);
   };
 
@@ -44,20 +46,20 @@ export function ImageDropzone({
       {preview ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt="Pré-visualização" className="h-full w-full object-contain" />
+          <img src={preview} alt={t("preview")} className="h-full w-full object-contain" />
           <button
             type="button"
             onClick={() => input.current?.click()}
             className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-background/90 px-3 py-1.5 text-xs font-medium shadow backdrop-blur hover:bg-background"
           >
-            <RefreshCw className="h-3.5 w-3.5" /> Trocar
+            <RefreshCw className="h-3.5 w-3.5" /> {t("change")}
           </button>
         </>
       ) : (
         <button type="button" onClick={() => input.current?.click()} className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
           <ImagePlus className="h-8 w-8 text-muted-foreground" />
-          <span className="text-sm font-medium">{label}</span>
-          <span className="text-xs text-muted-foreground">PNG, JPG ou WEBP · até {MAX_MB} MB</span>
+          <span className="text-sm font-medium">{label || t("label")}</span>
+          <span className="text-xs text-muted-foreground">{t("hint", { mb: MAX_MB })}</span>
         </button>
       )}
     </div>
@@ -69,6 +71,6 @@ export async function uploadImage(file: File): Promise<string> {
   form.append("file", file);
   const res = await fetch("/api/upload", { method: "POST", body: form });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Falha no upload da imagem");
+  if (!res.ok) throw new Error(data.error || "Upload failed");
   return data.url as string;
 }

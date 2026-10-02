@@ -49,21 +49,21 @@ export const DEFAULT_MODELS: AiModels = {
 
 export const DEFAULT_PLANS: Plan[] = [
   {
-    id: "starter", name: "Starter", description: "Para começar a testar anúncios com IA.",
+    id: "starter", name: "Starter", description: "Para começar a testar anúncios com IA.", description_en: "To start testing AI ads.",
     price_brl: 49, price_usd: 10, price_eur: null, credits: 200,
     isFeatured: false, isFree: false, isHidden: false,
     features_pt: ["~65 imagens ou ~20 vídeos", "Copy e estratégia inclusas", "Download em alta resolução"],
     features_en: ["~65 images or ~20 videos", "Copy and strategy included", "High-resolution downloads"],
   },
   {
-    id: "pro", name: "Pro", description: "Para quem anuncia toda semana.",
+    id: "pro", name: "Pro", description: "Para quem anuncia toda semana.", description_en: "For brands that advertise every week.",
     price_brl: 99, price_usd: 20, price_eur: null, credits: 500,
     isFeatured: true, isFree: false, isHidden: false,
     features_pt: ["~165 imagens ou ~50 vídeos", "Qualidade Premium disponível", "Brand Kit aplicado nas gerações"],
     features_en: ["~165 images or ~50 videos", "Premium quality available", "Brand Kit applied to generations"],
   },
   {
-    id: "scale", name: "Scale", description: "Para agências e alto volume.",
+    id: "scale", name: "Scale", description: "Para agências e alto volume.", description_en: "For agencies and high volume.",
     price_brl: 249, price_usd: 50, price_eur: null, credits: 1500,
     isFeatured: false, isFree: false, isHidden: false,
     features_pt: ["~500 imagens ou ~150 vídeos", "Melhor custo por crédito", "Suporte prioritário por e-mail"],

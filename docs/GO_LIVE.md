@@ -92,6 +92,18 @@ Os textos de Termos e Privacidade foram reescritos para refletir o produto real 
 
 O código está pronto e testado contra uma Graph API simulada. Falta o lado da Meta (app, verificação da empresa e App Review): siga o [docs/META_SETUP.md](META_SETUP.md). Enquanto as credenciais não forem cadastradas, a página Integrações mostra "Em breve" e nada quebra.
 
+## 11. Clientes internacionais
+
+A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie Policy existem em português e inglês. O idioma e a moeda são escolhidos pelo país do visitante (cabeçalho `x-vercel-ip-country`) e pelo navegador, e o cliente pode trocar em Configurações (idioma) e no Billing (moeda). O painel Admin continua em português.
+
+- **Preços:** cadastre o preço em USD (e, se quiser, em EUR) de cada pacote em **Admin › Pacotes**, junto com a descrição em inglês. Sem preço em EUR, o visitante europeu vê o valor em USD.
+- **Impostos (Stripe Tax):** ative o Stripe Tax, registre-se onde for obrigado (ex.: IVA da UE via OSS, VAT do Reino Unido, estados dos EUA ao atingir o limite) e defina `STRIPE_AUTOMATIC_TAX=true`. O checkout já coleta endereço de cobrança e VAT ID e gera fatura.
+- **Reembolso:** o texto do checkout e dos Termos informa 7 dias para compras em BRL (CDC) e 14 dias para as internacionais (UE/Reino Unido).
+- **Representantes UE/Reino Unido:** se você atende clientes desses mercados sem estabelecimento lá, contrate um representante (art. 27 do GDPR) e preencha `NEXT_PUBLIC_EU_REPRESENTATIVE` e `NEXT_PUBLIC_UK_REPRESENTATIVE`.
+- **Cookies:** GA (`NEXT_PUBLIC_GA_ID`) e Pixel da Meta (`NEXT_PUBLIC_META_PIXEL_ID`) só carregam depois do consentimento. Sem eles, não há banner.
+- **Idioma dos anúncios:** independente do idioma da interface (9 opções, como en-US, es-419, fr-FR e de-DE), escolhido no assistente de campanha.
+- **Jurídico:** os textos em inglês (Terms, Privacy com GDPR/UK GDPR/CCPA e Cookie Policy) também precisam de revisão de um advogado com experiência internacional.
+
 ## Pendências conhecidas (próximos passos)
 
 - Publicação em Mercado Livre, Nuvemshop, Shopify e TikTok (a estrutura de conexões já existe; cada uma precisa do app/credenciais da plataforma).

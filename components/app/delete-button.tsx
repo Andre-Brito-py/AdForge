@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { buttonClass } from "./ui-bits";
 
 export function DeleteButton({
   endpoint,
   redirectTo,
-  label = "Excluir",
+  label,
   confirmText,
 }: {
   endpoint: string;
@@ -18,6 +19,7 @@ export function DeleteButton({
   confirmText: string;
 }) {
   const router = useRouter();
+  const t = useTranslations("common");
   const [loading, setLoading] = useState(false);
 
   const run = async () => {
@@ -27,9 +29,9 @@ export function DeleteButton({
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setLoading(false);
-      return toast.error(data.error || "Não foi possível excluir");
+      return toast.error(data.error || t("somethingWrong"));
     }
-    toast.success("Excluído");
+    toast.success(t("deleted"));
     router.push(redirectTo);
     router.refresh();
   };
@@ -37,7 +39,7 @@ export function DeleteButton({
   return (
     <button onClick={run} disabled={loading} className={buttonClass("ghost")}>
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-      {label}
+      {label || t("delete")}
     </button>
   );
 }

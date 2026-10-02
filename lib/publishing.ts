@@ -42,18 +42,18 @@ export async function createPublication(
   const creative = await db.creative.findFirst({
     where: { id: input.creativeId, campaign: { workspaceId: user.workspaceId } },
   });
-  if (!creative) throw new HttpError(404, "Criativo não encontrado");
-  if (creative.status !== "COMPLETED" || !creative.outputUrl) throw new HttpError(409, "Este criativo ainda não está pronto");
+  if (!creative) throw new HttpError(404, "errors.creativeNotFound");
+  if (creative.status !== "COMPLETED" || !creative.outputUrl) throw new HttpError(409, "errors.creativeNotReady");
   if (!allowedTargets(creative.type, creative.aspectRatio).includes(input.target)) {
-    throw new HttpError(400, "Este formato não é aceito nesse destino");
+    throw new HttpError(400, "errors.formatNotAccepted");
   }
 
   const conn = await getMetaConnection(user.workspaceId);
   if (!conn || conn.status !== "ACTIVE" || !conn.token) {
-    throw new HttpError(409, "Conecte (ou reconecte) sua conta da Meta em Integrações", "META_NOT_CONNECTED");
+    throw new HttpError(409, "errors.metaNotConnected", "META_NOT_CONNECTED");
   }
   const account = findAccount(conn.assets, input.target, input.accountId);
-  if (!account) throw new HttpError(400, "Conta de destino não encontrada. Atualize a conexão em Integrações.");
+  if (!account) throw new HttpError(400, "errors.targetAccountNotFound");
 
   const caption = input.caption?.slice(0, IG_CAPTION_LIMIT) || null;
 

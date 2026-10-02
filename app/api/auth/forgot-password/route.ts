@@ -13,7 +13,7 @@ export const POST = handler(async (request: Request) => {
   const user = await db.user.findUnique({ where: { email } });
   if (user) {
     const token = await issueAuthToken(user.id, "RESET_PASSWORD");
-    await sendPasswordResetEmail(user.email, token);
+    await sendPasswordResetEmail(user.email, token, user.locale);
   }
   // Sempre a mesma resposta: não revelamos se o e-mail está cadastrado.
   return NextResponse.json({ success: true });

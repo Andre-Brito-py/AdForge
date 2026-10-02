@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { buttonClass } from "@/components/app/ui-bits";
 
 export function CheckoutButton({ planId, label, featured, currency }: { planId: string; label: string; featured: boolean; currency: string }) {
+  const t = useTranslations("billing");
   const [loading, setLoading] = useState(false);
 
   const checkout = async () => {
@@ -17,10 +19,10 @@ export function CheckoutButton({ planId, label, featured, currency }: { planId: 
         body: JSON.stringify({ planId, currency }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) throw new Error(data.error || "Não foi possível iniciar o pagamento");
+      if (!res.ok || !data.url) throw new Error(data.error || t("checkoutError"));
       window.location.href = data.url;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao iniciar pagamento");
+      toast.error(error instanceof Error ? error.message : t("checkoutError"));
       setLoading(false);
     }
   };
@@ -28,7 +30,7 @@ export function CheckoutButton({ planId, label, featured, currency }: { planId: 
   return (
     <button onClick={checkout} disabled={loading} className={`${buttonClass(featured ? "brand" : "primary", "lg")} w-full`}>
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-      {loading ? "Abrindo pagamento..." : label}
+      {loading ? t("opening") : label}
       {!loading && <ArrowRight className="h-4 w-4" />}
     </button>
   );

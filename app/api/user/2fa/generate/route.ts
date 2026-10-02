@@ -8,7 +8,7 @@ import { requireApiUser } from "@/lib/auth";
 export const POST = handler(async () => {
   const user = await requireApiUser();
   // Não sobrescreve o segredo de um 2FA já ativo (isso trancaria o usuário fora da conta).
-  if (user.twoFactorEnabled) throw new HttpError(409, "O 2FA já está ativo. Desative antes de configurar de novo.");
+  if (user.twoFactorEnabled) throw new HttpError(409, "errors.twoFactorAlreadyOn");
 
   const secret = speakeasy.generateSecret({ name: `Vysify (${user.email})` });
   await db.user.update({ where: { id: user.id }, data: { twoFactorSecret: secret.base32 } });

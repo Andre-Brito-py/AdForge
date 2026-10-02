@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AuthShell, Divider, GoogleButton } from "@/components/auth/auth-shell";
 import { buttonClass } from "@/components/app/ui-bits";
 
 export function SignupForm({ googleEnabled, signupCredits }: { googleEnabled: boolean; signupCredits: number }) {
+  const t = useTranslations("auth");
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [accept, setAccept] = useState(false);
@@ -19,8 +21,8 @@ export function SignupForm({ googleEnabled, signupCredits }: { googleEnabled: bo
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!strong) return setError("A senha precisa ter 8+ caracteres, com letras e números.");
-    if (!accept) return setError("É preciso aceitar os Termos de Uso e a Política de Privacidade.");
+    if (!strong) return setError(t("signup.errors.weakPassword"));
+    if (!accept) return setError(t("signup.errors.acceptTerms"));
     setLoading(true);
 
     const res = await fetch("/api/auth/register", {
@@ -31,7 +33,7 @@ export function SignupForm({ googleEnabled, signupCredits }: { googleEnabled: bo
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setLoading(false);
-      return setError(data.error || "Não foi possível criar a conta.");
+      return setError(data.error || t("signup.errors.generic"));
     }
 
     const login = await signIn("credentials", { email: form.email, password: form.password, redirect: false });
@@ -41,45 +43,47 @@ export function SignupForm({ googleEnabled, signupCredits }: { googleEnabled: bo
 
   return (
     <AuthShell
-      title="Crie sua conta"
-      subtitle={signupCredits > 0 ? `Você começa com ${signupCredits} créditos grátis para testar. Sem cartão de crédito.` : "Comece em menos de um minuto."}
-      footer={<>Já tem conta? <Link href="/login" className="font-medium text-brand hover:underline">Entrar</Link></>}
+      title={t("signup.title")}
+      subtitle={signupCredits > 0 ? t("signup.subtitleCredits", { count: signupCredits }) : t("signup.subtitle")}
+      footer={<>{t("signup.hasAccount")} <Link href="/login" className="font-medium text-brand hover:underline">{t("signup.signIn")}</Link></>}
       mood="happy"
     >
       {googleEnabled && (
         <>
           <GoogleButton disabled={loading} onClick={() => { setLoading(true); signIn("google", { callbackUrl: "/onboarding" }); }} />
-          <p className="mt-2 text-center text-xs text-muted-foreground">Ao continuar com o Google, você aceita os Termos e a Política de Privacidade.</p>
+          <p className="mt-2 text-center text-xs text-muted-foreground">{t("signup.googleNotice")}</p>
           <Divider />
         </>
       )}
 
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="name" className="label-base">Nome</label>
+          <label htmlFor="name" className="label-base">{t("signup.name")}</label>
           <input id="name" autoComplete="name" required minLength={2} maxLength={80} className="input-base" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div className="space-y-2">
-          <label htmlFor="email" className="label-base">E-mail</label>
-          <input id="email" type="email" autoComplete="email" required className="input-base" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="voce@empresa.com" />
+          <label htmlFor="email" className="label-base">{t("email")}</label>
+          <input id="email" type="email" autoComplete="email" required className="input-base" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t("emailPlaceholder")} />
         </div>
         <div className="space-y-2">
-          <label htmlFor="password" className="label-base">Senha</label>
+          <label htmlFor="password" className="label-base">{t("password")}</label>
           <input id="password" type="password" autoComplete="new-password" required className="input-base" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <p className={`text-xs ${form.password && !strong ? "text-destructive" : "text-muted-foreground"}`}>Mínimo de 8 caracteres, com letras e números.</p>
+          <p className={`text-xs ${form.password && !strong ? "text-destructive" : "text-muted-foreground"}`}>{t("passwordHint")}</p>
         </div>
         <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
           <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--brand)]" />
           <span>
-            Li e aceito os <Link href="/legal/terms" target="_blank" className="text-foreground underline">Termos de Uso</Link> e a{" "}
-            <Link href="/legal/privacy" target="_blank" className="text-foreground underline">Política de Privacidade</Link>.
+            {t.rich("signup.accept", {
+              terms: (chunks) => <Link href="/legal/terms" target="_blank" className="text-foreground underline">{chunks}</Link>,
+              privacy: (chunks) => <Link href="/legal/privacy" target="_blank" className="text-foreground underline">{chunks}</Link>,
+            })}
           </span>
         </label>
 
         {error && <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2.5 text-sm text-destructive">{error}</p>}
 
         <button type="submit" disabled={loading} className={`${buttonClass("brand", "lg")} w-full`}>
-          {loading && <Loader2 className="h-4 w-4 animate-spin" />} Criar conta
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />} {t("signup.submit")}
         </button>
       </form>
     </AuthShell>

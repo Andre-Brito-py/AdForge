@@ -23,6 +23,8 @@ export interface PurchaseInput {
  */
 export async function recordPurchase(input: PurchaseInput): Promise<"credited" | "duplicate"> {
   if (!Number.isInteger(input.credits) || input.credits <= 0) throw new Error("Créditos inválidos no pagamento");
+  const user = await db.user.findUnique({ where: { id: input.userId } });
+  const en = user?.locale === "en";
 
   try {
     await db.$transaction(async (tx) => {
@@ -44,7 +46,7 @@ export async function recordPurchase(input: PurchaseInput): Promise<"credited" |
           userId: input.userId,
           amount: input.credits,
           type: "PURCHASE",
-          description: `Compra do pacote ${input.planName}`,
+          description: en ? `${input.planName} pack purchase` : `Compra do pacote ${input.planName}`,
           referenceId: `${input.provider}:${input.externalId}`,
         },
         tx
@@ -55,9 +57,8 @@ export async function recordPurchase(input: PurchaseInput): Promise<"credited" |
     throw error;
   }
 
-  const user = await db.user.findUnique({ where: { id: input.userId } });
   if (user) {
-    await sendPurchaseReceipt(user.email, user.name || "", input.planName, input.credits, formatMoney(input.amount, input.currency.toUpperCase())).catch(console.error);
+    await sendPurchaseReceipt(user.email, user.name || "", input.planName, input.credits, formatMoney(input.amount, input.currency.toUpperCase(), user.locale), user.locale).catch(console.error);
   }
   return "credited";
 }

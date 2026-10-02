@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PageHeader, StatusBadge, buttonClass } from "@/components/app/ui-bits";
 import { DeleteButton } from "@/components/app/delete-button";
-import { OBJECTIVES, PLATFORMS, STYLES, labelFor } from "@/lib/catalog";
-import { timeAgo } from "@/lib/format";
+import { useFormatter, useNow, useTranslations } from "next-intl";
+import { objectiveLabel, platformLabel, styleLabel } from "@/lib/catalog-i18n";
 import { setMascotMood } from "@/components/mascot/mascot-events";
 import { PublicationList, PublishDialog, type PublicationRow, type PublishingInfo } from "./publish-dialog";
 
@@ -17,7 +17,7 @@ interface Creative {
   headline: string | null; text: string | null; cta: string | null; aspectRatio: string | null; creditsUsed: number;
 }
 interface Campaign {
-  id: string; name: string; status: string; createdAt: string; objective: string; platform: string | null; style: string | null; quality: string;
+  id: string; name: string; status: string; createdAt: string; objective: string; platform: string | null; style: string | null; quality: string; language: string;
   product: { id: string; name: string; originalImageUrl: string };
   creatives: Creative[];
 }
@@ -40,6 +40,12 @@ export default function CreativeGalleryClient({
   initialPublications: PublicationRow[];
 }) {
   const router = useRouter();
+  const t = useTranslations("campaigns.gallery");
+  const tn = useTranslations("nav");
+  const tcat = useTranslations("catalog");
+  const tcom = useTranslations("common");
+  const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const [regenFor, setRegenFor] = useState<Creative | null | undefined>(undefined);
   const [instructions, setInstructions] = useState("");
   const [regenerating, setRegenerating] = useState(false);
@@ -91,7 +97,7 @@ export default function CreativeGalleryClient({
 
   const copy = async (text: string) => {
     await navigator.clipboard.writeText(text);
-    toast.success("Texto copiado");
+    toast.success(t("textCopied"));
   };
 
   const regenerate = async () => {
@@ -103,8 +109,8 @@ export default function CreativeGalleryClient({
     });
     const data = await res.json().catch(() => ({}));
     setRegenerating(false);
-    if (!res.ok) return toast.error(data.error || "Não foi possível gerar a nova versão");
-    toast.success("Nova variação em geração. Ela aparece aqui em instantes.");
+    if (!res.ok) return toast.error(data.error || t("regenError"));
+    toast.success(t("regenStarted"));
     setMascotMood("working", 8000);
     setRegenFor(undefined);
     setInstructions("");
@@ -114,22 +120,22 @@ export default function CreativeGalleryClient({
   return (
     <>
       <PageHeader
-        back={{ href: "/campaigns", label: "Campanhas" }}
+        back={{ href: "/campaigns", label: tn("campaigns") }}
         title={campaign.name}
         description={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <StatusBadge status={pending ? "GENERATING" : campaign.status} />
-            <span>{labelFor(OBJECTIVES, campaign.objective)} · {labelFor(PLATFORMS, campaign.platform)} · {labelFor(STYLES, campaign.style)} · criada {timeAgo(campaign.createdAt)}</span>
+            <span>{objectiveLabel(tcat, campaign.objective)} · {platformLabel(tcat, campaign.platform)} · {styleLabel(tcat, campaign.style)} · {campaign.language} · {format.relativeTime(new Date(campaign.createdAt), now)}</span>
           </span>
         }
         actions={
           <>
             {!pending && (
-              <DeleteButton endpoint={`/api/campaigns/${campaign.id}`} redirectTo="/campaigns" confirmText="Excluir esta campanha e todos os criativos? Esta ação não pode ser desfeita." />
+              <DeleteButton endpoint={`/api/campaigns/${campaign.id}`} redirectTo="/campaigns" confirmText={t("deleteConfirm")} />
             )}
             {unitCost !== null && (
               <button onClick={() => setRegenFor(null)} disabled={!emailVerified} className={buttonClass("brand")}>
-                <Sparkles className="h-4 w-4" /> Nova variação
+                <Sparkles className="h-4 w-4" /> {t("newVariation")}
               </button>
             )}
           </>
@@ -140,7 +146,7 @@ export default function CreativeGalleryClient({
         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
           <p>
-            {failedCount === 1 ? "1 variação não pôde ser gerada" : `${failedCount} variações não puderam ser geradas`}. Os créditos correspondentes já voltaram para o seu saldo.
+            {t("failedNotice", { count: failedCount })}
           </p>
         </div>
       )}
@@ -148,14 +154,14 @@ export default function CreativeGalleryClient({
       {strategy && (strategy.analysis || strategy.hooks.length > 0) && (
         <details className="surface group mb-6 p-5">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-medium">
-            <Lightbulb className="h-4 w-4 text-brand" /> Estratégia criada pela IA
-            <span className="ml-auto text-xs text-muted-foreground group-open:hidden">Mostrar</span>
+            <Lightbulb className="h-4 w-4 text-brand" /> {t("strategy")}
+            <span className="ml-auto text-xs text-muted-foreground group-open:hidden">{t("show")}</span>
           </summary>
           {strategy.analysis && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{strategy.analysis}</p>}
           {strategy.hooks.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {strategy.hooks.map((h, i) => (
-                <button key={i} onClick={() => copy(h)} className="rounded-full bg-muted px-3 py-1.5 text-left text-xs hover:bg-accent" title="Copiar gancho">
+                <button key={i} onClick={() => copy(h)} className="rounded-full bg-muted px-3 py-1.5 text-left text-xs hover:bg-accent" title={t("copyHook")}>
                   “{h}”
                 </button>
               ))}
@@ -176,17 +182,17 @@ export default function CreativeGalleryClient({
                     <video src={visual.outputUrl} controls playsInline preload="metadata" className="h-full w-full object-cover" />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={visual.outputUrl} alt={c?.headline || `Variação ${i + 1}`} className="h-full w-full object-cover" />
+                    <img src={visual.outputUrl} alt={c?.headline || `#${i + 1}`} className="h-full w-full object-cover" />
                   )
                 ) : visual.status === "FAILED" ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
                     <AlertCircle className="h-6 w-6 text-destructive" />
-                    Não foi possível gerar esta variação.<br />Os {visual.creditsUsed} créditos foram estornados.
+                    {t("failed")}<br />{t("refunded", { count: visual.creditsUsed })}
                   </div>
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin text-brand" />
-                    {visual.status === "QUEUED" ? "Na fila..." : visual.type === "VIDEO" ? "Gerando vídeo..." : "Gerando imagem..."}
+                    {visual.status === "QUEUED" ? t("queued") : visual.type === "VIDEO" ? t("generatingVideo") : t("generatingImage")}
                   </div>
                 )}
                 <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium backdrop-blur">#{i + 1}</span>
@@ -212,17 +218,17 @@ export default function CreativeGalleryClient({
               <div className="flex flex-wrap gap-1.5 border-t border-border p-3">
                 {visual.status === "COMPLETED" && visual.outputUrl && (
                   <button onClick={() => setPublishFor({ visual, copy: c })} className={buttonClass("brand", "sm")}>
-                    <Send className="h-3.5 w-3.5" /> Publicar
+                    <Send className="h-3.5 w-3.5" /> {t("publish")}
                   </button>
                 )}
                 {visual.status === "COMPLETED" && visual.outputUrl && (
                   <button onClick={() => download(visual.outputUrl!, `vysify-${campaign.id.slice(0, 6)}-${i + 1}.${ext}`)} className={buttonClass("outline", "sm")}>
-                    <Download className="h-3.5 w-3.5" /> Baixar
+                    <Download className="h-3.5 w-3.5" /> {t("download")}
                   </button>
                 )}
                 {c && (
                   <button onClick={() => copy(copyText(c))} className={buttonClass("outline", "sm")}>
-                    <Copy className="h-3.5 w-3.5" /> Copiar texto
+                    <Copy className="h-3.5 w-3.5" /> {t("copyText")}
                   </button>
                 )}
                 {c && (
@@ -232,7 +238,7 @@ export default function CreativeGalleryClient({
                 )}
                 {unitCost !== null && visual.status !== "QUEUED" && visual.status !== "PROCESSING" && (
                   <button onClick={() => setRegenFor(visual)} disabled={!emailVerified} className={`${buttonClass("ghost", "sm")} ml-auto`}>
-                    <RefreshCw className="h-3.5 w-3.5" /> Nova versão
+                    <RefreshCw className="h-3.5 w-3.5" /> {t("newVersion")}
                   </button>
                 )}
               </div>
@@ -254,20 +260,20 @@ export default function CreativeGalleryClient({
       <Dialog open={regenFor !== undefined} onOpenChange={(open) => !open && setRegenFor(undefined)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{regenFor ? "Nova versão deste criativo" : "Nova variação"}</DialogTitle>
+            <DialogTitle>{regenFor ? t("regenTitleOne") : t("regenTitle")}</DialogTitle>
             <DialogDescription>
-              Gera mais um criativo nesta campanha por <strong>{unitCost} créditos</strong>. Se falhar, os créditos voltam automaticamente.
+              {t.rich("regenDescription", { count: unitCost ?? 0, b: (chunks) => <strong>{chunks}</strong> })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <label htmlFor="instr" className="label-base">Instruções extras (opcional)</label>
+            <label htmlFor="instr" className="label-base">{t("instructions")}</label>
             <textarea id="instr" className="input-base min-h-24 py-3" maxLength={500} value={instructions} onChange={(e) => setInstructions(e.target.value)}
-              placeholder="Ex.: fundo de mármore claro, luz de fim de tarde, produto em close" />
+              placeholder={t("instructionsPlaceholder")} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setRegenFor(undefined)} className={buttonClass("ghost")}>Cancelar</button>
+            <button onClick={() => setRegenFor(undefined)} className={buttonClass("ghost")}>{tcom("cancel")}</button>
             <button onClick={regenerate} disabled={regenerating} className={buttonClass("brand")}>
-              {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Gerar
+              {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {t("generate")}
             </button>
           </div>
         </DialogContent>

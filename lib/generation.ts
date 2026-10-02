@@ -11,6 +11,7 @@ import { generateAdImage } from "@/services/ai/image";
 import { buildVideoPrompt, checkVideo, submitVideo, type FalRequest } from "@/services/ai/video";
 import { generateNarration } from "@/services/ai/audio";
 import { sendCampaignReadyEmail } from "@/services/email";
+import { txDescription } from "./generation-text";
 import type { SessionUser } from "./auth";
 import type { z } from "zod";
 import type { campaignSchema } from "./validation";
@@ -29,13 +30,13 @@ const CONCURRENCY = 2;
 export async function assertProviderAvailable(platform: PlatformKey) {
   const { secrets } = await getAppConfig();
   if (!secrets.geminiKey && !secrets.openAiKey) {
-    throw new HttpError(503, "A geração está temporariamente indisponível. Tente novamente mais tarde.", "AI_NOT_CONFIGURED");
+    throw new HttpError(503, "errors.aiUnavailable", "AI_NOT_CONFIGURED");
   }
   if (PLATFORMS[platform].media === "IMAGE" && !secrets.geminiKey) {
-    throw new HttpError(503, "A geração de imagens está temporariamente indisponível.", "IMAGE_NOT_CONFIGURED");
+    throw new HttpError(503, "errors.imageUnavailable", "IMAGE_NOT_CONFIGURED");
   }
   if (PLATFORMS[platform].media === "VIDEO" && !secrets.wanKey) {
-    throw new HttpError(503, "A geração de vídeos está temporariamente indisponível.", "VIDEO_NOT_CONFIGURED");
+    throw new HttpError(503, "errors.videoUnavailable", "VIDEO_NOT_CONFIGURED");
   }
 }
 
@@ -54,13 +55,13 @@ async function workspaceOwnerId(workspaceId: string): Promise<string | null> {
 
 export async function createCampaign(user: SessionUser, input: z.infer<typeof campaignSchema>) {
   const product = await db.product.findFirst({ where: { id: input.productId, workspaceId: user.workspaceId } });
-  if (!product) throw new HttpError(404, "Produto não encontrado");
+  if (!product) throw new HttpError(404, "errors.productNotFound");
 
   await assertProviderAvailable(input.platform);
 
   // Foto removida do armazenamento: mensagem clara em vez de "erro interno".
   await readOwnMedia(product.originalImageUrl).catch(() => {
-    throw new HttpError(422, "Não conseguimos abrir a foto deste produto. Cadastre o produto novamente com a foto.", "PRODUCT_IMAGE_MISSING");
+    throw new HttpError(422, "errors.productImageMissing", "PRODUCT_IMAGE_MISSING");
   });
 
   const config = await getAppConfig();
@@ -69,7 +70,7 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
 
   // Checagem rápida antes de gastar uma chamada de IA (a cobrança real é atômica mais abaixo).
   if ((await getWorkspaceBalance(user.workspaceId)) < totalCost) {
-    throw new HttpError(402, "Saldo de créditos insuficiente", "INSUFFICIENT_CREDITS");
+    throw new HttpError(402, "errors.insufficientCredits", "INSUFFICIENT_CREDITS");
   }
 
   const brand = await db.brandKit.findUnique({ where: { workspaceId: user.workspaceId } });
@@ -86,13 +87,15 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
       targetAudience: input.targetAudience || product.targetAudience,
       offer: input.offer,
       variations: input.variations,
+      language: input.language,
+      uiLocale: user.locale === "en" ? "en" : "pt",
       brand,
     });
   } catch (error) {
     if (error instanceof PolicyViolationError) {
-      throw new HttpError(422, `Não podemos gerar esta campanha: ${error.message} A plataforma é exclusiva para anúncios de produtos e serviços legítimos.`, "POLICY_VIOLATION");
+      throw new HttpError(422, "errors.policyViolation", "POLICY_VIOLATION", { reason: error.message });
     }
-    if (error instanceof AiUnavailableError) throw new HttpError(503, error.message, "AI_UNAVAILABLE");
+    if (error instanceof AiUnavailableError) throw new HttpError(503, "errors.aiUnavailable", "AI_UNAVAILABLE");
     throw error;
   }
 
@@ -108,7 +111,7 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
           workspaceId: user.workspaceId,
           userId: user.id,
           amount: totalCost,
-          description: `Campanha: ${input.variations}x ${media === "VIDEO" ? "vídeo" : "imagem"} (${input.quality})`,
+          description: txDescription(user.locale, "campaign", { n: input.variations, media, quality: input.quality }),
           referenceId: campaignId,
           usage: {
             operation: `CAMPAIGN_${media}_${input.quality.toUpperCase()}`,
@@ -135,6 +138,7 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
           platform: input.platform,
           format: aspectRatio,
           quality: input.quality,
+          language: input.language,
           variations: input.variations,
           strategyJson: JSON.stringify(strategy),
           creditsCharged: totalCost,
@@ -176,7 +180,7 @@ export async function createCampaign(user: SessionUser, input: z.infer<typeof ca
       }
     });
   } catch (error) {
-    if (error instanceof InsufficientCreditsError) throw new HttpError(402, "Saldo de créditos insuficiente", "INSUFFICIENT_CREDITS");
+    if (error instanceof InsufficientCreditsError) throw new HttpError(402, "errors.insufficientCredits", "INSUFFICIENT_CREDITS");
     throw error;
   }
 
@@ -190,10 +194,10 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
     where: { id: campaignId, workspaceId: user.workspaceId },
     include: { creatives: true },
   });
-  if (!campaign) throw new HttpError(404, "Campanha não encontrada");
+  if (!campaign) throw new HttpError(404, "errors.campaignNotFound");
 
   const platform = (campaign.platform && campaign.platform in PLATFORMS ? campaign.platform : null) as PlatformKey | null;
-  if (!platform) throw new HttpError(400, "Esta campanha foi criada numa versão antiga e não pode gerar novas variações.");
+  if (!platform) throw new HttpError(400, "errors.legacyCampaign");
   await assertProviderAvailable(platform);
 
   const config = await getAppConfig();
@@ -203,7 +207,7 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
 
   const visuals = campaign.creatives.filter((c) => c.type === media);
   const base = (baseCreativeId && visuals.find((c) => c.id === baseCreativeId)) || visuals[0];
-  if (!base) throw new HttpError(400, "Nenhum criativo base encontrado");
+  if (!base) throw new HttpError(400, "errors.noBaseCreative");
 
   const nextIndex = Math.max(...campaign.creatives.map((c) => c.variantIndex), 0) + 1;
   const baseCopy = campaign.creatives.find((c) => c.type === "COPY" && c.variantIndex === base.variantIndex);
@@ -216,7 +220,7 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
           workspaceId: user.workspaceId,
           userId: user.id,
           amount: cost,
-          description: `Nova variação de ${media === "VIDEO" ? "vídeo" : "imagem"}`,
+          description: txDescription(user.locale, "variation", { media }),
           referenceId: campaign.id,
           usage: { operation: `REGENERATE_${media}`, provider: base.provider, model: base.model, estimatedCostUsd: media === "VIDEO" ? 0.25 : 0.04 },
         },
@@ -249,7 +253,7 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
       await tx.campaign.update({ where: { id: campaignId }, data: { status: "GENERATING", creditsCharged: { increment: cost } } });
     });
   } catch (error) {
-    if (error instanceof InsufficientCreditsError) throw new HttpError(402, "Saldo de créditos insuficiente", "INSUFFICIENT_CREDITS");
+    if (error instanceof InsufficientCreditsError) throw new HttpError(402, "errors.insufficientCredits", "INSUFFICIENT_CREDITS");
     throw error;
   }
 
@@ -411,6 +415,7 @@ async function failJob(jobId: string, error: string) {
   const campaign = job.creative.campaign;
   const userId = campaign.userId || (await workspaceOwnerId(campaign.workspaceId));
 
+  const owner = userId ? await db.user.findUnique({ where: { id: userId }, select: { locale: true } }) : null;
   await db.$transaction(async (tx) => {
     const res = await tx.generationJob.updateMany({
       where: { id: jobId, refunded: false },
@@ -424,7 +429,7 @@ async function failJob(jobId: string, error: string) {
           userId,
           amount: job.creative.creditsUsed,
           type: "REFUND",
-          description: "Estorno automático: falha na geração",
+          description: txDescription(owner?.locale, "refund"),
           referenceId: job.creativeId,
         },
         tx
@@ -452,7 +457,7 @@ async function maybeFinalizeCampaign(campaignId: string) {
   const campaign = await db.campaign.findUnique({ where: { id: campaignId } });
   const user = campaign?.userId ? await db.user.findUnique({ where: { id: campaign.userId } }) : null;
   if (campaign && user?.notifyOnComplete) {
-    await sendCampaignReadyEmail(user.email, campaign.name, campaign.id, failed).catch(console.error);
+    await sendCampaignReadyEmail(user.email, campaign.name, campaign.id, failed, user.locale).catch(console.error);
   }
 }
 

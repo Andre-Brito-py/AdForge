@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
+import { countryFromHeaders, isLocale, pickLocale, type Locale } from "./locale";
 import { cache } from "react";
 import speakeasy from "speakeasy";
 import { db } from "./db";
@@ -15,7 +17,19 @@ import { sendWelcomeEmail } from "@/services/email";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
-export const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+/** Idioma (cookie/navegador) e país (CDN) de quem está se cadastrando. */
+export async function requestOrigin(): Promise<{ locale: Locale; country: string | null }> {
+  try {
+    const [store, h] = await Promise.all([cookies(), headers()]);
+    const country = countryFromHeaders(h);
+    const cookieLocale = store.get("NEXT_LOCALE")?.value;
+    return { locale: isLocale(cookieLocale) ? cookieLocale : pickLocale(h.get("accept-language"), country), country };
+  } catch {
+    return { locale: "pt", country: null };
+  }
+}
+
+export const googleEnabled =!!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 function headerValue(headers: unknown, name: string): string | undefined {
   if (!headers || typeof headers !== "object") return undefined;
@@ -93,13 +107,15 @@ export const authOptions: NextAuthOptions = {
 
       const existing = await db.user.findUnique({ where: { email } });
       if (!existing) {
+        const origin = await requestOrigin();
         const { user: created } = await createUserWithWorkspace({
           email,
           name: user.name || email.split("@")[0],
           image: user.image,
           emailVerified: new Date(),
+          ...origin,
         });
-        sendWelcomeEmail(created.email, created.name || "").catch(console.error);
+        sendWelcomeEmail(created.email, created.name || "", created.locale).catch(console.error);
       } else if (!existing.emailVerified) {
         // O Google já verificou a posse do e-mail.
         await db.user.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
@@ -152,6 +168,7 @@ async function loadSessionUser() {
       id: true, email: true, name: true, image: true, role: true,
       emailVerified: true, onboardingCompleted: true, twoFactorEnabled: true,
       sessionVersion: true, passwordHash: true, notifyOnComplete: true, marketingOptIn: true,
+      locale: true, country: true,
     },
   });
   // Sessão de um usuário apagado ou invalidada por troca de senha.
@@ -182,15 +199,15 @@ export async function requireUser() {
 /** Para route handlers: lança 401/403. */
 export async function requireApiUser(opts: { verified?: boolean } = {}) {
   const user = await getSessionUser();
-  if (!user) throw new HttpError(401, "Faça login para continuar", "UNAUTHENTICATED");
+  if (!user) throw new HttpError(401, "errors.unauthenticated", "UNAUTHENTICATED");
   if (opts.verified && !user.emailVerified) {
-    throw new HttpError(403, "Confirme seu e-mail para usar este recurso", "EMAIL_NOT_VERIFIED");
+    throw new HttpError(403, "errors.emailNotVerified", "EMAIL_NOT_VERIFIED");
   }
   return user;
 }
 
 export async function requireApiAdmin() {
   const user = await requireApiUser();
-  if (!user.isAdmin) throw new HttpError(403, "Acesso restrito", "FORBIDDEN");
+  if (!user.isAdmin) throw new HttpError(403, "errors.forbidden", "FORBIDDEN");
   return user;
 }

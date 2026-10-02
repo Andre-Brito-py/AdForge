@@ -7,20 +7,16 @@ import { CheckCircle2, Loader2, XCircle, CircleDashed } from "lucide-react";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { setMascotMood } from "@/components/mascot/mascot-events";
 import { buttonClass } from "@/components/app/ui-bits";
+import { useTranslations } from "next-intl";
 
 interface CreativeStatus { id: string; type: string; status: string; variantIndex: number; headline: string | null }
 interface CampaignStatus { id: string; name: string; status: string; creatives: CreativeStatus[] }
 
-const MESSAGES = [
-  "Analisando a foto do produto...",
-  "Escrevendo headlines e textos...",
-  "Montando os cenários...",
-  "Ajustando luz e composição...",
-  "Quase lá, caprichando nos detalhes...",
-];
 
 export default function GeneratingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const t = useTranslations("campaigns.generating");
+  const MESSAGES = t.raw("messages") as string[];
   const router = useRouter();
   const [data, setData] = useState<CampaignStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,9 +25,9 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
 
   useEffect(() => {
     setMascotMood("working");
-    const t = setInterval(() => setMsg((m) => (m + 1) % MESSAGES.length), 3500);
-    return () => { clearInterval(t); setMascotMood("idle"); };
-  }, []);
+    const timer = setInterval(() => setMsg((m) => (m + 1) % MESSAGES.length), 3500);
+    return () => { clearInterval(timer); setMascotMood("idle"); };
+  }, [MESSAGES.length]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -40,7 +36,7 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
       try {
         const res = await fetch(`/api/campaigns/${id}`, { cache: "no-store" });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Erro ao consultar campanha");
+        if (!res.ok) throw new Error(json.error || t("connectionError"));
         setData(json);
         if (json.status !== "GENERATING" && !done.current) {
           done.current = true;
@@ -52,7 +48,7 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
           return;
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Erro de conexão");
+        setError(e instanceof Error ? e.message : t("connectionError"));
       }
       // Vídeos levam minutos: espaça o polling aos poucos.
       delay = Math.min(delay * 1.15, 8000);
@@ -60,7 +56,7 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
     };
     poll();
     return () => clearTimeout(timer);
-  }, [id, router]);
+  }, [id, router, t]);
 
   const visuals = (data?.creatives || []).filter((c) => c.type !== "COPY");
   const headlines = new Map((data?.creatives || []).filter((c) => c.type === "COPY").map((c) => [c.variantIndex, c.headline]));
@@ -73,15 +69,15 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
     <div className="mx-auto flex max-w-xl flex-col items-center py-6 text-center sm:py-12">
       <PixelMascot mood={finishedAll ? (data?.status === "FAILED" ? "confused" : "happy") : "working"} size={96} />
       <h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
-        {finishedAll ? "Prontinho!" : "Gerando sua campanha"}
+        {finishedAll ? t("done") : t("title")}
       </h1>
       <p className="mt-2 min-h-6 text-muted-foreground" aria-live="polite">
-        {finishedAll ? "Abrindo seus criativos..." : MESSAGES[msg]}
+        {finishedAll ? t("opening") : MESSAGES[msg]}
       </p>
 
       <div className="mt-8 w-full">
         <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-          <span>{finished} de {visuals.length || "…"} {isVideo ? "vídeos" : "imagens"}</span>
+          <span>{t("progress", { done: finished, total: visuals.length || "…" })} {isVideo ? t("videos") : t("images")}</span>
           <span className="tabular-nums">{Math.min(progress, 100)}%</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -97,7 +93,7 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
                 : c.status === "FAILED" ? <XCircle className="h-4 w-4 text-destructive" />
                 : c.status === "PROCESSING" ? <Loader2 className="h-4 w-4 animate-spin text-brand" />
                 : <CircleDashed className="h-4 w-4 text-muted-foreground" />}
-              <span className="font-medium">Variação {i + 1}</span>
+              <span className="font-medium">{t("variation", { n: i + 1 })}</span>
               <span className="truncate text-muted-foreground">{headlines.get(c.variantIndex)}</span>
             </li>
           ))}
@@ -106,12 +102,12 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
 
       {isVideo && !finishedAll && (
         <p className="mt-6 text-xs text-muted-foreground">
-          Vídeos podem levar alguns minutos. Pode fechar esta página: a geração continua e você recebe um e-mail quando terminar.
+          {t("videoNote")}
         </p>
       )}
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
-      <Link href="/campaigns" className={`${buttonClass("ghost")} mt-6`}>Voltar para campanhas</Link>
+      <Link href="/campaigns" className={`${buttonClass("ghost")} mt-6`}>{t("back")}</Link>
     </div>
   );
 }

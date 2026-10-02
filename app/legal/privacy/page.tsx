@@ -1,8 +1,16 @@
+import { getLocale } from "next-intl/server";
 import { COMPANY, LEGAL_UPDATED_AT } from "@/lib/company";
+import { PrivacyEn } from "@/components/legal/privacy-en";
 
-export const metadata = { title: "Política de Privacidade" };
+export async function generateMetadata() {
+  return { title: (await getLocale()) === "en" ? "Privacy Policy" : "Política de Privacidade" };
+}
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  return (await getLocale()) === "en" ? <PrivacyEn /> : <PrivacyPt />;
+}
+
+function PrivacyPt() {
   return (
     <>
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Política de Privacidade</h1>
@@ -70,8 +78,8 @@ export default function PrivacyPage() {
 
       <h2>6. Cookies</h2>
       <p>
-        Usamos apenas cookies essenciais: sessão de login, idioma, moeda e tema. Não usamos cookies de publicidade nem de rastreamento de terceiros. Se isso
-        mudar, pediremos seu consentimento antes.
+        Usamos cookies essenciais para manter você conectado e lembrar idioma, moeda e tema. Cookies de análise ou marketing só são usados se estiverem
+        ativados e <strong>somente depois do seu consentimento</strong>. Veja a <a href="/legal/cookies">Política de Cookies</a>.
       </p>
 
       <h2>7. Segurança</h2>

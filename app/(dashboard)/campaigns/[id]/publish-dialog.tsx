@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, ExternalLink, Loader2, Send, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buttonClass } from "@/components/app/ui-bits";
 import { FacebookIcon, InstagramIcon } from "@/components/brand-icons";
@@ -40,14 +41,16 @@ export function PublishDialog({
   info: PublishingInfo;
   onPublished: (p: PublicationRow) => void;
 }) {
+  const t = useTranslations("publish");
+  const tc = useTranslations("common");
   const destinations = useMemo<Destination[]>(() => {
     if (!creative) return [];
     return allowedTargets(creative.type, creative.aspectRatio).flatMap((target) => {
       const network = PUBLISH_TARGETS[target].network;
       const accounts = network === "instagram" ? info.instagram : info.pages;
-      return accounts.map((a) => ({ key: `${target}:${a.id}`, target, accountId: a.id, network, label: `${PUBLISH_TARGETS[target].label} · ${a.name}` }));
+      return accounts.map((a) => ({ key: `${target}:${a.id}`, target, accountId: a.id, network, label: `${t(`targets.${target}`)} · ${a.name}` }));
     });
-  }, [creative, info]);
+  }, [creative, info, t]);
 
   const [selected, setSelected] = useState<string>("");
   const [caption, setCaption] = useState(defaultCaption);
@@ -65,8 +68,8 @@ export function PublishDialog({
     });
     const data = await res.json().catch(() => ({}));
     setSending(false);
-    if (!res.ok) return toast.error(data.error || "Não foi possível publicar");
-    toast.success(creative.type === "VIDEO" ? "Enviado! Vídeos levam alguns minutos para o Instagram processar." : "Publicação enviada!");
+    if (!res.ok) return toast.error(data.error || t("error"));
+    toast.success(creative.type === "VIDEO" ? t("sentVideo") : t("sent"));
     onPublished({ ...data, createdAt: data.createdAt || new Date().toISOString() });
     onClose();
   };
@@ -75,26 +78,25 @@ export function PublishDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Publicar criativo</DialogTitle>
-          <DialogDescription>Publica agora, na conta escolhida, como um post orgânico.</DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
         {!info.available ? (
-          <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">A publicação direta estará disponível em breve. Por enquanto, use “Baixar” e “Copiar texto”.</p>
+          <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">{t("unavailable")}</p>
         ) : !info.connected ? (
           <div className="space-y-3 rounded-xl bg-muted p-4 text-sm">
-            <p>{info.expired ? "Sua conexão com a Meta expirou." : "Conecte sua conta do Facebook/Instagram para publicar daqui."}</p>
-            <Link href="/integrations" className={buttonClass("brand", "sm")}>{info.expired ? "Reconectar" : "Conectar conta"}</Link>
+            <p>{info.expired ? t("expired") : t("connectPrompt")}</p>
+            <Link href="/integrations" className={buttonClass("brand", "sm")}>{info.expired ? t("reconnect") : t("connect")}</Link>
           </div>
         ) : destinations.length === 0 ? (
           <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">
-            Nenhuma conta compatível. Para o Instagram, a conta precisa ser profissional e estar vinculada a uma Página. Confira em{" "}
-            <Link href="/integrations" className="underline">Integrações</Link>.
+            {t.rich("noAccounts", { link: (chunks) => <Link href="/integrations" className="underline">{chunks}</Link> })}
           </p>
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <span className="label-base">Onde publicar</span>
+              <span className="label-base">{t("where")}</span>
               <div className="max-h-56 space-y-1.5 overflow-y-auto">
                 {destinations.map((d) => (
                   <button key={d.key} type="button" onClick={() => setSelected(d.key)} data-selected={dest?.key === d.key} className="choice flex w-full items-center gap-3 px-3 py-2.5 text-sm">
@@ -105,21 +107,21 @@ export function PublishDialog({
               </div>
             </div>
             {isStory ? (
-              <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">Stories não têm legenda. Se quiser texto, ele precisa estar na própria imagem.</p>
+              <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">{t("storyNoCaption")}</p>
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="caption" className="label-base">Legenda</label>
+                  <label htmlFor="caption" className="label-base">{t("caption")}</label>
                   <span className={`text-xs tabular-nums ${caption.length > IG_CAPTION_LIMIT ? "text-destructive" : "text-muted-foreground"}`}>{caption.length}/{IG_CAPTION_LIMIT}</span>
                 </div>
                 <textarea id="caption" className="input-base min-h-36 py-3" value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={IG_CAPTION_LIMIT} />
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Revise preço, características e promessas antes de publicar: você é responsável pelo conteúdo veiculado.</p>
+            <p className="text-xs text-muted-foreground">{t("responsibility")}</p>
             <div className="flex justify-end gap-2">
-              <button onClick={onClose} className={buttonClass("ghost")}>Cancelar</button>
+              <button onClick={onClose} className={buttonClass("ghost")}>{tc("cancel")}</button>
               <button onClick={publish} disabled={sending || caption.length > IG_CAPTION_LIMIT} className={buttonClass("brand")}>
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Publicar agora
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {t("submit")}
               </button>
             </div>
           </div>
@@ -130,6 +132,7 @@ export function PublishDialog({
 }
 
 export function PublicationList({ items }: { items: PublicationRow[] }) {
+  const t = useTranslations("publish");
   if (items.length === 0) return null;
   return (
     <ul className="space-y-1.5 border-t border-border px-4 py-3 text-xs">
@@ -140,13 +143,13 @@ export function PublicationList({ items }: { items: PublicationRow[] }) {
             : <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-brand" />}
           <div className="min-w-0 flex-1">
             <p className="break-words">
-              {PUBLISH_TARGETS[p.target as PublishTarget]?.label || p.target} · {p.accountName}
+              {t.has(`targets.${p.target}`) ? t(`targets.${p.target}`) : p.target} · {p.accountName}
               {p.status === "PUBLISHED" && p.permalink && (
                 <a href={p.permalink} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-brand hover:underline">
-                  ver post <ExternalLink className="h-3 w-3" />
+                  {t("viewPost")} <ExternalLink className="h-3 w-3" />
                 </a>
               )}
-              {(p.status === "PENDING" || p.status === "PROCESSING") && <span className="ml-1.5 text-muted-foreground">publicando…</span>}
+              {(p.status === "PENDING" || p.status === "PROCESSING") && <span className="ml-1.5 text-muted-foreground">{t("publishing")}</span>}
             </p>
             {p.status === "FAILED" && p.error && <p className="text-destructive">{p.error}</p>}
           </div>

@@ -8,10 +8,13 @@ import {
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
+import { CookieSettingsButton } from "@/components/consent/ConsentManager";
+
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "suporte@vysify.com";
 import { buttonClass } from "@/components/app/ui-bits";
 
 interface Plan {
-  id: string; name: string; description?: string | null; price_brl: number; price_usd: number; credits: number;
+  id: string; name: string; description?: string | null; description_en?: string | null; price_brl: number; price_usd: number; price_eur?: number | null; credits: number;
   isFeatured?: boolean; features_pt: string[]; features_en: string[];
 }
 
@@ -35,6 +38,7 @@ const COPY = {
       { icon: ImageIcon, t: "Imagens publicitárias", d: "Seu produto em cenários profissionais, fiel à foto original, nos formatos 1:1, 4:5 e 9:16." },
       { icon: Video, t: "Vídeos com locução", d: "A foto vira um vídeo curto vertical, com narração do roteiro em áudio separado." },
       { icon: Palette, t: "Brand Kit", d: "Cor e tom de voz da sua marca aplicados automaticamente em todas as gerações." },
+      { icon: Globe, t: "Anúncios em 9 idiomas", d: "Venda para outros países: textos e locução em inglês, espanhol, francês, alemão, italiano e mais." },
       { icon: RotateCcw, t: "Estorno automático", d: "Se uma variação falhar, os créditos dela voltam sozinhos para a sua conta." },
       { icon: ShieldCheck, t: "Uso responsável", d: "Moderação automática bloqueia conteúdo enganoso ou proibido antes de cobrar." },
     ],
@@ -42,7 +46,7 @@ const COPY = {
     priceSub: (img: number, vid: number) => `Pacotes avulsos, sem assinatura. Créditos não expiram. Imagem = ${img} créditos · vídeo = ${vid} créditos.`,
     credits: "créditos", buy: "Começar", popular: "Mais escolhido",
     free: {
-      name: "Grátis", price: "R$ 0", cta: "Começar grátis",
+      name: "Grátis", cta: "Começar grátis",
       description: "Para conhecer a Vysify antes de comprar.",
       features: (n: number, img: number) => [`${n} créditos para testar (~${Math.floor(n / img)} imagens)`, "Sem cartão de crédito", "Todos os formatos e estilos"],
     },
@@ -52,11 +56,11 @@ const COPY = {
       ["E se a geração der errado?", "Se uma variação falhar por qualquer motivo técnico, os créditos dela são devolvidos automaticamente. Você também pode pedir uma nova versão com instruções extras."],
       ["Quem é dono dos criativos?", "Você. O conteúdo gerado a partir das suas fotos pode ser usado comercialmente, desde que você tenha os direitos sobre o produto e a imagem enviada."],
       ["Que tipo de foto funciona melhor?", "Foto nítida, com o produto inteiro no quadro, boa iluminação e fundo simples. Fotos de celular funcionam bem."],
-      ["Posso pedir reembolso?", "Sim. Em até 7 dias após a compra, você pode desistir e receber o valor de volta pelos créditos não utilizados (art. 49 do CDC)."],
+      ["Posso pedir reembolso?", "Sim. Você pode desistir e receber o valor de volta pelos créditos não utilizados em até 7 dias após a compra no Brasil (art. 49 do CDC) e em até 14 dias em compras internacionais."],
       ["Quais formas de pagamento?", "Pix, cartão e boleto pelo Mercado Pago, ou cartão internacional pela Stripe."],
     ],
     finalTitle: "Seu próximo anúncio começa com uma foto.",
-    footer: { terms: "Termos de Uso", privacy: "Privacidade", support: "Suporte", rights: "Todos os direitos reservados." },
+    footer: { terms: "Termos de Uso", privacy: "Privacidade", cookies: "Cookies", support: "Suporte", rights: "Todos os direitos reservados." },
   },
   en: {
     nav: ["How it works", "Features", "Pricing", "FAQ"],
@@ -77,6 +81,7 @@ const COPY = {
       { icon: ImageIcon, t: "Ad images", d: "Your product in professional scenes, faithful to the original photo, in 1:1, 4:5 and 9:16." },
       { icon: Video, t: "Voiced-over videos", d: "Your photo becomes a short vertical video, with the script narrated as a separate audio track." },
       { icon: Palette, t: "Brand Kit", d: "Your brand color and tone of voice applied to every generation." },
+      { icon: Globe, t: "Ads in 9 languages", d: "Sell anywhere: copy and voiceover in English, Spanish, French, German, Italian, Portuguese and more." },
       { icon: RotateCcw, t: "Automatic refunds", d: "If a variation fails, its credits go straight back to your balance." },
       { icon: ShieldCheck, t: "Responsible use", d: "Automatic moderation blocks misleading or prohibited content before charging." },
     ],
@@ -84,7 +89,7 @@ const COPY = {
     priceSub: (img: number, vid: number) => `One-off packs, no subscription. Credits never expire. Image = ${img} credits · video = ${vid} credits.`,
     credits: "credits", buy: "Get started", popular: "Most popular",
     free: {
-      name: "Free", price: "$0", cta: "Start free",
+      name: "Free", cta: "Start free",
       description: "Try Vysify before you buy.",
       features: (n: number, img: number) => [`${n} credits to try (~${Math.floor(n / img)} images)`, "No credit card", "All formats and styles"],
     },
@@ -94,23 +99,28 @@ const COPY = {
       ["What if a generation fails?", "If a variation fails for any technical reason, its credits are refunded automatically."],
       ["Who owns the creatives?", "You do, as long as you hold the rights to the product and the photo you upload."],
       ["What photos work best?", "Sharp photos with the whole product in frame, good lighting and a simple background."],
-      ["Can I get a refund?", "Yes. Within 7 days of purchase you can get your money back for unused credits."],
+      ["Can I get a refund?", "Yes. Unused credits can be refunded within 14 days of purchase, no questions asked. EU/UK consumers keep their statutory withdrawal rights."],
+      ["Which languages can the ads be in?", "Portuguese, English, Spanish, French, German and Italian, with regional variants (US/UK English, Spain/Latin America Spanish). The voiceover follows the same language."],
+      ["Do you charge sales tax or VAT?", "Where required, tax is calculated at checkout based on your location. Businesses can add a VAT/tax ID and receive an invoice."],
       ["Payment methods?", "Cards worldwide via Stripe; Pix, cards and boleto via Mercado Pago in Brazil."],
     ],
     finalTitle: "Your next ad starts with a photo.",
-    footer: { terms: "Terms of Use", privacy: "Privacy", support: "Support", rights: "All rights reserved." },
+    footer: { terms: "Terms of Service", privacy: "Privacy", cookies: "Cookies", support: "Support", rights: "All rights reserved." },
   },
 };
 
 const fade = { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-60px" }, transition: { duration: 0.45 } };
 
 export default function LandingPageClient({
-  plans, signupCredits, freePlanVisible, costs, locale, loggedIn,
+  plans, signupCredits, freePlanVisible, costs, locale, currency, loggedIn,
 }: {
-  plans: Plan[]; signupCredits: number; freePlanVisible: boolean; costs: { image: number; video: number }; locale: "pt" | "en"; loggedIn: boolean;
+  plans: Plan[]; signupCredits: number; freePlanVisible: boolean; costs: { image: number; video: number }; locale: "pt" | "en"; currency: "BRL" | "USD" | "EUR"; loggedIn: boolean;
 }) {
   const showFreePlan = freePlanVisible && signupCredits > 0;
-  const paidPlans = plans.filter((p) => (locale === "pt" ? p.price_brl : p.price_usd) > 0);
+  const priceIn = (p: Plan, c: string) => (c === "BRL" ? p.price_brl : c === "EUR" ? p.price_eur ?? 0 : p.price_usd);
+  // Sem preço configurado na moeda do visitante, mostramos em dólar.
+  const shownCurrency = plans.some((p) => priceIn(p, currency) > 0) ? currency : "USD";
+  const paidPlans = plans.filter((p) => priceIn(p, shownCurrency) > 0);
   const cardCount = paidPlans.length + (showFreePlan ? 1 : 0);
   const t = COPY[locale];
   const isPt = locale === "pt";
@@ -120,11 +130,10 @@ export default function LandingPageClient({
   const toggleLanguage = () => {
     const next = isPt ? "en" : "pt";
     document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=31536000; samesite=lax`;
-    document.cookie = `CURRENCY=${next === "pt" ? "BRL" : "USD"}; path=/; max-age=31536000; samesite=lax`;
     window.location.reload();
   };
 
-  const money = (v: number) => new Intl.NumberFormat(isPt ? "pt-BR" : "en-US", { style: "currency", currency: isPt ? "BRL" : "USD", maximumFractionDigits: v % 1 ? 2 : 0 }).format(v);
+  const money = (v: number) => new Intl.NumberFormat(isPt ? "pt-BR" : "en-US", { style: "currency", currency: shownCurrency, maximumFractionDigits: v % 1 ? 2 : 0 }).format(v);
   const anchors = ["como-funciona", "recursos", "precos", "duvidas"];
 
   return (
@@ -223,7 +232,7 @@ export default function LandingPageClient({
                   <motion.div {...fade} className="surface relative flex flex-col p-6">
                     <h3 className="text-lg font-semibold">{t.free.name}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{t.free.description}</p>
-                    <p className="mt-5 text-4xl font-semibold tracking-tight">{t.free.price}</p>
+                    <p className="mt-5 text-4xl font-semibold tracking-tight">{money(0)}</p>
                     <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><Coins className="h-4 w-4" /> {signupCredits} {t.credits}</p>
                     <ul className="mt-6 flex-1 space-y-2.5 text-sm">
                       {t.free.features(signupCredits, costs.image).map((f) => <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>)}
@@ -232,13 +241,13 @@ export default function LandingPageClient({
                   </motion.div>
                 )}
                 {paidPlans.map((p) => {
-                  const price = isPt ? p.price_brl : p.price_usd;
+                  const price = priceIn(p, shownCurrency);
                   const features = (isPt ? p.features_pt : p.features_en).filter((f) => f.trim());
                   return (
                     <motion.div key={p.id} {...fade} className={`surface relative flex flex-col p-6 ${p.isFeatured ? "border-brand ring-1 ring-brand" : ""}`}>
                       {p.isFeatured && <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">{t.popular}</span>}
                       <h3 className="text-lg font-semibold">{p.name}</h3>
-                      {p.description && <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>}
+                      {(isPt ? p.description : p.description_en || p.description) && <p className="mt-1 text-sm text-muted-foreground">{isPt ? p.description : p.description_en || p.description}</p>}
                       <p className="mt-5 text-4xl font-semibold tracking-tight">{money(price)}</p>
                       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><Coins className="h-4 w-4" /> {p.credits.toLocaleString(isPt ? "pt-BR" : "en-US")} {t.credits}</p>
                       <ul className="mt-6 flex-1 space-y-2.5 text-sm">
@@ -287,7 +296,9 @@ export default function LandingPageClient({
           <div className="flex gap-6">
             <Link href="/legal/terms" className="hover:text-foreground">{t.footer.terms}</Link>
             <Link href="/legal/privacy" className="hover:text-foreground">{t.footer.privacy}</Link>
-            <a href="mailto:suporte@vysify.com" className="hover:text-foreground">{t.footer.support}</a>
+            <Link href="/legal/cookies" className="hover:text-foreground">{t.footer.cookies}</Link>
+            <CookieSettingsButton className="hover:text-foreground" />
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-foreground">{t.footer.support}</a>
           </div>
           <p>© {new Date().getFullYear()} Vysify. {t.footer.rights}</p>
         </div>

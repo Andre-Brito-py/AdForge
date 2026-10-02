@@ -27,14 +27,15 @@ export const GET = handler(async () => {
   return new NextResponse(body, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="vysify-meus-dados.json"`,
+      "Content-Disposition": `attachment; filename="vysify-data-export.json"`,
     },
   });
 });
 
 const deleteSchema = z.object({
   password: z.string().max(128).optional(),
-  confirmation: z.literal("EXCLUIR", { message: 'Digite EXCLUIR para confirmar' }),
+  // Palavra de confirmação no idioma da interface ("EXCLUIR" ou "DELETE").
+  confirmation: z.enum(["EXCLUIR", "DELETE"], { message: "validation.confirmDelete" }),
 });
 
 // LGPD (art. 18, VI): eliminação. Apaga a conta, os workspaces em que é o único membro e os arquivos.
@@ -45,7 +46,7 @@ export const DELETE = handler(async (request: Request) => {
 
   const record = await db.user.findUniqueOrThrow({ where: { id: user.id }, select: { passwordHash: true } });
   if (record.passwordHash && !(await verifyPassword(password || "", record.passwordHash))) {
-    throw new HttpError(400, "Senha incorreta", "WRONG_PASSWORD");
+    throw new HttpError(400, "errors.wrongPassword", "WRONG_PASSWORD");
   }
 
   const memberships = await db.workspaceMember.findMany({

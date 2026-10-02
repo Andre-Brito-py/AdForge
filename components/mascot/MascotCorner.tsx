@@ -2,22 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PixelMascot, type MascotMood } from "./PixelMascot";
 import { onMascotMood, setMascotHidden, useMascotHidden } from "./mascot-events";
 
-const TIPS = [
-  "Fotos com fundo limpo e boa luz geram criativos muito melhores.",
-  "Preencha o Brand Kit: eu uso sua cor e seu tom de voz nas gerações.",
-  "Teste 3 a 4 variações por campanha para achar o criativo vencedor.",
-  "Se uma geração falhar, os créditos voltam sozinhos para a sua conta.",
-  "No Premium eu uso um modelo mais caprichado e com resolução maior.",
-  "Dá para pedir uma nova versão de qualquer criativo com instruções extras.",
-];
 
 const SLEEP_AFTER_MS = 60_000;
 
 /** Mascote discreto no canto inferior direito do app. */
 export function MascotCorner() {
+  const t = useTranslations("mascot");
+  const TIPS = t.raw("tips") as string[];
   const hidden = useMascotHidden();
   const [mood, setMood] = useState<MascotMood>("idle");
   const [bubble, setBubble] = useState(false);
@@ -66,15 +61,15 @@ export function MascotCorner() {
           <button
             onClick={() => setMascotHidden(true)}
             className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Ocultar mascote"
-            title="Ocultar mascote (dá para reativar em Configurações)"
+            aria-label={t("hide")}
+            title={t("hideHint")}
           >
             <X className="h-3 w-3" />
           </button>
-          <p className="pr-4 font-medium text-foreground">Dica do Vy</p>
+          <p className="pr-4 font-medium text-foreground">{t("tipTitle")}</p>
           <p className="mt-1 text-muted-foreground">{TIPS[tip]}</p>
           <button onClick={() => setTip((t) => (t + 1) % TIPS.length)} className="mt-2 font-medium text-brand hover:underline">
-            Outra dica
+            {t("anotherTip")}
           </button>
         </div>
       )}
@@ -84,7 +79,7 @@ export function MascotCorner() {
           setTip(Math.floor(Math.random() * TIPS.length));
         }}
         className="pointer-events-auto rounded-xl p-1 opacity-80 transition hover:-translate-y-0.5 hover:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-        aria-label="Abrir dicas do mascote"
+        aria-label={t("open")}
         aria-expanded={bubble}
       >
         <PixelMascot mood={mood} size={40} />

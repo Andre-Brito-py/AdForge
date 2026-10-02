@@ -1,27 +1,13 @@
-const rtf = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
+// Formatação fora do contexto de React (e-mails, painel admin).
+// Nas telas, prefira o formatador do next-intl (useFormatter/getFormatter), que já
+// respeita o idioma e o fuso horário do visitante.
 
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ["year", 365 * 24 * 3600],
-  ["month", 30 * 24 * 3600],
-  ["week", 7 * 24 * 3600],
-  ["day", 24 * 3600],
-  ["hour", 3600],
-  ["minute", 60],
-];
+const tag = (locale?: string | null) => (locale === "en" ? "en-US" : "pt-BR");
 
-/** "há 5 minutos", "ontem"... */
-export function timeAgo(date: Date | string): string {
-  const seconds = (new Date(date).getTime() - Date.now()) / 1000;
-  for (const [unit, size] of UNITS) {
-    if (Math.abs(seconds) >= size) return rtf.format(Math.round(seconds / size), unit);
-  }
-  return "agora mesmo";
+export function formatDateTime(date: Date | string, locale?: string | null, timeZone = "America/Sao_Paulo"): string {
+  return new Intl.DateTimeFormat(tag(locale), { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(date));
 }
 
-export function formatDateTime(date: Date | string): string {
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(date));
-}
-
-export function formatMoney(amount: number, currency = "BRL") {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(amount);
+export function formatMoney(amount: number, currency = "BRL", locale?: string | null) {
+  return new Intl.NumberFormat(tag(locale), { style: "currency", currency }).format(amount);
 }

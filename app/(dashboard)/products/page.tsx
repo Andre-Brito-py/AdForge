@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { EmptyState, LinkButton, PageHeader } from "@/components/app/ui-bits";
-import { timeAgo } from "@/lib/format";
 
-export const metadata = { title: "Produtos" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("nav"))("products") };
+}
 
 export default async function ProductsPage() {
   const user = await requireUser();
+  const t = await getTranslations("products");
+  const tt = await getTranslations("time");
+  const format = await getFormatter();
+  const now = new Date();
   const products = await db.product.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: { createdAt: "desc" },
@@ -18,20 +24,20 @@ export default async function ProductsPage() {
   return (
     <>
       <PageHeader
-        title="Produtos"
-        description="Os produtos que você quer anunciar. Cada um pode ter várias campanhas."
+        title={t("title")}
+        description={t("subtitle")}
         actions={
           <LinkButton href="/products/new" variant="brand">
-            <Plus className="h-4 w-4" /> Adicionar produto
+            <Plus className="h-4 w-4" /> {t("add")}
           </LinkButton>
         }
       />
 
       {products.length === 0 ? (
         <EmptyState
-          title="Nenhum produto ainda"
-          description="Para criar anúncios, a IA precisa conhecer o seu produto. Envie uma foto nítida e bem iluminada."
-          action={<LinkButton href="/products/new" variant="brand">Adicionar meu primeiro produto</LinkButton>}
+          title={t("emptyTitle")}
+          description={t("emptyText")}
+          action={<LinkButton href="/products/new" variant="brand">{t("emptyCta")}</LinkButton>}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -47,10 +53,10 @@ export default async function ProductsPage() {
               <div className="flex items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{p.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Adicionado {timeAgo(p.createdAt)}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{tt("added", { time: format.relativeTime(p.createdAt, now) })}</p>
                 </div>
                 <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium tabular-nums">
-                  {p._count.campaigns} {p._count.campaigns === 1 ? "campanha" : "campanhas"}
+                  {t("campaignsCount", { count: p._count.campaigns })}
                 </span>
               </div>
             </Link>

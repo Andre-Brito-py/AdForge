@@ -1,31 +1,699 @@
 {
-  "Dashboard": {
-    "title": "Overview",
-    "subtitle": "Ready to create your next campaign, {name}?",
-    "newCampaign": "Create New Campaign",
-    "balance": "Available Balance",
-    "activeCampaigns": "Active Campaigns",
-    "generatedCreatives": "Generated Creatives",
-    "recentCampaigns": "Recent Campaigns",
-    "draft": "Draft",
-    "completed": "Completed",
-    "processing": "Processing",
-    "failed": "Failed"
+  "common": {
+    "back": "Back",
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "delete": "Delete",
+    "deleted": "Deleted",
+    "credits": "{count, plural, one {# credit} other {# credits}}",
+    "creditsShort": "{count} cr",
+    "somethingWrong": "Something went wrong",
+    "tryAgain": "Try again",
+    "copy": "Copy",
+    "copied": "Copied",
+    "soon": "Coming soon",
+    "legal": {
+      "terms": "Terms of Service",
+      "privacy": "Privacy",
+      "cookies": "Cookies",
+      "cookieSettings": "Cookie settings"
+    }
   },
-  "Navigation": {
+  "nav": {
     "dashboard": "Dashboard",
     "products": "Products",
     "campaigns": "Campaigns",
-    "brandKit": "Brand Kit",
+    "brand": "Brand Kit",
+    "integrations": "Integrations",
     "credits": "Credits",
-    "plans": "Plans",
-    "settings": "Settings"
+    "billing": "Buy credits",
+    "settings": "Settings",
+    "admin": "Admin",
+    "newCampaign": "New campaign",
+    "balance": "Available balance",
+    "myAccount": "My account",
+    "signOut": "Sign out",
+    "signOutLabel": "Sign out of your account",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "mainNav": "Main navigation",
+    "theme": "Toggle light/dark theme",
+    "creditsUnit": "{count, plural, one {credit} other {credits}}"
   },
-  "Plans": {
-    "title": "Plans & Billing",
-    "subtitle": "Upgrade to scale your campaigns.",
-    "currentPlan": "Current Plan",
-    "mostPopular": "Most Popular",
-    "subscribe": "Subscribe to {name}"
+  "verifyBanner": {
+    "text": "Confirm your email to start generating campaigns.",
+    "resend": "Resend link",
+    "sending": "Sending...",
+    "sent": "Link sent",
+    "sentToast": "We sent a new link to your email.",
+    "error": "Couldn't resend right now."
+  },
+  "status": {
+    "COMPLETED": "Completed",
+    "PARTIAL": "Partial",
+    "GENERATING": "Generating",
+    "PROCESSING": "Generating",
+    "QUEUED": "Queued",
+    "FAILED": "Failed"
+  },
+  "time": {
+    "created": "created {time}",
+    "added": "Added {time}"
+  },
+  "mascot": {
+    "name": "Vy, the Vysify mascot",
+    "tipTitle": "Tip from Vy",
+    "anotherTip": "Another tip",
+    "open": "Open mascot tips",
+    "hide": "Hide mascot",
+    "hideHint": "Hide mascot (you can turn it back on in Settings)",
+    "tips": [
+      "Photos with a clean background and good light make much better creatives.",
+      "Fill in your Brand Kit: I use your color and tone of voice in every generation.",
+      "Test 3 to 4 variations per campaign to find the winning creative.",
+      "If a generation fails, the credits go back to your balance automatically.",
+      "Premium uses a more advanced model and a higher resolution.",
+      "You can ask for a new version of any creative with extra instructions.",
+      "Selling abroad? Pick the ad language in the last step of the campaign."
+    ]
+  },
+  "catalog": {
+    "objectives": {
+      "SALES": {
+        "label": "Direct sales",
+        "description": "Focus on conversion and urgency"
+      },
+      "AWARENESS": {
+        "label": "Brand awareness",
+        "description": "Make the brand memorable"
+      },
+      "ENGAGEMENT": {
+        "label": "Engagement",
+        "description": "Drive comments and interaction"
+      },
+      "LAUNCH": {
+        "label": "Product launch",
+        "description": "Introduce a new product"
+      }
+    },
+    "platforms": {
+      "INSTAGRAM_FEED": {
+        "label": "Instagram Feed",
+        "hint": "4:5 image"
+      },
+      "FACEBOOK_ADS": {
+        "label": "Facebook Ads",
+        "hint": "1:1 image"
+      },
+      "STORIES": {
+        "label": "Stories",
+        "hint": "9:16 image"
+      },
+      "REELS_TIKTOK": {
+        "label": "Reels / TikTok",
+        "hint": "9:16 video + voiceover"
+      }
+    },
+    "styles": {
+      "CINEMATIC": "Cinematic",
+      "MINIMALIST": "Minimalist",
+      "STUDIO": "Professional studio",
+      "LIFESTYLE": "Lifestyle",
+      "UGC": "UGC (user-generated)",
+      "NEON": "Neon / Cyberpunk"
+    },
+    "qualities": {
+      "standard": {
+        "label": "Standard",
+        "description": "Great for testing many offers quickly"
+      },
+      "premium": {
+        "label": "Premium",
+        "description": "Higher resolution and a more advanced model"
+      }
+    }
+  },
+  "auth": {
+    "tagline": "From product photo to ready-to-run ad, in minutes.",
+    "taglineSub": "Strategy, copy, images and voiced-over videos. You just pick the goal and download the creatives.",
+    "google": "Continue with Google",
+    "or": "or",
+    "email": "Email",
+    "emailPlaceholder": "you@company.com",
+    "password": "Password",
+    "passwordHint": "At least 8 characters, with letters and numbers.",
+    "login": {
+      "title": "Sign in to your account",
+      "subtitle": "Good to see you again.",
+      "twoFactorTitle": "Two-step verification",
+      "twoFactorSubtitle": "Enter the 6-digit code from your authenticator app.",
+      "forgot": "Forgot password",
+      "submit": "Sign in",
+      "verify": "Verify",
+      "noAccount": "Don't have an account?",
+      "createAccount": "Create account",
+      "codeLabel": "6-digit code",
+      "errors": {
+        "INVALID_CREDENTIALS": "Incorrect email or password.",
+        "ACCOUNT_LOCKED": "Too many failed attempts. For your security, the account is locked for 15 minutes. You can reset your password.",
+        "RATE_LIMITED": "Too many attempts from this network. Please wait a few minutes.",
+        "INVALID_2FA": "Invalid verification code. Check your authenticator app.",
+        "OAuthAccountNotLinked": "This email is already registered with a different sign-in method.",
+        "AccessDenied": "Couldn't sign in with this account.",
+        "expired": "Your session has expired. Please sign in again.",
+        "generic": "Couldn't sign in. Please try again."
+      }
+    },
+    "signup": {
+      "title": "Create your account",
+      "subtitleCredits": "You start with {count} free credits to try it out. No credit card required.",
+      "subtitle": "Get started in under a minute.",
+      "name": "Name",
+      "accept": "I have read and accept the <terms>Terms of Service</terms> and the <privacy>Privacy Policy</privacy>.",
+      "googleNotice": "By continuing with Google, you accept the Terms and the Privacy Policy.",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "errors": {
+        "weakPassword": "Password must have 8+ characters, with letters and numbers.",
+        "acceptTerms": "You need to accept the Terms of Service and the Privacy Policy.",
+        "generic": "Couldn't create the account."
+      }
+    },
+    "forgot": {
+      "title": "Forgot your password?",
+      "subtitle": "We'll send you a link to create a new password.",
+      "sentTitle": "Check your email",
+      "sent": "If an account exists for <b>{email}</b>, you'll receive a link valid for 1 hour. Check your spam folder too.",
+      "emailLabel": "Account email",
+      "submit": "Send link",
+      "back": "Back to sign in",
+      "error": "Please try again in a moment."
+    },
+    "reset": {
+      "title": "Create a new password",
+      "newPassword": "New password",
+      "submit": "Save new password",
+      "requestNew": "Request a new link",
+      "doneTitle": "Password changed",
+      "doneSubtitle": "For your security, we signed out sessions that used the old password.",
+      "loginWithNew": "Sign in with the new password",
+      "incomplete": "Incomplete link. Open the link from the email again.",
+      "error": "Couldn't reset the password."
+    },
+    "verify": {
+      "loading": "Confirming your email...",
+      "okTitle": "Email confirmed!",
+      "okSubtitle": "All set. You can now generate campaigns.",
+      "goDashboard": "Go to dashboard",
+      "errorTitle": "Couldn't confirm",
+      "incomplete": "Incomplete link.",
+      "invalid": "Invalid or expired link.",
+      "connection": "Connection error.",
+      "errorHelp": "Sign in and use the “Resend link” button in the notice at the top of the page.",
+      "signIn": "Sign in"
+    }
+  },
+  "onboarding": {
+    "step": "Step {current} of {total}",
+    "hello": "Hi! I'm Vy.",
+    "helloSub": "Tell me: how will you use Vysify?",
+    "goalTitle": "And what do you want to create?",
+    "goalSub": "So I can set everything up your way.",
+    "roles": {
+      "owner": "I own a store or brand",
+      "agency": "I work at an agency",
+      "social": "I'm a social media / ads manager",
+      "other": "Other"
+    },
+    "goals": {
+      "images": "Ad images",
+      "videos": "Short videos (Reels/TikTok)",
+      "posts": "Social media posts",
+      "idk": "Still figuring it out"
+    },
+    "doneTitle": "All set!",
+    "doneWithCredits": "You already have {count} credits to try it out. The first step is adding the product you want to advertise.",
+    "doneNoCredits": "The first step is adding the product you want to advertise. When you're ready to generate, just pick a credit pack.",
+    "cta": "Add my first product",
+    "error": "Couldn't save. Please try again."
+  },
+  "dashboard": {
+    "title": "Your dashboard",
+    "hello": "Hi, {name}",
+    "subtitle": "Create ads from your product photos.",
+    "stats": {
+      "credits": "Available credits",
+      "products": "Products",
+      "campaigns": "Campaigns",
+      "creatives": "Creatives generated"
+    },
+    "recent": "Recent campaigns",
+    "seeAll": "See all",
+    "emptyFirstTitle": "Let's create your first ad",
+    "emptyFirstText": "Start by adding a product with a good photo. Then pick a goal and I'll take care of the rest.",
+    "emptyFirstCta": "Add product",
+    "emptyTitle": "No campaigns yet",
+    "emptyText": "You already have products. How about generating your first campaign?",
+    "emptyCta": "Create campaign"
+  },
+  "products": {
+    "title": "Products",
+    "subtitle": "The products you want to advertise. Each one can have several campaigns.",
+    "add": "Add product",
+    "campaignsCount": "{count, plural, one {# campaign} other {# campaigns}}",
+    "emptyTitle": "No products yet",
+    "emptyText": "To create ads, the AI needs to know your product. Upload a sharp, well-lit photo.",
+    "emptyCta": "Add my first product",
+    "new": {
+      "title": "Add product",
+      "subtitle": "The more context you give, the better the ads.",
+      "photo": "Product photo *",
+      "photoTip": "Tip: simple background, whole product in frame and good lighting. Only upload images of products you have the right to use.",
+      "name": "Product name *",
+      "namePlaceholder": "E.g.: Stainless steel bottle 25 oz",
+      "description": "Description and benefits",
+      "descriptionPlaceholder": "What it is, who it's for, differentiators, materials...",
+      "category": "Category",
+      "categoryPlaceholder": "E.g.: Home & kitchen",
+      "brand": "Brand",
+      "brandPlaceholder": "E.g.: Termix",
+      "audience": "Target audience",
+      "audiencePlaceholder": "E.g.: people who work out and work away from home",
+      "price": "Price",
+      "pricePlaceholder": "E.g.: 29.90",
+      "submit": "Save product",
+      "photoRequired": "Add the product photo.",
+      "nameRequired": "Enter the product name.",
+      "created": "Product added!",
+      "error": "Couldn't save the product"
+    },
+    "detail": {
+      "deleteConfirm": "Delete this product and all of its campaigns? This can't be undone.",
+      "category": "Category",
+      "brand": "Brand",
+      "audience": "Target audience",
+      "price": "Price",
+      "campaigns": "Campaigns for this product",
+      "creatives": "{count, plural, one {# creative} other {# creatives}}",
+      "emptyTitle": "No campaigns yet",
+      "emptyText": "Generate the first campaign for this product in a few clicks."
+    }
+  },
+  "dropzone": {
+    "label": "Drag the photo here or click to choose",
+    "hint": "PNG, JPG or WEBP · up to {mb} MB",
+    "change": "Change",
+    "preview": "Preview",
+    "invalidType": "Use a PNG, JPG or WEBP image.",
+    "tooLarge": "The image can be at most {mb} MB.",
+    "uploadFailed": "Image upload failed"
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "subtitle": "Everything you've generated, newest first.",
+    "new": "New campaign",
+    "emptyTitle": "No campaigns yet",
+    "emptyText": "Pick a product, set the goal and I'll generate strategy, copy and creatives for you.",
+    "emptyCta": "Create first campaign",
+    "creatives": "{count, plural, one {# creative} other {# creatives}}",
+    "wizard": {
+      "title": "New campaign",
+      "subtitle": "Four steps and the AI builds everything for you.",
+      "steps": [
+        "Product",
+        "Goal",
+        "Format",
+        "Review"
+      ],
+      "stepsLabel": "Steps",
+      "productTitle": "Which product are we advertising?",
+      "noProducts": "You don't have any products yet.",
+      "addProduct": "Add product",
+      "newProduct": "New product",
+      "objectiveTitle": "What's the goal?",
+      "objectiveSub": "This guides the strategy and the tone of the copy.",
+      "audience": "Audience (optional)",
+      "audiencePlaceholder": "Leave blank to let the AI define it from the product",
+      "offer": "Offer (optional)",
+      "offerPlaceholder": "E.g.: 20% off your first order and free shipping",
+      "formatTitle": "Where will the ad run?",
+      "unavailable": "Unavailable right now",
+      "style": "Visual style",
+      "quality": "Quality",
+      "perVariation": "{count} credits per variation",
+      "reviewTitle": "Review and generate",
+      "variations": "How many variations?",
+      "language": "Ad language",
+      "languageHint": "The AI writes the copy and the voiceover in this language — ideal for selling in other countries.",
+      "summary": {
+        "product": "Product",
+        "objective": "Goal",
+        "format": "Format",
+        "style": "Style",
+        "language": "Language"
+      },
+      "totalCost": "Total cost",
+      "yourBalance": "Your balance: {count} credits",
+      "refundNote": "If any variation fails, its credits are refunded automatically.",
+      "videoTime": "Videos take a few minutes.",
+      "imageTime": "Images take about 1 minute.",
+      "verifyFirst": "Confirm your email (link in the notice at the top) to generate campaigns.",
+      "notEnough": "Not enough credits. <buy>Buy credits</buy> or reduce the variations.",
+      "creating": "Creating strategy...",
+      "generate": "Generate campaign · {count} credits",
+      "error": "Couldn't start the campaign"
+    },
+    "generating": {
+      "title": "Generating your campaign",
+      "done": "All done!",
+      "opening": "Opening your creatives...",
+      "messages": [
+        "Analyzing the product photo...",
+        "Writing headlines and copy...",
+        "Building the scenes...",
+        "Adjusting light and composition...",
+        "Almost there, polishing the details..."
+      ],
+      "progress": "{done} of {total}",
+      "images": "images",
+      "videos": "videos",
+      "variation": "Variation {n}",
+      "videoNote": "Videos can take a few minutes. You can close this page: generation continues and you'll get an email when it's done.",
+      "back": "Back to campaigns",
+      "connectionError": "Connection error"
+    },
+    "gallery": {
+      "deleteConfirm": "Delete this campaign and all of its creatives? This can't be undone.",
+      "newVariation": "New variation",
+      "failedNotice": "{count, plural, one {1 variation couldn't be generated} other {# variations couldn't be generated}}. The corresponding credits are already back in your balance.",
+      "strategy": "Strategy created by the AI",
+      "show": "Show",
+      "copyHook": "Copy hook",
+      "failed": "Couldn't generate this variation.",
+      "refunded": "The {count} credits were refunded.",
+      "queued": "Queued...",
+      "generatingVideo": "Generating video...",
+      "generatingImage": "Generating image...",
+      "publish": "Publish",
+      "download": "Download",
+      "copyText": "Copy text",
+      "textCopied": "Text copied",
+      "newVersion": "New version",
+      "regenTitleOne": "New version of this creative",
+      "regenTitle": "New variation",
+      "regenDescription": "Generates one more creative in this campaign for <b>{count} credits</b>. If it fails, the credits are refunded automatically.",
+      "instructions": "Extra instructions (optional)",
+      "instructionsPlaceholder": "E.g.: light marble background, golden-hour light, close-up of the product",
+      "generate": "Generate",
+      "regenStarted": "New variation is being generated. It will show up here shortly.",
+      "regenError": "Couldn't generate the new version"
+    }
+  },
+  "publish": {
+    "title": "Publish creative",
+    "description": "Publishes now, to the chosen account, as an organic post.",
+    "unavailable": "Direct publishing is coming soon. For now, use “Download” and “Copy text”.",
+    "expired": "Your Meta connection has expired.",
+    "connectPrompt": "Connect your Facebook/Instagram account to publish from here.",
+    "reconnect": "Reconnect",
+    "connect": "Connect account",
+    "noAccounts": "No compatible account. For Instagram, the account must be a professional account linked to a Page. Check <link>Integrations</link>.",
+    "where": "Where to publish",
+    "storyNoCaption": "Stories have no caption. If you want text, it needs to be in the image itself.",
+    "caption": "Caption",
+    "responsibility": "Review prices, features and claims before publishing: you are responsible for the content you post.",
+    "submit": "Publish now",
+    "sentVideo": "Sent! Instagram takes a few minutes to process videos.",
+    "sent": "Post sent!",
+    "error": "Couldn't publish",
+    "viewPost": "view post",
+    "publishing": "publishing…",
+    "targets": {
+      "INSTAGRAM_FEED": "Instagram · Feed",
+      "INSTAGRAM_REELS": "Instagram · Reels",
+      "INSTAGRAM_STORY": "Instagram · Stories",
+      "FACEBOOK_PAGE": "Facebook · Page",
+      "MERCADOLIVRE_ITEM": "Mercado Livre",
+      "NUVEMSHOP_PRODUCT": "Nuvemshop"
+    }
+  },
+  "billing": {
+    "title": "Buy credits",
+    "subtitle": "You have <b>{count} credits</b>. One-off packs — no subscription, no auto-renewal. Credits never expire.",
+    "noPlans": "No packs available in this currency right now.",
+    "popular": "Most popular",
+    "perCredit": "{credits} credits · {price} per credit",
+    "buy": "Buy {name}",
+    "opening": "Opening checkout...",
+    "secureBR": "Payments processed by Mercado Pago (Pix, card and boleto) or Stripe. We never store card details.",
+    "secureIntl": "Payments processed by Stripe, with a receipt and invoice by email. We never store card details.",
+    "refund": "Unused credits can be refunded within {days} days of purchase.",
+    "currency": "Currency",
+    "history": "Purchase history",
+    "noHistory": "No purchases yet.",
+    "cols": {
+      "date": "Date",
+      "pack": "Pack",
+      "credits": "Credits",
+      "amount": "Amount",
+      "via": "Via"
+    },
+    "toast": {
+      "success": "Payment received! Your credits will show up in a moment.",
+      "pending": "Payment pending. Credits are added automatically once it's confirmed.",
+      "canceled": "Payment canceled. You were not charged."
+    },
+    "checkoutError": "Couldn't start checkout"
+  },
+  "credits": {
+    "title": "Credits",
+    "subtitle": "Your balance and every transaction.",
+    "buy": "Buy credits",
+    "available": "Available balance",
+    "pricing": "Pricing",
+    "image": "Image",
+    "video": "Video + voiceover",
+    "premium": "Premium quality",
+    "pricingNote": "Strategy and copy are included. Failures are refunded automatically.",
+    "statement": "Statement",
+    "empty": "No transactions yet.",
+    "types": {
+      "CONSUME": "Usage",
+      "REFUND": "Refund",
+      "PURCHASE": "Purchase",
+      "BONUS": "Bonus",
+      "ADJUSTMENT": "Adjustment"
+    }
+  },
+  "brand": {
+    "title": "Brand Kit",
+    "subtitle": "Your brand identity. The AI uses this in every campaign.",
+    "logo": "Logo",
+    "currentLogo": "Current logo",
+    "uploadLogo": "Upload logo",
+    "changeLogo": "Change logo",
+    "logoHint": "A PNG with a transparent background works best.",
+    "name": "Brand name",
+    "color": "Primary color",
+    "pickColor": "Pick color",
+    "tone": "Tone of voice",
+    "tonePlaceholder": "E.g.: Young and direct, with a sense of humor. We avoid jargon and never use offensive slang.",
+    "website": "Website",
+    "saved": "Brand Kit saved",
+    "error": "Couldn't save"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Your account, security and privacy.",
+    "profile": "Profile",
+    "name": "Name",
+    "email": "Email",
+    "profileSaved": "Profile updated",
+    "notifyComplete": "Email me when a campaign is ready",
+    "marketing": "Receive news and tips from Vysify",
+    "marketingHint": "At most 2 emails a month. Unsubscribe anytime.",
+    "preferences": "Preferences",
+    "language": "Language",
+    "currency": "Price currency",
+    "currencies": {
+      "BRL": "Brazilian real (R$)",
+      "USD": "US dollar ($)",
+      "EUR": "Euro (€)"
+    },
+    "mascot": "Show Vy, the mascot",
+    "mascotHint": "It sits in the corner of the screen with quick tips.",
+    "cookies": "Cookie settings",
+    "passwordChange": "Change password",
+    "passwordCreate": "Create password",
+    "passwordChangeHint": "You'll be signed out on other devices.",
+    "passwordCreateHint": "Your account uses Google. Create a password to also sign in with email.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "passwordChanged": "Password changed. Sign in again with the new password.",
+    "twoFactor": "Two-step verification (2FA)",
+    "twoFactorHint": "Ask for a code from Google Authenticator (or similar) when signing in.",
+    "enabled": "Enabled",
+    "disable": "Disable",
+    "enable": "Enable",
+    "disablePrompt": "Enter a code from your authenticator app to disable it.",
+    "scanQr": "1. Scan the QR code with your authenticator app.",
+    "qrAlt": "QR code for the authenticator app",
+    "orKey": "Or enter the key:",
+    "typeCode": "2. Enter the 6-digit code it shows.",
+    "setup2fa": "Set up authenticator",
+    "twoFactorOn": "Two-step verification enabled",
+    "twoFactorOff": "Two-step verification disabled",
+    "privacy": "Privacy and data",
+    "privacyHint": "Download a copy of your data or permanently delete your account.",
+    "export": "Export my data (JSON)",
+    "deleteAccount": "Delete my account",
+    "deleteWarning": "This deletes your account, products, campaigns, creatives and remaining credits. <b>This can't be undone.</b> Payment records are kept for the period required by tax law.",
+    "yourPassword": "Your password",
+    "confirmWord": "DELETE",
+    "confirmPlaceholder": "Type \"{word}\" to confirm",
+    "deleteForever": "Delete permanently",
+    "deleted": "Account deleted. We'll miss you!"
+  },
+  "integrations": {
+    "title": "Integrations",
+    "subtitle": "Connect your accounts to publish creatives without leaving Vysify.",
+    "soon": "Coming soon",
+    "metaTitle": "Instagram and Facebook",
+    "metaText": "Publish to Instagram Feed, Reels and Stories and to your Facebook Page.",
+    "connectFacebook": "Connect with Facebook",
+    "reconnect": "Reconnect",
+    "refresh": "Refresh accounts",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "Disconnect your Meta account? Vysify will no longer be able to publish to it.",
+    "refreshed": "Account list refreshed",
+    "disconnected": "Account disconnected",
+    "expiredNotice": "The connection expired or was removed on Facebook. Reconnect to publish again.",
+    "connectedAs": "Connected as <b>{name}</b>",
+    "validUntil": " · valid until {date}",
+    "metaAccount": "Meta account",
+    "noPages": "No Pages found. Create or request access to a Facebook Page and click “Refresh accounts”.",
+    "noIg": "No linked professional Instagram account",
+    "renewNote": "For security, Meta asks for a new authorization every ~60 days. We'll let you know here when you need to reconnect.",
+    "stores": {
+      "mercadolivre": "Update your listing photos with the generated creatives.",
+      "nuvemshop": "Send images straight to your store's products.",
+      "shopify": "Add images and videos to your store's products.",
+      "tiktok": "Publish vertical videos to your profile."
+    },
+    "messages": {
+      "connected": "Meta account connected! You can now publish directly from the campaign gallery.",
+      "missing_scopes": "Connected, but some permissions weren't granted. Reconnect and check all the options to publish.",
+      "no_pages": "Connected, but no Facebook Page was found. To publish, you need to manage a Page (and, for Instagram, have a professional account linked to it).",
+      "denied": "The connection was canceled on Facebook.",
+      "invalid_state": "The connection session expired. Please try connecting again.",
+      "exchange_failed": "Couldn't complete the Meta connection. Please try again in a moment.",
+      "not_configured": "The Meta integration isn't available yet.",
+      "rate_limited": "Too many attempts. Please wait a few minutes."
+    }
+  },
+  "cookies": {
+    "bannerTitle": "Your privacy",
+    "bannerText": "We use essential cookies to run the site and, with your permission, analytics and marketing cookies to understand usage and measure ads.",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject optional",
+    "customize": "Customize",
+    "save": "Save choices",
+    "learnMore": "Cookie policy",
+    "categories": {
+      "essential": {
+        "title": "Essential",
+        "text": "Sign-in, security, language, currency and theme. Always on."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "text": "Anonymous usage statistics (Google Analytics) to improve the product."
+      },
+      "marketing": {
+        "title": "Marketing",
+        "text": "Ad campaign measurement (Meta Pixel)."
+      }
+    },
+    "alwaysOn": "Always on",
+    "onlyEssential": "We currently use only essential cookies (sign-in, security, language, currency and theme). There are no tracking cookies."
+  },
+  "errorPages": {
+    "notFoundCode": "Error 404",
+    "notFoundTitle": "We couldn't find this page",
+    "notFoundText": "The link may be wrong or the content was removed.",
+    "home": "Home page",
+    "dashboard": "Go to dashboard",
+    "errorTitle": "Something went wrong",
+    "errorText": "We've logged the problem. Please try again; if it persists, contact support.",
+    "code": "Code: {code}",
+    "backDashboard": "Back to dashboard"
+  },
+  "metaDeletion": {
+    "title": "Facebook/Instagram data deletion",
+    "text": "We removed the access tokens and the list of Pages and Instagram accounts associated with your Meta account. Vysify can no longer publish on your behalf.",
+    "code": "Confirmation code:",
+    "more": "To also delete your Vysify account (products, campaigns and creatives), go to Settings › Privacy or write to <mail>{email}</mail>. See the <privacy>Privacy Policy</privacy>."
+  },
+  "errors": {
+    "internal": "Internal error. Please try again in a moment.",
+    "badBody": "Invalid request body.",
+    "rateLimited": "Too many attempts. Please wait a moment and try again.",
+    "unauthenticated": "Please sign in to continue.",
+    "emailNotVerified": "Confirm your email to use this feature.",
+    "forbidden": "Access restricted.",
+    "emailTaken": "An account with this email already exists. Sign in or reset your password.",
+    "verifyLinkInvalid": "Invalid or expired link. Request a new one from your dashboard.",
+    "resetLinkInvalid": "Invalid or expired link. Request a new password reset.",
+    "wrongPassword": "Incorrect password.",
+    "currentPasswordWrong": "Current password is incorrect.",
+    "setupAuthenticatorFirst": "Set up the authenticator first.",
+    "invalid2fa": "Invalid code. Check your phone's clock and try again.",
+    "twoFactorAlreadyOn": "2FA is already on. Disable it before setting it up again.",
+    "invalidLogo": "Invalid logo. Please upload the file again.",
+    "invalidImage": "Invalid image. Please upload the photo again.",
+    "sendImageFile": "Please send an image file.",
+    "imageTooLarge": "The image can be at most {mb} MB.",
+    "unsupportedFormat": "Unsupported format. Use PNG, JPG or WEBP.",
+    "productNotFound": "Product not found.",
+    "waitCampaignsDelete": "Wait for campaigns being generated to finish before deleting.",
+    "campaignNotFound": "Campaign not found.",
+    "waitGenerationDelete": "Wait for the generation to finish before deleting.",
+    "campaignRequired": "Campaign is required.",
+    "aiUnavailable": "Generation is temporarily unavailable. Please try again later.",
+    "imageUnavailable": "Image generation is temporarily unavailable.",
+    "videoUnavailable": "Video generation is temporarily unavailable.",
+    "productImageMissing": "We couldn't open this product's photo. Please add the product again with its photo.",
+    "insufficientCredits": "Not enough credits.",
+    "policyViolation": "We can't generate this campaign: {reason} The platform is only for ads of legitimate products and services.",
+    "legacyCampaign": "This campaign was created in an older version and can't generate new variations.",
+    "noBaseCreative": "No base creative found.",
+    "packNotFound": "Pack not found.",
+    "packUnavailableCurrency": "This pack isn't available in this currency.",
+    "checkoutFailed": "Couldn't start checkout.",
+    "paymentsUnavailable": "Payments are temporarily unavailable. Please try again later.",
+    "creativeNotFound": "Creative not found.",
+    "creativeNotReady": "This creative isn't ready yet.",
+    "formatNotAccepted": "This format isn't accepted by that destination.",
+    "metaNotConnected": "Connect (or reconnect) your Meta account in Integrations.",
+    "metaNoConnection": "No Meta account connected.",
+    "metaExpired": "The connection expired. Please connect again.",
+    "targetAccountNotFound": "Destination account not found. Refresh the connection in Integrations."
+  },
+  "validation": {
+    "emailInvalid": "Invalid email.",
+    "passwordMin": "Password must be at least 8 characters.",
+    "passwordMax": "Password can be at most 128 characters.",
+    "passwordLettersNumbers": "Use letters and numbers in your password.",
+    "nameRequired": "Enter your name.",
+    "acceptTerms": "You need to accept the Terms of Service.",
+    "productNameRequired": "Enter the product name.",
+    "colorInvalid": "Invalid color.",
+    "websiteHttps": "Use an address starting with https://",
+    "otpFormat": "Enter the 6-digit code.",
+    "confirmDelete": "Type DELETE to confirm.",
+    "captionTooLong": "The caption can have up to 2,200 characters.",
+    "accountInvalid": "Invalid account."
   }
 }

@@ -10,7 +10,7 @@ export const POST = handler(async (request: Request) => {
   const { token, password } = await parseBody(request, resetPasswordSchema);
 
   const userId = await consumeAuthToken(token, "RESET_PASSWORD");
-  if (!userId) throw new HttpError(400, "Link inválido ou expirado. Solicite uma nova redefinição.", "INVALID_TOKEN");
+  if (!userId) throw new HttpError(400, "errors.resetLinkInvalid", "INVALID_TOKEN");
 
   await db.user.update({
     where: { id: userId },

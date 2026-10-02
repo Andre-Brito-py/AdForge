@@ -11,8 +11,8 @@ export const DELETE = handler(async (_request: Request, ctx: RouteContext<"/api/
     where: { id, workspaceId: user.workspaceId },
     include: { campaigns: { where: { status: "GENERATING" }, select: { id: true } } },
   });
-  if (!product) throw new HttpError(404, "Produto não encontrado");
-  if (product.campaigns.length > 0) throw new HttpError(409, "Aguarde as campanhas em geração terminarem antes de excluir.");
+  if (!product) throw new HttpError(404, "errors.productNotFound");
+  if (product.campaigns.length > 0) throw new HttpError(409, "errors.waitCampaignsDelete");
 
   await db.product.delete({ where: { id } });
   return NextResponse.json({ success: true });

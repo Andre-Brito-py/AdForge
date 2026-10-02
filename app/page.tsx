@@ -1,10 +1,14 @@
 import { cookies } from "next/headers";
+import { getLocale } from "next-intl/server";
+import { isCurrency, type Currency } from "@/lib/locale";
 import { getAppConfig, purchasablePlans } from "@/lib/config";
 import { getSessionUser } from "@/lib/auth";
 import LandingPageClient from "./landing-client";
 
 export default async function Page() {
-  const locale = (await cookies()).get("NEXT_LOCALE")?.value === "en" ? "en" : "pt";
+  const locale = (await getLocale()) === "en" ? "en" : "pt";
+  const cookieCurrency = (await cookies()).get("CURRENCY")?.value;
+  const currency: Currency = isCurrency(cookieCurrency) ? cookieCurrency : locale === "pt" ? "BRL" : "USD";
   let plans: Awaited<ReturnType<typeof getAppConfig>>["plans"] = [];
   let signupCredits = 0;
   let freePlanVisible = false;
@@ -20,5 +24,5 @@ export default async function Page() {
   }
   const user = await getSessionUser().catch(() => null);
 
-  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} loggedIn={!!user} />;
+  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} currency={currency} loggedIn={!!user} />;
 }

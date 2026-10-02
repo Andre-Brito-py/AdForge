@@ -1,16 +1,20 @@
 import { cookies } from "next/headers";
+import { getLocale, getTranslations } from "next-intl/server";
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/app/ui-bits";
 import { SettingsClient } from "./settings-client";
 
-export const metadata = { title: "Configurações" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("nav"))("settings") };
+}
 
 export default async function SettingsPage() {
   const user = await requireUser();
+  const t = await getTranslations("settings");
   const store = await cookies();
   return (
     <>
-      <PageHeader title="Configurações" description="Sua conta, segurança e privacidade." />
+      <PageHeader title={t("title")} description={t("subtitle")} />
       <SettingsClient
         user={{
           name: user.name || "",
@@ -20,8 +24,8 @@ export default async function SettingsPage() {
           notifyOnComplete: user.notifyOnComplete,
           marketingOptIn: user.marketingOptIn,
         }}
-        locale={store.get("NEXT_LOCALE")?.value === "en" ? "en" : "pt"}
-        currency={store.get("CURRENCY")?.value || "BRL"}
+        locale={await getLocale()}
+        currency={store.get("CURRENCY")?.value || (user.locale === "en" ? "USD" : "BRL")}
       />
     </>
   );

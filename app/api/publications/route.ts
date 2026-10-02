@@ -10,8 +10,8 @@ export const maxDuration = 120;
 const bodySchema = z.object({
   creativeId: z.uuid(),
   target: z.enum(PUBLISH_TARGET_KEYS),
-  accountId: z.string().min(1).max(64).regex(/^\d+$/, "Conta inválida"),
-  caption: z.string().max(IG_CAPTION_LIMIT, `A legenda pode ter até ${IG_CAPTION_LIMIT} caracteres`).optional().nullable(),
+  accountId: z.string().min(1).max(64).regex(/^\d+$/, "validation.accountInvalid"),
+  caption: z.string().max(IG_CAPTION_LIMIT, "validation.captionTooLong").optional().nullable(),
 });
 
 export const POST = handler(async (request: Request) => {
@@ -26,7 +26,7 @@ export const POST = handler(async (request: Request) => {
 export const GET = handler(async (request: Request) => {
   const user = await requireApiUser();
   const campaignId = new URL(request.url).searchParams.get("campaignId");
-  if (!campaignId) throw new HttpError(400, "Informe a campanha");
+  if (!campaignId) throw new HttpError(400, "errors.campaignRequired");
 
   const where = { workspaceId: user.workspaceId, creative: { campaignId } };
   const inFlight = await db.publication.findMany({ where: { ...where, status: { in: ["PENDING", "PROCESSING"] } }, select: { id: true } });

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { PixelMascot, type MascotMood } from "@/components/mascot/PixelMascot";
+import { useTranslations } from "next-intl";
+import { CookieSettingsButton } from "@/components/consent/ConsentManager";
 
 export function AuthShell({
   title,
@@ -15,6 +17,8 @@ export function AuthShell({
   footer?: React.ReactNode;
   mood?: MascotMood;
 }) {
+  const t = useTranslations("auth");
+  const tc = useTranslations("common");
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
       <aside className="relative hidden overflow-hidden border-r border-border bg-muted/40 lg:flex lg:flex-col lg:justify-between lg:p-12">
@@ -24,10 +28,10 @@ export function AuthShell({
         <div className="relative max-w-md">
           <PixelMascot mood="happy" size={72} />
           <p className="mt-6 text-3xl font-semibold leading-tight tracking-tight">
-            Da foto do produto ao anúncio pronto, em minutos.
+            {t("tagline")}
           </p>
           <p className="mt-4 text-muted-foreground">
-            Estratégia, textos, imagens e vídeos com locução. Você só escolhe o objetivo e baixa os criativos.
+            {t("taglineSub")}
           </p>
         </div>
         <p className="relative text-xs text-muted-foreground">© {new Date().getFullYear()} Vysify</p>
@@ -43,7 +47,7 @@ export function AuthShell({
           {footer && <div className="mt-8 text-center text-sm text-muted-foreground">{footer}</div>}
         </div>
         <p className="text-center text-xs text-muted-foreground">
-          <Link href="/legal/terms" className="hover:text-foreground">Termos de Uso</Link> · <Link href="/legal/privacy" className="hover:text-foreground">Privacidade</Link>
+          <Link href="/legal/terms" className="hover:text-foreground">{tc("legal.terms")}</Link> · <Link href="/legal/privacy" className="hover:text-foreground">{tc("legal.privacy")}</Link> · <CookieSettingsButton className="hover:text-foreground" />
         </p>
       </main>
     </div>
@@ -51,6 +55,7 @@ export function AuthShell({
 }
 
 export function GoogleButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  const t = useTranslations("auth");
   return (
     <button type="button" onClick={onClick} disabled={disabled}
       className="inline-flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-border bg-card text-sm font-medium transition hover:bg-muted disabled:opacity-60">
@@ -60,16 +65,17 @@ export function GoogleButton({ onClick, disabled }: { onClick: () => void; disab
         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
       </svg>
-      Continuar com Google
+      {t("google")}
     </button>
   );
 }
 
 export function Divider() {
+  const t = useTranslations("auth");
   return (
     <div className="relative my-6 text-center text-xs uppercase text-muted-foreground">
       <span className="absolute inset-x-0 top-1/2 border-t border-border" />
-      <span className="relative bg-background px-3">ou</span>
+      <span className="relative bg-background px-3">{t("or")}</span>
     </div>
   );
 }

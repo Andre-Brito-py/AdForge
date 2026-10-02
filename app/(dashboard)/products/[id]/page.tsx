@@ -4,13 +4,19 @@ import { Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { EmptyState, LinkButton, PageHeader, StatusBadge } from "@/components/app/ui-bits";
-import { PLATFORMS, labelFor } from "@/lib/catalog";
-import { formatMoney, timeAgo } from "@/lib/format";
+import { getFormatter, getTranslations } from "next-intl/server";
+import { platformLabel } from "@/lib/catalog-i18n";
 import { DeleteButton } from "@/components/app/delete-button";
 
 export default async function ProductDetailPage(props: PageProps<"/products/[id]">) {
   const { id } = await props.params;
   const user = await requireUser();
+  const t = await getTranslations("products.detail");
+  const tn = await getTranslations("nav");
+  const tcat = await getTranslations("catalog");
+  const tcom = await getTranslations("common");
+  const format = await getFormatter();
+  const now = new Date();
 
   const product = await db.product.findFirst({
     where: { id, workspaceId: user.workspaceId },
@@ -24,22 +30,22 @@ export default async function ProductDetailPage(props: PageProps<"/products/[id]
   if (!product) notFound();
 
   const details = [
-    ["Categoria", product.category],
-    ["Marca", product.brandName],
-    ["Público-alvo", product.targetAudience],
-    ["Preço", product.price != null ? formatMoney(product.price) : null],
+    [t("category"), product.category],
+    [t("brand"), product.brandName],
+    [t("audience"), product.targetAudience],
+    [t("price"), product.price != null ? format.number(product.price, { style: "currency", currency: product.currency || "BRL" }) : null],
   ].filter(([, v]) => v) as [string, string][];
 
   return (
     <>
       <PageHeader
-        back={{ href: "/products", label: "Produtos" }}
+        back={{ href: "/products", label: tn("products") }}
         title={product.name}
         actions={
           <>
-            <DeleteButton endpoint={`/api/products/${product.id}`} redirectTo="/products" label="Excluir" confirmText="Excluir este produto e todas as campanhas dele? Esta ação não pode ser desfeita." />
+            <DeleteButton endpoint={`/api/products/${product.id}`} redirectTo="/products" label={tcom("delete")} confirmText={t("deleteConfirm")} />
             <LinkButton href={`/campaigns/new?productId=${product.id}`} variant="brand">
-              <Plus className="h-4 w-4" /> Nova campanha
+              <Plus className="h-4 w-4" /> {tn("newCampaign")}
             </LinkButton>
           </>
         }
@@ -69,12 +75,12 @@ export default async function ProductDetailPage(props: PageProps<"/products/[id]
         </div>
 
         <section>
-          <h2 className="mb-4 text-lg font-semibold tracking-tight">Campanhas deste produto</h2>
+          <h2 className="mb-4 text-lg font-semibold tracking-tight">{t("campaigns")}</h2>
           {product.campaigns.length === 0 ? (
             <EmptyState
-              title="Nenhuma campanha ainda"
-              description="Gere a primeira campanha para este produto em poucos cliques."
-              action={<LinkButton href={`/campaigns/new?productId=${product.id}`} variant="brand">Criar campanha</LinkButton>}
+              title={t("emptyTitle")}
+              description={t("emptyText")}
+              action={<LinkButton href={`/campaigns/new?productId=${product.id}`} variant="brand">{(await getTranslations("dashboard"))("emptyCta")}</LinkButton>}
             />
           ) : (
             <ul className="surface divide-y divide-border">
@@ -84,7 +90,7 @@ export default async function ProductDetailPage(props: PageProps<"/products/[id]
                     <div className="min-w-0">
                       <p className="truncate font-medium">{c.name}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {labelFor(PLATFORMS, c.platform)} · {c._count.creatives} criativos · {timeAgo(c.createdAt)}
+                        {platformLabel(tcat, c.platform)} · {t("creatives", { count: c._count.creatives })} · {format.relativeTime(c.createdAt, now)}
                       </p>
                     </div>
                     <StatusBadge status={c.status} />

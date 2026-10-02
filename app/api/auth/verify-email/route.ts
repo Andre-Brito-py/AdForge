@@ -11,7 +11,7 @@ export const POST = handler(async (request: Request) => {
   await enforceRateLimit(request, "verify-email", 20, 15 * 60);
   const { token } = await parseBody(request, z.object({ token: z.string().min(20).max(200) }));
   const userId = await consumeAuthToken(token, "VERIFY_EMAIL");
-  if (!userId) throw new HttpError(400, "Link inválido ou expirado. Peça um novo no seu painel.", "INVALID_TOKEN");
+  if (!userId) throw new HttpError(400, "errors.verifyLinkInvalid", "INVALID_TOKEN");
   await db.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
   return NextResponse.json({ success: true });
 });
@@ -22,6 +22,6 @@ export const PUT = handler(async (request: Request) => {
   if (user.emailVerified) return NextResponse.json({ success: true, alreadyVerified: true });
   await enforceRateLimit(request, "verify-resend", 3, 15 * 60, user.id);
   const token = await issueAuthToken(user.id, "VERIFY_EMAIL");
-  await sendVerificationEmail(user.email, user.name || "", token);
+  await sendVerificationEmail(user.email, user.name || "", token, user.locale);
   return NextResponse.json({ success: true });
 });

@@ -1,6 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { isLocale, pickLocale } from "./lib/locale";
+import { countryFromHeaders, currencyForCountry, isCurrency, isLocale, pickLocale } from "./lib/locale";
 
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 const APP_PREFIXES = ["/dashboard", "/campaigns", "/products", "/billing", "/credits", "/brand", "/settings", "/admin", "/onboarding", "/integrations"];
@@ -35,12 +35,16 @@ export default withAuth(
       response = NextResponse.next();
     }
 
-    if (!isLocale(req.cookies.get("NEXT_LOCALE")?.value)) {
-      response.cookies.set("NEXT_LOCALE", pickLocale(req.headers.get("accept-language")), {
-        path: "/",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 365,
-      });
+    // Primeira visita: idioma pelo navegador e moeda pelo país (geolocalização da CDN).
+    const country = countryFromHeaders(req.headers);
+    const cookieOpts = { path: "/", sameSite: "lax" as const, maxAge: 60 * 60 * 24 * 365 };
+    let locale = req.cookies.get("NEXT_LOCALE")?.value;
+    if (!isLocale(locale)) {
+      locale = pickLocale(req.headers.get("accept-language"), country);
+      response.cookies.set("NEXT_LOCALE", locale, cookieOpts);
+    }
+    if (!isCurrency(req.cookies.get("CURRENCY")?.value)) {
+      response.cookies.set("CURRENCY", currencyForCountry(country, isLocale(locale) ? locale : "pt"), cookieOpts);
     }
     return response;
   },
@@ -64,5 +68,6 @@ export const config = {
     "/signup",
     "/forgot-password",
     "/reset-password",
+    "/legal/:path*",
   ],
 };

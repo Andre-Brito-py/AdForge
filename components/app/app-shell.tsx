@@ -11,16 +11,17 @@ import { LogoMark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MascotCorner } from "@/components/mascot/MascotCorner";
 import { VerifyEmailBanner } from "./verify-email-banner";
+import { useFormatter, useTranslations } from "next-intl";
 
 const NAV = [
-  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
-  { href: "/products", label: "Produtos", icon: Package },
-  { href: "/campaigns", label: "Campanhas", icon: Megaphone },
-  { href: "/brand", label: "Brand Kit", icon: Palette },
-  { href: "/integrations", label: "Integrações", icon: Plug },
-  { href: "/credits", label: "Créditos", icon: Coins },
-  { href: "/billing", label: "Comprar créditos", icon: CreditCard },
-  { href: "/settings", label: "Configurações", icon: Settings },
+  { href: "/dashboard", key: "dashboard", icon: LayoutDashboard },
+  { href: "/products", key: "products", icon: Package },
+  { href: "/campaigns", key: "campaigns", icon: Megaphone },
+  { href: "/brand", key: "brand", icon: Palette },
+  { href: "/integrations", key: "integrations", icon: Plug },
+  { href: "/credits", key: "credits", icon: Coins },
+  { href: "/billing", key: "billing", icon: CreditCard },
+  { href: "/settings", key: "settings", icon: Settings },
 ];
 
 export interface ShellUser {
@@ -32,9 +33,10 @@ export interface ShellUser {
 
 function NavLinks({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const items = isAdmin ? [...NAV, { href: "/admin", label: "Admin", icon: Shield }] : NAV;
+  const t = useTranslations("nav");
+  const items = isAdmin ? [...NAV, { href: "/admin", key: "admin", icon: Shield }] : NAV;
   return (
-    <nav className="flex flex-col gap-0.5" aria-label="Navegação principal">
+    <nav className="flex flex-col gap-0.5" aria-label={t("mainNav")}>
       {items.map((item) => {
         const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/")) || pathname === item.href;
         return (
@@ -48,7 +50,7 @@ function NavLinks({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () =
             }`}
           >
             <item.icon className={`h-4 w-4 ${active ? "text-brand" : ""}`} />
-            {item.label}
+            {t(item.key)}
           </Link>
         );
       })}
@@ -57,6 +59,8 @@ function NavLinks({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () =
 }
 
 function SidebarContent({ user, balance, onNavigate }: { user: ShellUser; balance: number; onNavigate?: () => void }) {
+  const t = useTranslations("nav");
+  const format = useFormatter();
   return (
     <div className="flex h-full flex-col gap-6 p-4">
       <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2 px-2 pt-1 font-semibold tracking-tight">
@@ -69,16 +73,16 @@ function SidebarContent({ user, balance, onNavigate }: { user: ShellUser; balanc
         onClick={onNavigate}
         className="flex items-center justify-center gap-2 rounded-xl bg-brand px-3 py-2.5 text-sm font-semibold text-brand-foreground shadow-sm transition hover:brightness-110"
       >
-        <Plus className="h-4 w-4" /> Nova campanha
+        <Plus className="h-4 w-4" /> {t("newCampaign")}
       </Link>
 
       <NavLinks isAdmin={user.isAdmin} onNavigate={onNavigate} />
 
       <div className="mt-auto space-y-3">
         <Link href="/credits" onClick={onNavigate} className="surface block p-4 transition hover:border-foreground/20">
-          <p className="text-xs font-medium text-muted-foreground">Saldo disponível</p>
+          <p className="text-xs font-medium text-muted-foreground">{t("balance")}</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
-            {balance.toLocaleString("pt-BR")} <span className="text-sm font-medium text-muted-foreground">créditos</span>
+            {format.number(balance)} <span className="text-sm font-medium text-muted-foreground">{t("creditsUnit", { count: balance })}</span>
           </p>
         </Link>
         <div className="flex items-center gap-2 rounded-xl px-2 py-1.5">
@@ -86,15 +90,15 @@ function SidebarContent({ user, balance, onNavigate }: { user: ShellUser; balanc
             {(user.name || user.email).slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{user.name || "Minha conta"}</p>
+            <p className="truncate text-sm font-medium">{user.name || t("myAccount")}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
           <ThemeToggle />
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
             className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            aria-label="Sair da conta"
-            title="Sair"
+            aria-label={t("signOutLabel")}
+            title={t("signOut")}
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -106,6 +110,7 @@ function SidebarContent({ user, balance, onNavigate }: { user: ShellUser; balanc
 
 export function AppShell({ user, balance, children }: { user: ShellUser; balance: number; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("nav");
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -120,7 +125,7 @@ export function AppShell({ user, balance, children }: { user: ShellUser; balance
 
       {/* Barra superior no celular */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur-md lg:hidden">
-        <button onClick={() => setOpen(true)} className="-ml-2 rounded-lg p-2 hover:bg-muted" aria-label="Abrir menu">
+        <button onClick={() => setOpen(true)} className="-ml-2 rounded-lg p-2 hover:bg-muted" aria-label={t("openMenu")}>
           <Menu className="h-5 w-5" />
         </button>
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
@@ -132,10 +137,10 @@ export function AppShell({ user, balance, children }: { user: ShellUser; balance
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("openMenu")}>
           <div className="absolute inset-0 bg-black/50 animate-in fade-in" onClick={() => setOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-sidebar shadow-xl animate-in slide-in-from-left">
-            <button onClick={() => setOpen(false)} className="absolute right-3 top-3 rounded-lg p-2 hover:bg-muted" aria-label="Fechar menu">
+            <button onClick={() => setOpen(false)} className="absolute right-3 top-3 rounded-lg p-2 hover:bg-muted" aria-label={t("closeMenu")}>
               <X className="h-5 w-5" />
             </button>
             <SidebarContent user={user} balance={balance} onNavigate={() => setOpen(false)} />

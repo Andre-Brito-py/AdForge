@@ -11,8 +11,11 @@ export async function createUserWithWorkspace(data: {
   passwordHash?: string | null;
   image?: string | null;
   emailVerified?: Date | null;
+  locale?: "pt" | "en";
+  country?: string | null;
 }) {
   const { signupCredits } = await getAppConfig();
+  const locale = data.locale || "pt";
 
   return db.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -22,11 +25,13 @@ export async function createUserWithWorkspace(data: {
         image: data.image ?? null,
         passwordHash: data.passwordHash ?? null,
         emailVerified: data.emailVerified ?? null,
+        locale,
+        country: data.country ?? null,
       },
     });
     const workspace = await tx.workspace.create({
       data: {
-        name: `Workspace de ${data.name}`,
+        name: locale === "en" ? `${data.name}'s workspace` : `Workspace de ${data.name}`,
         creditBalance: { create: { balance: signupCredits, userId: user.id } },
       },
     });
@@ -38,7 +43,7 @@ export async function createUserWithWorkspace(data: {
           workspaceId: workspace.id,
           amount: signupCredits,
           type: "BONUS",
-          description: "Créditos de boas-vindas",
+          description: locale === "en" ? "Welcome credits" : "Créditos de boas-vindas",
         },
       });
     }

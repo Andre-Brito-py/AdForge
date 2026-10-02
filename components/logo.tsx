@@ -30,7 +30,7 @@ export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
 
 export function Logo({ href = "/", className = "" }: { href?: string; className?: string }) {
   return (
-    <Link href={href} className={`inline-flex items-center gap-2 font-semibold tracking-tight text-foreground ${className}`} aria-label="Vysify, página inicial">
+    <Link href={href} className={`inline-flex items-center gap-2 font-semibold tracking-tight text-foreground ${className}`} aria-label="Vysify">
       <LogoMark />
       <span className="text-lg">Vysify</span>
     </Link>

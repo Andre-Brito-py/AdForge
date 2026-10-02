@@ -61,6 +61,7 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
         platform: campaign.platform,
         style: campaign.style,
         quality: campaign.quality,
+        language: campaign.language,
         product: campaign.product,
         creatives: campaign.creatives,
       }}

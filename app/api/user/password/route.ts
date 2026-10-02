@@ -13,7 +13,7 @@ export const POST = handler(async (request: Request) => {
 
   const record = await db.user.findUniqueOrThrow({ where: { id: user.id }, select: { passwordHash: true } });
   if (record.passwordHash && !(await verifyPassword(currentPassword || "", record.passwordHash))) {
-    throw new HttpError(400, "Senha atual incorreta", "WRONG_PASSWORD");
+    throw new HttpError(400, "errors.currentPasswordWrong", "WRONG_PASSWORD");
   }
 
   await db.user.update({
