@@ -31,6 +31,7 @@ export const GET = handler(async () => {
       credits: config.freeTrial.credits,
       planVisible: !!row?.freePlanVisible,
     },
+    googleLogin: config.googleLogin,
   });
 });
 
@@ -49,6 +50,7 @@ const putSchema = z.object({
       planVisible: z.boolean(),
     })
     .optional(),
+  googleLogin: z.object({ enabled: z.boolean() }).optional(),
 });
 
 export const PUT = handler(async (request: Request) => {
@@ -74,6 +76,7 @@ export const PUT = handler(async (request: Request) => {
     // Sem créditos grátis não existe "plano grátis" para mostrar.
     data.freePlanVisible = body.freeTrial.enabled && body.freeTrial.planVisible;
   }
+  if (body.googleLogin) data.googleLoginEnabled = body.googleLogin.enabled;
 
   await db.systemConfig.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
   invalidateConfigCache();

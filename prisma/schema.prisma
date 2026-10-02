@@ -340,6 +340,10 @@ model SystemConfig {
   mercadoLivreSecret       String?
   nuvemshopAppId           String?
   nuvemshopSecret          String?
+  googleClientId           String?
+  googleClientSecret       String?
+  // Botão "Continuar com Google" (só aparece se também houver Client ID e Secret)
+  googleLoginEnabled       Boolean  @default(true)
   aiCostsJson             String?
   plansJson                String?
   modelsJson               String?

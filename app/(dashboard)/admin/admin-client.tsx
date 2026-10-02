@@ -18,6 +18,7 @@ interface ConfigResponse {
   defaultModels: Record<string, string>;
   plans: Plan[];
   freeTrial: { enabled: boolean; credits: number; planVisible: boolean };
+  googleLogin: { enabled: boolean; active: boolean };
 }
 
 async function api(url: string, method = "GET", body?: unknown) {
@@ -491,6 +492,8 @@ function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse;
 
   return (
     <div className="space-y-5">
+      <GoogleLoginSection config={config} onSaved={onSaved} baseUrl={baseUrl} />
+
       <section className="surface space-y-4 p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -520,6 +523,62 @@ function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse;
         <p className="text-xs text-muted-foreground">Passo a passo completo, incluindo o App Review: docs/META_SETUP.md no repositório.</p>
       </section>
     </div>
+  );
+}
+
+function GoogleLoginSection({ config, onSaved, baseUrl }: { config: ConfigResponse; onSaved: () => void; baseUrl: string }) {
+  const draft = useSecretDraft();
+  const [enabled, setEnabled] = useState(config.googleLogin.enabled);
+  const [saving, setSaving] = useState(false);
+  const hasCredentials = config.secrets.googleClientId?.configured && config.secrets.googleClientSecret?.configured;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/config", "PUT", { secrets: draft.payload(), googleLogin: { enabled } });
+      toast.success(enabled ? "Login com Google salvo" : "Login com Google desligado");
+      draft.reset();
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="surface space-y-4 p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">Login com Google</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Mostra “Continuar com Google” no login e no cadastro. Vale na hora, sem redeploy (até 15 s para todos os servidores).
+          </p>
+        </div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${config.googleLogin.active ? "bg-success/12 text-success" : "bg-muted text-muted-foreground"}`}>
+          {config.googleLogin.active ? "Visível para clientes" : !hasCredentials ? "Sem credenciais" : "Desligado"}
+        </span>
+      </div>
+
+      <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
+        <div>
+          <p className="font-medium">Exibir botão do Google</p>
+          <p className="text-sm text-muted-foreground">
+            {hasCredentials ? "Desligar não afeta quem já tem conta: essas pessoas entram com e-mail e senha ou criam uma senha em “Esqueci minha senha”." : "Preencha o Client ID e o Client Secret abaixo para o botão aparecer."}
+          </p>
+        </div>
+        <Switch checked={enabled} onChange={setEnabled} />
+      </div>
+
+      <SecretField label="Client ID" field="googleClientId" info={config.secrets.googleClientId} value={draft.secrets.googleClientId} onChange={draft.change} />
+      <SecretField label="Client Secret" field="googleClientSecret" info={config.secrets.googleClientSecret} value={draft.secrets.googleClientSecret} onChange={draft.change}
+        help="Google Cloud Console › APIs e serviços › Credenciais › ID do cliente OAuth (Aplicativo da Web)." />
+      <CopyRow label="URI de redirecionamento autorizado (cadastre no Google Cloud)" value={`${baseUrl}/api/auth/callback/google`} />
+
+      <button onClick={save} disabled={saving} className={buttonClass("brand")}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+      </button>
+    </section>
   );
 }
 

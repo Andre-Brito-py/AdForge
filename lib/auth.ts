@@ -8,6 +8,7 @@ import { countryFromHeaders, isLocale, pickLocale, type Locale } from "./locale"
 import { cache } from "react";
 import speakeasy from "speakeasy";
 import { db } from "./db";
+import { getAppConfig } from "./config";
 import { verifyPasswordConstantTime } from "./password";
 import { rateLimit } from "./rate-limit";
 import { createUserWithWorkspace, getWorkspaceIdForUser } from "./users";
@@ -29,7 +30,26 @@ export async function requestOrigin(): Promise<{ locale: Locale; country: string
   }
 }
 
-export const googleEnabled =!!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+/** O botão do Google aparece? (ligado no Admin › Integrações e com Client ID/Secret). Sem redeploy. */
+export async function isGoogleLoginActive() {
+  return (await getAppConfig()).googleLogin.active;
+}
+
+/**
+ * Opções do NextAuth montadas a cada requisição, para que ligar/desligar o Google
+ * ou trocar as credenciais no painel valha sem redeploy.
+ */
+export async function getAuthOptions(): Promise<NextAuthOptions> {
+  const { googleLogin, secrets } = await getAppConfig();
+  if (!googleLogin.active) return authOptions;
+  return {
+    ...authOptions,
+    providers: [
+      GoogleProvider({ clientId: secrets.googleClientId!, clientSecret: secrets.googleClientSecret! }),
+      ...authOptions.providers,
+    ],
+  };
+}
 
 function headerValue(headers: unknown, name: string): string | undefined {
   if (!headers || typeof headers !== "object") return undefined;
@@ -37,16 +57,9 @@ function headerValue(headers: unknown, name: string): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
+/** Opções base (sem o Google). Bastam para ler a sessão com getServerSession. */
 export const authOptions: NextAuthOptions = {
   providers: [
-    ...(googleEnabled
-      ? [
-          GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-          }),
-        ]
-      : []),
     CredentialsProvider({
       name: "E-mail e senha",
       credentials: {
@@ -102,6 +115,8 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider !== "google") return true;
+      // Desligado no painel entre o clique e o retorno do Google: recusa.
+      if (!(await isGoogleLoginActive())) return false;
       const email = user.email?.toLowerCase();
       if (!email) return false;
       // Só aceita e-mails que o próprio Google confirma como verificados.

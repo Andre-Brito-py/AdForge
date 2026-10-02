@@ -18,6 +18,8 @@ export const SECRET_FIELDS = [
   "mercadoLivreSecret",
   "nuvemshopAppId",
   "nuvemshopSecret",
+  "googleClientId",
+  "googleClientSecret",
 ] as const;
 export type SecretField = (typeof SECRET_FIELDS)[number];
 
@@ -37,6 +39,8 @@ const ENV_FALLBACK: Record<SecretField, string> = {
   mercadoLivreSecret: "ML_CLIENT_SECRET",
   nuvemshopAppId: "NUVEMSHOP_APP_ID",
   nuvemshopSecret: "NUVEMSHOP_CLIENT_SECRET",
+  googleClientId: "GOOGLE_CLIENT_ID",
+  googleClientSecret: "GOOGLE_CLIENT_SECRET",
 };
 
 export const DEFAULT_MODELS: AiModels = {
@@ -80,6 +84,8 @@ export interface AppConfig {
   signupCredits: number;
   /** Configuração bruta das ofertas grátis, para o painel admin. */
   freeTrial: { enabled: boolean; credits: number; planVisible: boolean };
+  /** Login com Google: `active` = ligado no painel E com Client ID/Secret. */
+  googleLogin: { enabled: boolean; active: boolean };
 }
 
 let cache: { value: AppConfig; at: number } | null = null;
@@ -116,6 +122,10 @@ export async function getAppConfig(): Promise<AppConfig> {
       credits: row?.signupCredits ?? 30,
       // O card "Grátis" só pode aparecer se a oferta de créditos existir de verdade.
       planVisible: !!row?.freeTrialEnabled && !!row?.freePlanVisible && (row?.signupCredits ?? 0) > 0,
+    },
+    googleLogin: {
+      enabled: row?.googleLoginEnabled ?? true,
+      active: (row?.googleLoginEnabled ?? true) && !!secrets.googleClientId && !!secrets.googleClientSecret,
     },
   };
   cache = { value, at: Date.now() };

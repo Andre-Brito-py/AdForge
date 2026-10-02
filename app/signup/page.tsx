@@ -1,4 +1,3 @@
-import { googleEnabled } from "@/lib/auth";
 import { getAppConfig } from "@/lib/config";
 import { getLocale } from "next-intl/server";
 import { SignupForm } from "./signup-form";
@@ -8,6 +7,6 @@ export async function generateMetadata() {
 }
 
 export default async function SignupPage() {
-  const { signupCredits } = await getAppConfig();
-  return <SignupForm googleEnabled={googleEnabled} signupCredits={signupCredits} />;
+  const { signupCredits, googleLogin } = await getAppConfig();
+  return <SignupForm googleEnabled={googleLogin.active} signupCredits={signupCredits} />;
 }

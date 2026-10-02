@@ -92,6 +92,10 @@ Os textos de Termos e Privacidade foram reescritos para refletir o produto real 
 
 O código está pronto e testado contra uma Graph API simulada. Falta o lado da Meta (app, verificação da empresa e App Review): siga o [docs/META_SETUP.md](META_SETUP.md). Enquanto as credenciais não forem cadastradas, a página Integrações mostra "Em breve" e nada quebra.
 
+## 10.1 Login com Google (opcional)
+
+Em **Admin › Integrações › Login com Google**: cole o Client ID e o Client Secret (Google Cloud Console › APIs e serviços › Credenciais › ID do cliente OAuth, tipo "Aplicativo da Web") e cadastre lá a URI de redirecionamento mostrada no painel. O botão "Continuar com Google" pode ser ligado e desligado a qualquer momento, sem redeploy. Antes de abrir ao público, publique a tela de consentimento OAuth no Google (fora do modo "Teste").
+
 ## 11. Clientes internacionais
 
 A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie Policy existem em português e inglês. O idioma e a moeda são escolhidos pelo país do visitante (cabeçalho `x-vercel-ip-country`) e pelo navegador, e o cliente pode trocar em Configurações (idioma) e no Billing (moeda). O painel Admin continua em português.
