@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { geminiClient } from "./gemini-client";
+import { generateTextContent } from "./gemini-client";
 import { getAppConfig } from "@/lib/config";
 import { toDataUri } from "@/lib/storage";
 
@@ -77,7 +77,7 @@ export async function reviewImage(image: { buffer: Buffer; mimeType: string }, u
   const text = prompt(uiLocale);
 
   if (geminiKey) {
-    const response = await geminiClient(geminiKey).models.generateContent({
+    const response = await generateTextContent(geminiKey, {
       model: config.models.text,
       contents: [{ role: "user", parts: [{ text }, { inlineData: { data: image.buffer.toString("base64"), mimeType: image.mimeType } }] }],
       config: { responseMimeType: "application/json", temperature: 0 },

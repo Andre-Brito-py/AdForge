@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { geminiClient } from "./gemini-client";
+import { generateTextContent } from "./gemini-client";
 import { getAppConfig } from "@/lib/config";
 import { readOwnMedia, toDataUri } from "@/lib/storage";
 import { PLATFORMS, type ObjectiveKey, type PlatformKey, type StyleKey } from "@/lib/catalog";
@@ -245,7 +245,7 @@ export function normalizeScenes(scenes: string[] | undefined, concept: string, c
 type Img = { buffer: Buffer; mimeType: string };
 
 async function withGemini(apiKey: string, model: string, prompt: string, images: Img[]) {
-  const response = await geminiClient(apiKey).models.generateContent({
+  const response = await generateTextContent(apiKey, {
     model,
     contents: [
       {
@@ -353,7 +353,7 @@ or {"violation": true, "violationReason": "short reason in ${reasonLanguage}"}`;
 }
 
 async function withGeminiText(apiKey: string, model: string, prompt: string) {
-  const response = await geminiClient(apiKey).models.generateContent({
+  const response = await generateTextContent(apiKey, {
     model,
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: { responseMimeType: "application/json", temperature: 0 },

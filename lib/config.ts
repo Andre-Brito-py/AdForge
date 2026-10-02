@@ -46,10 +46,11 @@ const ENV_FALLBACK: Record<SecretField, string> = {
   resendKey: "RESEND_API_KEY",
 };
 
+// gemini-2.5-* não é mais liberado para contas novas do Google (out/2026). Trocáveis em Admin › IA e custos.
 export const DEFAULT_MODELS: AiModels = {
-  text: "gemini-2.5-flash",
-  image: "gemini-2.5-flash-image",
-  imagePremium: "gemini-3-pro-image-preview",
+  text: "gemini-3.8-flash",
+  image: "gemini-3.1-flash-image",
+  imagePremium: "gemini-3-pro-image",
   video: "fal-ai/wan-i2v",
   videoPremium: "fal-ai/wan-i2v",
 };

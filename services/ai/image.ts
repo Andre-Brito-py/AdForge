@@ -1,5 +1,5 @@
 import { Modality } from "@google/genai";
-import { geminiClient } from "./gemini-client";
+import { geminiClient, isTransient } from "./gemini-client";
 import type { QualityKey } from "@/lib/catalog";
 import { brandColorDirection } from "@/lib/brand-assets";
 
@@ -38,7 +38,19 @@ function buildPrompt(input: ImageGenInput) {
     .join("\n");
 }
 
+/** Tenta de novo (2 s, 6 s) quando o Google está momentaneamente sobrecarregado. */
 async function callModel(input: ImageGenInput, model: string, withSize: boolean) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await callModelOnce(input, model, withSize);
+    } catch (error) {
+      if (attempt >= 2 || !isTransient(error)) throw error;
+      await new Promise((r) => setTimeout(r, attempt === 0 ? 2_000 : 6_000));
+    }
+  }
+}
+
+async function callModelOnce(input: ImageGenInput, model: string, withSize: boolean) {
   const response = await geminiClient(input.apiKey).models.generateContent({
     model,
     contents: [
