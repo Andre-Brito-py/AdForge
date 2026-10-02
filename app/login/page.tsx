@@ -1,7 +1,10 @@
 import { googleEnabled } from "@/lib/auth";
+import { getLocale } from "next-intl/server";
 import { LoginForm } from "./login-form";
 
-export const metadata = { title: "Entrar" };
+export async function generateMetadata() {
+  return { title: (await getLocale()) === "en" ? "Sign in" : "Entrar" };
+}
 
 export default async function LoginPage(props: PageProps<"/login">) {
   const sp = await props.searchParams;

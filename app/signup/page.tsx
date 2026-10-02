@@ -1,8 +1,11 @@
 import { googleEnabled } from "@/lib/auth";
 import { getAppConfig } from "@/lib/config";
+import { getLocale } from "next-intl/server";
 import { SignupForm } from "./signup-form";
 
-export const metadata = { title: "Criar conta" };
+export async function generateMetadata() {
+  return { title: (await getLocale()) === "en" ? "Create account" : "Criar conta" };
+}
 
 export default async function SignupPage() {
   const { signupCredits } = await getAppConfig();
