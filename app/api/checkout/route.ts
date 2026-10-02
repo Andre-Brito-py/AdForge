@@ -55,7 +55,7 @@ export const POST = handler(async (request: Request) => {
     const stripe = new Stripe(config.secrets.stripeSecretKey);
     const en = user.locale === "en";
     // Impostos automáticos (VAT/GST/sales tax) exigem o Stripe Tax ativado no painel da Stripe.
-    const automaticTax = process.env.STRIPE_AUTOMATIC_TAX === "true";
+    const automaticTax = config.settings.stripeAutomaticTax;
     const refundDays = refundWindowDays(currency);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

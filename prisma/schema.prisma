@@ -344,6 +344,11 @@ model SystemConfig {
   googleClientSecret       String?
   // Botão "Continuar com Google" (só aparece se também houver Client ID e Secret)
   googleLoginEnabled       Boolean  @default(true)
+  resendKey                String?
+  // Configurações gerais sem segredo (empresa, e-mails, rastreadores...), ver lib/settings.ts
+  settingsJson             String?
+  // Desligado = ninguém consegue criar conta nova (e-mail ou Google)
+  signupsEnabled           Boolean  @default(true)
   aiCostsJson             String?
   plansJson                String?
   modelsJson               String?

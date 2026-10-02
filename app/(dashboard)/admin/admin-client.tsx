@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BarChart3, Copy, CreditCard, Gift, KeyRound, Plug, Loader2, Package, Plus, Save, Search, Trash2, Users } from "lucide-react";
+import { BarChart3, Copy, CreditCard, Gift, KeyRound, Plug, Loader2, Package, Plus, Save, Search, Settings2, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { buttonClass } from "@/components/app/ui-bits";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -19,7 +19,20 @@ interface ConfigResponse {
   plans: Plan[];
   freeTrial: { enabled: boolean; credits: number; planVisible: boolean };
   googleLogin: { enabled: boolean; active: boolean };
+  signupsEnabled: boolean;
+  settings: Partial<Record<SettingKey, string | boolean>>;
+  effectiveSettings: {
+    company: Record<string, string>;
+    emailFrom: string;
+    trackers: { gaId: string | null; metaPixelId: string | null };
+    stripeAutomaticTax: boolean;
+    meta: { loginConfigId: string | null; graphVersion: string };
+    elevenLabsVoiceId: string;
+  };
 }
+type SettingKey =
+  | "companyName" | "companyCnpj" | "companyAddress" | "supportEmail" | "privacyEmail" | "euRepresentative" | "ukRepresentative"
+  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId";
 
 async function api(url: string, method = "GET", body?: unknown) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -36,6 +49,7 @@ const TABS = [
   { id: "trial", label: "Teste grátis", icon: Gift },
   { id: "payments", label: "Pagamentos", icon: CreditCard },
   { id: "integrations", label: "Integrações", icon: Plug },
+  { id: "general", label: "Configurações gerais", icon: Settings2 },
 ] as const;
 
 export function AdminClient({ baseUrl }: { baseUrl: string }) {
@@ -63,6 +77,7 @@ export function AdminClient({ baseUrl }: { baseUrl: string }) {
         {tab === "trial" && (config ? <TrialTab initial={config.freeTrial} onSaved={reload} /> : <Loading />)}
         {tab === "payments" && (config ? <PaymentsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
         {tab === "integrations" && (config ? <IntegrationsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
+        {tab === "general" && (config ? <GeneralTab config={config} onSaved={reload} /> : <Loading />)}
       </div>
     </div>
   );
@@ -579,6 +594,147 @@ function GoogleLoginSection({ config, onSaved, baseUrl }: { config: ConfigRespon
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
       </button>
     </section>
+  );
+}
+
+// ---------------- Configurações gerais ----------------
+function SettingInput({ label, value, inUse, onChange, help, type = "text" }: {
+  label: string; value: string; inUse?: string | null; onChange: (v: string) => void; help?: string; type?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="label-base">{label}</label>
+      <input className="input-base" type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={inUse || ""} />
+      {!value && inUse && <p className="text-xs text-muted-foreground">Em uso (variável de ambiente ou padrão): {inUse}</p>}
+      {help && <p className="text-xs text-muted-foreground">{help}</p>}
+    </div>
+  );
+}
+
+function SettingSwitch({ title, text, checked, onChange }: { title: string; text: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
+      <div>
+        <p className="font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{text}</p>
+      </div>
+      <Switch checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
+function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => void }) {
+  const eff = config.effectiveSettings;
+  const draft = useSecretDraft();
+  const [signupsEnabled, setSignupsEnabled] = useState(config.signupsEnabled);
+  const [values, setValues] = useState<Record<string, string>>(
+    Object.fromEntries(Object.entries(config.settings).filter(([, v]) => typeof v === "string")) as Record<string, string>
+  );
+  const [autoTax, setAutoTax] = useState(eff.stripeAutomaticTax);
+  const [saving, setSaving] = useState(false);
+  const v = (k: SettingKey) => values[k] ?? "";
+  const set = (k: SettingKey) => (val: string) => setValues((s) => ({ ...s, [k]: val }));
+  const placeholder = (s: string) => (s.startsWith("[") ? null : s);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/config", "PUT", {
+        signupsEnabled,
+        secrets: draft.payload(),
+        settings: { ...values, stripeAutomaticTax: autoTax },
+      });
+      toast.success("Configurações salvas. Valem em até 15 segundos, sem redeploy.");
+      draft.reset();
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const missingCompany = ["name", "cnpj", "address"].filter((k) => eff.company[k]?.startsWith("["));
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <h3 className="font-semibold">Cadastros</h3>
+        <SettingSwitch title="Aceitar novas contas" checked={signupsEnabled} onChange={setSignupsEnabled}
+          text="Desligado: a página de cadastro mostra “Cadastros fechados” e o login com Google não cria contas novas. Quem já tem conta continua entrando normalmente." />
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">Dados da empresa</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Exibidos nos Termos, na Política de Privacidade e no rodapé das páginas legais. A razão social, o CNPJ, o endereço e um e-mail de contato são obrigatórios (Decreto 7.962/2013 e LGPD).
+          </p>
+          {missingCompany.length > 0 && (
+            <p className="mt-2 rounded-xl bg-warning/12 p-3 text-sm text-warning">Faltam dados obrigatórios: hoje os documentos legais mostram textos como “[CNPJ]”. Preencha antes de abrir para clientes.</p>
+          )}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SettingInput label="Razão social" value={v("companyName")} inUse={placeholder(eff.company.name)} onChange={set("companyName")} />
+          <SettingInput label="CNPJ" value={v("companyCnpj")} inUse={placeholder(eff.company.cnpj)} onChange={set("companyCnpj")} />
+        </div>
+        <SettingInput label="Endereço completo" value={v("companyAddress")} inUse={placeholder(eff.company.address)} onChange={set("companyAddress")} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SettingInput label="E-mail de suporte" type="email" value={v("supportEmail")} inUse={eff.company.supportEmail} onChange={set("supportEmail")} />
+          <SettingInput label="E-mail de privacidade (encarregado/DPO)" type="email" value={v("privacyEmail")} inUse={eff.company.privacyEmail} onChange={set("privacyEmail")} />
+        </div>
+        <SettingInput label="Representante na União Europeia (GDPR art. 27)" value={v("euRepresentative")} inUse={eff.company.euRepresentative} onChange={set("euRepresentative")}
+          help="Nome e endereço do representante contratado. Vazio = a seção não aparece na Privacy Policy em inglês." />
+        <SettingInput label="Representante no Reino Unido (UK GDPR)" value={v("ukRepresentative")} inUse={eff.company.ukRepresentative} onChange={set("ukRepresentative")} />
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">E-mails (Resend)</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Confirmação de e-mail, recuperação de senha, boas-vindas, recibos e avisos de campanha pronta.</p>
+        </div>
+        <SecretField label="API key do Resend" field="resendKey" info={config.secrets.resendKey} value={draft.secrets.resendKey} onChange={draft.change}
+          help="resend.com › API Keys. Sem ela, nenhum e-mail é enviado (os links só aparecem no log do servidor)." />
+        <SettingInput label="Remetente" value={v("emailFrom")} inUse={eff.emailFrom} onChange={set("emailFrom")}
+          help="Formato: Vysify <nao-responda@seudominio.com>. O domínio precisa estar verificado no Resend." />
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">Análise e marketing</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Só carregam depois que o visitante aceita no banner de cookies (LGPD/GDPR). Com os dois vazios, o banner nem aparece.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SettingInput label="Google Analytics 4 (ID de medição)" value={v("gaId")} inUse={eff.trackers.gaId} onChange={set("gaId")} help="Formato G-XXXXXXX." />
+          <SettingInput label="Pixel da Meta (ID)" value={v("metaPixelId")} inUse={eff.trackers.metaPixelId} onChange={set("metaPixelId")} help="Apenas números." />
+        </div>
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <h3 className="font-semibold">Impostos (Stripe)</h3>
+        <SettingSwitch title="Calcular impostos automaticamente (Stripe Tax)" checked={autoTax} onChange={setAutoTax}
+          text="Soma IVA/VAT/sales tax no checkout internacional conforme o endereço do cliente. Só ligue depois de ativar o Stripe Tax e fazer os registros fiscais no painel da Stripe." />
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">Avançado</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Raramente precisa mudar. Vazio = padrão.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SettingInput label="Meta: ID da configuração do login" value={v("metaLoginConfigId")} inUse={eff.meta.loginConfigId} onChange={set("metaLoginConfigId")}
+            help="“Login do Facebook para Empresas”. Vazio = usa as permissões padrão." />
+          <SettingInput label="Meta: versão da Graph API" value={v("metaGraphVersion")} inUse={eff.meta.graphVersion} onChange={set("metaGraphVersion")} help="Ex.: v23.0" />
+        </div>
+        <SettingInput label="ElevenLabs: ID da voz da locução" value={v("elevenLabsVoiceId")} inUse={eff.elevenLabsVoiceId} onChange={set("elevenLabsVoiceId")} />
+      </section>
+
+      <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+      </button>
+    </div>
   );
 }
 

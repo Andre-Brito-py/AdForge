@@ -163,7 +163,8 @@
         "OAuthAccountNotLinked": "Este e-mail já está cadastrado com outro método de login.",
         "AccessDenied": "Não foi possível entrar com esta conta.",
         "expired": "Sua sessão expirou. Entre novamente.",
-        "generic": "Não foi possível entrar. Tente novamente."
+        "generic": "Não foi possível entrar. Tente novamente.",
+        "SignupsClosed": "Novos cadastros estão fechados no momento. Se você já tem conta, entre com ela."
       }
     },
     "signup": {
@@ -180,7 +181,9 @@
         "weakPassword": "A senha precisa ter 8+ caracteres, com letras e números.",
         "acceptTerms": "É preciso aceitar os Termos de Uso e a Política de Privacidade.",
         "generic": "Não foi possível criar a conta."
-      }
+      },
+      "closedTitle": "Cadastros fechados no momento",
+      "closedText": "Não estamos aceitando novas contas agora. Se você já tem conta, é só entrar. Dúvidas: <mail>{email}</mail>."
     },
     "forgot": {
       "title": "Esqueceu a senha?",
@@ -679,7 +682,8 @@
     "metaNotConnected": "Conecte (ou reconecte) sua conta da Meta em Integrações.",
     "metaNoConnection": "Nenhuma conta da Meta conectada.",
     "metaExpired": "A conexão expirou. Conecte novamente.",
-    "targetAccountNotFound": "Conta de destino não encontrada. Atualize a conexão em Integrações."
+    "targetAccountNotFound": "Conta de destino não encontrada. Atualize a conexão em Integrações.",
+    "signupsClosed": "Novos cadastros estão fechados no momento."
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",

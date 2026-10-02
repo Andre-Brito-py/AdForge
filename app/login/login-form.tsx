@@ -9,7 +9,7 @@ import { AuthShell, Divider, GoogleButton } from "@/components/auth/auth-shell";
 import { safeRedirect } from "@/lib/redirect";
 import { buttonClass } from "@/components/app/ui-bits";
 
-const KNOWN_ERRORS = ["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "RATE_LIMITED", "INVALID_2FA", "OAuthAccountNotLinked", "AccessDenied"];
+const KNOWN_ERRORS = ["INVALID_CREDENTIALS", "ACCOUNT_LOCKED", "RATE_LIMITED", "INVALID_2FA", "OAuthAccountNotLinked", "AccessDenied", "SignupsClosed"];
 
 export function LoginForm({ googleEnabled, from, oauthError, expired }: { googleEnabled: boolean; from: string | null; oauthError: string | null; expired: boolean }) {
   const t = useTranslations("auth");

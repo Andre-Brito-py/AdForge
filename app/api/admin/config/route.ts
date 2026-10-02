@@ -6,6 +6,7 @@ import { requireApiAdmin } from "@/lib/auth";
 import { encryptSecret, maskSecret, decryptSecret } from "@/lib/crypto";
 import { DEFAULT_MODELS, getAppConfig, invalidateConfigCache, SECRET_FIELDS } from "@/lib/config";
 import { costsSchema, modelsSchema, plansSchema } from "@/lib/validation";
+import { settingsSchema } from "@/lib/settings";
 
 // Nunca devolvemos os segredos: só se estão configurados e os 4 últimos caracteres.
 export const GET = handler(async () => {
@@ -32,6 +33,10 @@ export const GET = handler(async () => {
       planVisible: !!row?.freePlanVisible,
     },
     googleLogin: config.googleLogin,
+    signupsEnabled: config.signupsEnabled,
+    // O que está salvo no painel e o valor em uso (painel, variável de ambiente ou padrão).
+    settings: config.storedSettings,
+    effectiveSettings: config.settings,
   });
 });
 
@@ -51,6 +56,8 @@ const putSchema = z.object({
     })
     .optional(),
   googleLogin: z.object({ enabled: z.boolean() }).optional(),
+  signupsEnabled: z.boolean().optional(),
+  settings: settingsSchema.optional(),
 });
 
 export const PUT = handler(async (request: Request) => {
@@ -77,6 +84,12 @@ export const PUT = handler(async (request: Request) => {
     data.freePlanVisible = body.freeTrial.enabled && body.freeTrial.planVisible;
   }
   if (body.googleLogin) data.googleLoginEnabled = body.googleLogin.enabled;
+  if (body.signupsEnabled !== undefined) data.signupsEnabled = body.signupsEnabled;
+  if (body.settings) {
+    // Campos vazios não são guardados: voltam a usar a variável de ambiente / padrão.
+    const clean = Object.fromEntries(Object.entries(body.settings).filter(([, v]) => v !== "" && v !== undefined));
+    data.settingsJson = JSON.stringify(clean);
+  }
 
   await db.systemConfig.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
   invalidateConfigCache();

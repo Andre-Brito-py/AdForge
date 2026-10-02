@@ -1,5 +1,5 @@
 import { getLocale } from "next-intl/server";
-import { COMPANY, LEGAL_UPDATED_AT } from "@/lib/company";
+import { getCompany, LEGAL_UPDATED_AT } from "@/lib/company";
 import { PrivacyEn } from "@/components/legal/privacy-en";
 
 export async function generateMetadata() {
@@ -10,7 +10,8 @@ export default async function PrivacyPage() {
   return (await getLocale()) === "en" ? <PrivacyEn /> : <PrivacyPt />;
 }
 
-function PrivacyPt() {
+async function PrivacyPt() {
+  const COMPANY = await getCompany();
   return (
     <>
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Política de Privacidade</h1>

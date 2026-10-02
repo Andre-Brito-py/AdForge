@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Logo } from "@/components/logo";
-import { COMPANY } from "@/lib/company";
+import { getCompany } from "@/lib/company";
 
 export async function generateMetadata() {
   return { title: (await getTranslations("metaDeletion"))("title") };
@@ -10,6 +10,7 @@ export async function generateMetadata() {
 // Página de status exigida pela Meta para pedidos de exclusão de dados.
 export default async function MetaDataDeletionPage(props: PageProps<"/meta-data-deletion">) {
   const t = await getTranslations("metaDeletion");
+  const COMPANY = await getCompany();
   const sp = await props.searchParams;
   const code = typeof sp.code === "string" ? sp.code.slice(0, 32) : null;
   return (

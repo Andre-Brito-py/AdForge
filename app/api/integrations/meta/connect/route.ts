@@ -19,7 +19,7 @@ export async function GET() {
   if (!limited.ok) return NextResponse.redirect(`${base}/integrations?error=rate_limited`);
 
   const { state, nonce } = createOAuthState(user.id, user.workspaceId);
-  const res = NextResponse.redirect(buildAuthUrl({ appId: app.appId, redirectUri: metaRedirectUri(), state }));
+  const res = NextResponse.redirect(await buildAuthUrl({ appId: app.appId, redirectUri: metaRedirectUri(), state }));
   res.cookies.set(NONCE_COOKIE, nonce, {
     httpOnly: true,
     secure: base.startsWith("https://"),

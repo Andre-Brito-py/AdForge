@@ -163,7 +163,8 @@
         "OAuthAccountNotLinked": "This email is already registered with a different sign-in method.",
         "AccessDenied": "Couldn't sign in with this account.",
         "expired": "Your session has expired. Please sign in again.",
-        "generic": "Couldn't sign in. Please try again."
+        "generic": "Couldn't sign in. Please try again.",
+        "SignupsClosed": "New sign-ups are closed right now. If you already have an account, sign in with it."
       }
     },
     "signup": {
@@ -180,7 +181,9 @@
         "weakPassword": "Password must have 8+ characters, with letters and numbers.",
         "acceptTerms": "You need to accept the Terms of Service and the Privacy Policy.",
         "generic": "Couldn't create the account."
-      }
+      },
+      "closedTitle": "Sign-ups are closed right now",
+      "closedText": "We're not accepting new accounts at the moment. If you already have an account, just sign in. Questions: <mail>{email}</mail>."
     },
     "forgot": {
       "title": "Forgot your password?",
@@ -679,7 +682,8 @@
     "metaNotConnected": "Connect (or reconnect) your Meta account in Integrations.",
     "metaNoConnection": "No Meta account connected.",
     "metaExpired": "The connection expired. Please connect again.",
-    "targetAccountNotFound": "Destination account not found. Refresh the connection in Integrations."
+    "targetAccountNotFound": "Destination account not found. Refresh the connection in Integrations.",
+    "signupsClosed": "New sign-ups are closed right now."
   },
   "validation": {
     "emailInvalid": "Invalid email.",

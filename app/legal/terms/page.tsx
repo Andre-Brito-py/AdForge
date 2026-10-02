@@ -1,5 +1,5 @@
 import { getLocale } from "next-intl/server";
-import { COMPANY, LEGAL_UPDATED_AT } from "@/lib/company";
+import { getCompany, LEGAL_UPDATED_AT } from "@/lib/company";
 import { TermsEn } from "@/components/legal/terms-en";
 
 export async function generateMetadata() {
@@ -10,7 +10,8 @@ export default async function TermsPage() {
   return (await getLocale()) === "en" ? <TermsEn /> : <TermsPt />;
 }
 
-function TermsPt() {
+async function TermsPt() {
+  const COMPANY = await getCompany();
   return (
     <>
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Termos de Uso</h1>

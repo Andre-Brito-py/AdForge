@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { getTranslations } from "next-intl/server";
-import { COMPANY } from "@/lib/company";
+import { getCompany } from "@/lib/company";
 
 export default async function LegalLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("common.legal");
+  const COMPANY = await getCompany();
   return (
     <div className="min-h-screen">
       <header className="border-b border-border">

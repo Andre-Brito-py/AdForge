@@ -124,6 +124,8 @@ export const authOptions: NextAuthOptions = {
 
       const existing = await db.user.findUnique({ where: { email } });
       if (!existing) {
+        // Cadastros fechados no painel: quem já tem conta continua entrando; conta nova não.
+        if (!(await getAppConfig()).signupsEnabled) return "/login?error=SignupsClosed";
         const origin = await requestOrigin();
         const { user: created } = await createUserWithWorkspace({
           email,

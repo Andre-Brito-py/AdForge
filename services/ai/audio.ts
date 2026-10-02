@@ -1,10 +1,10 @@
 import { randomUUID } from "crypto";
 import { saveFile } from "@/lib/storage";
-
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL";
+import { getAppConfig } from "@/lib/config";
 
 async function elevenLabs(text: string, apiKey: string): Promise<Buffer> {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`, {
+  const voiceId = (await getAppConfig()).settings.elevenLabsVoiceId;
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
     method: "POST",
     headers: { Accept: "audio/mpeg", "Content-Type": "application/json", "xi-api-key": apiKey },
     body: JSON.stringify({

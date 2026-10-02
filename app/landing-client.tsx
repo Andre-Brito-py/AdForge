@@ -10,7 +10,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { CookieSettingsButton } from "@/components/consent/ConsentManager";
 
-const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "suporte@vysify.com";
 import { buttonClass } from "@/components/app/ui-bits";
 
 interface Plan {
@@ -112,9 +111,9 @@ const COPY = {
 const fade = { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-60px" }, transition: { duration: 0.45 } };
 
 export default function LandingPageClient({
-  plans, signupCredits, freePlanVisible, costs, locale, currency, loggedIn,
+  plans, signupCredits, freePlanVisible, costs, locale, currency, loggedIn, supportEmail,
 }: {
-  plans: Plan[]; signupCredits: number; freePlanVisible: boolean; costs: { image: number; video: number }; locale: "pt" | "en"; currency: "BRL" | "USD" | "EUR"; loggedIn: boolean;
+  plans: Plan[]; signupCredits: number; freePlanVisible: boolean; costs: { image: number; video: number }; locale: "pt" | "en"; currency: "BRL" | "USD" | "EUR"; loggedIn: boolean; supportEmail: string;
 }) {
   const showFreePlan = freePlanVisible && signupCredits > 0;
   const priceIn = (p: Plan, c: string) => (c === "BRL" ? p.price_brl : c === "EUR" ? p.price_eur ?? 0 : p.price_usd);
@@ -298,7 +297,7 @@ export default function LandingPageClient({
             <Link href="/legal/privacy" className="hover:text-foreground">{t.footer.privacy}</Link>
             <Link href="/legal/cookies" className="hover:text-foreground">{t.footer.cookies}</Link>
             <CookieSettingsButton className="hover:text-foreground" />
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-foreground">{t.footer.support}</a>
+            <a href={`mailto:${supportEmail}`} className="hover:text-foreground">{t.footer.support}</a>
           </div>
           <p>© {new Date().getFullYear()} Vysify. {t.footer.rights}</p>
         </div>

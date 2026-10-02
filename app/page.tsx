@@ -13,9 +13,11 @@ export default async function Page() {
   let signupCredits = 0;
   let freePlanVisible = false;
   let costs = { image: 3, video: 10, premiumMultiplier: 2 };
+  let supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "suporte@vysify.com";
   try {
     const config = await getAppConfig();
     plans = purchasablePlans(config.plans);
+    supportEmail = config.settings.company.supportEmail;
     signupCredits = config.signupCredits; // 0 quando a oferta grátis está desligada
     freePlanVisible = config.freeTrial.planVisible;
     costs = config.costs;
@@ -24,5 +26,5 @@ export default async function Page() {
   }
   const user = await getSessionUser().catch(() => null);
 
-  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} currency={currency} loggedIn={!!user} />;
+  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} currency={currency} loggedIn={!!user} supportEmail={supportEmail} />;
 }

@@ -1,5 +1,4 @@
 import { getAppConfig } from "@/lib/config";
-import { COMPANY } from "@/lib/company";
 import { StoreApiError, type StoreAdapter, type StoreItem } from "./types";
 
 /**
@@ -24,11 +23,12 @@ interface NsProduct {
 }
 
 async function ns<T>(storeId: string, token: string, path: string, init: { method?: string; json?: unknown } = {}): Promise<T> {
+  const { supportEmail } = (await getAppConfig()).settings.company;
   const res = await fetch(`${API}/${storeId}${path}`, {
     method: init.method || "GET",
     headers: {
       Authentication: `bearer ${token}`,
-      "User-Agent": `Vysify (${COMPANY.supportEmail})`,
+      "User-Agent": `Vysify (${supportEmail})`,
       "Content-Type": "application/json",
     },
     body: init.json !== undefined ? JSON.stringify(init.json) : undefined,

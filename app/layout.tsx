@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ConsentManager } from "@/components/consent/ConsentManager";
 import { TimezoneSync } from "@/components/timezone-sync";
+import { getAppConfig } from "@/lib/config";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -56,6 +57,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getLocale();
   const messages = await getMessages();
   const tz = (await cookies()).get("TZ")?.value || null;
+  // Rastreadores configurados no painel; se o banco falhar, o site segue sem eles.
+  const trackers = await getAppConfig().then((c) => c.settings.trackers).catch(() => ({ gaId: null, metaPixelId: null }));
 
   return (
     <html lang={locale === "pt" ? "pt-BR" : "en"} className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
@@ -64,7 +67,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <NextIntlClientProvider messages={messages}>
             <Providers>{children}</Providers>
             <Toaster position="top-center" richColors />
-            <ConsentManager />
+            <ConsentManager gaId={trackers.gaId} pixelId={trackers.metaPixelId} />
             <TimezoneSync current={tz} />
           </NextIntlClientProvider>
         </ThemeProvider>

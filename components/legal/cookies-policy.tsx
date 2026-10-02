@@ -1,4 +1,4 @@
-import { COMPANY } from "@/lib/company";
+import { getCompany } from "@/lib/company";
 import { CookieSettingsButton } from "@/components/consent/ConsentManager";
 
 const ROWS = {
@@ -35,7 +35,8 @@ const OPTIONAL = {
   ],
 };
 
-export function CookiesPolicy({ locale }: { locale: "pt" | "en" }) {
+export async function CookiesPolicy({ locale }: { locale: "pt" | "en" }) {
+  const COMPANY = await getCompany();
   const pt = locale === "pt";
   const head = pt ? ["Nome", "Tipo", "Para que serve", "Duração"] : ["Name", "Type", "Purpose", "Duration"];
   const table = (rows: string[][]) => (

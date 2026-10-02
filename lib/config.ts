@@ -2,6 +2,7 @@ import { db } from "./db";
 import { decryptSecret } from "./crypto";
 import { AiCosts, DEFAULT_COSTS } from "./catalog";
 import { AiModels, costsSchema, modelsSchema, Plan, plansSchema } from "./validation";
+import { resolveSettings, settingsSchema, type Settings, type StoredSettings } from "./settings";
 
 export const SECRET_FIELDS = [
   "geminiKey",
@@ -20,6 +21,7 @@ export const SECRET_FIELDS = [
   "nuvemshopSecret",
   "googleClientId",
   "googleClientSecret",
+  "resendKey",
 ] as const;
 export type SecretField = (typeof SECRET_FIELDS)[number];
 
@@ -41,6 +43,7 @@ const ENV_FALLBACK: Record<SecretField, string> = {
   nuvemshopSecret: "NUVEMSHOP_CLIENT_SECRET",
   googleClientId: "GOOGLE_CLIENT_ID",
   googleClientSecret: "GOOGLE_CLIENT_SECRET",
+  resendKey: "RESEND_API_KEY",
 };
 
 export const DEFAULT_MODELS: AiModels = {
@@ -86,6 +89,12 @@ export interface AppConfig {
   freeTrial: { enabled: boolean; credits: number; planVisible: boolean };
   /** Login com Google: `active` = ligado no painel E com Client ID/Secret. */
   googleLogin: { enabled: boolean; active: boolean };
+  /** Novos cadastros abertos (e-mail e Google). */
+  signupsEnabled: boolean;
+  /** Configurações gerais já resolvidas (painel > variável de ambiente > padrão). */
+  settings: Settings;
+  /** O que está salvo no painel (para o formulário do Admin). */
+  storedSettings: StoredSettings;
 }
 
 let cache: { value: AppConfig; at: number } | null = null;
@@ -111,6 +120,8 @@ export async function getAppConfig(): Promise<AppConfig> {
     secrets[field] = decryptSecret(row?.[field]) || process.env[ENV_FALLBACK[field]] || null;
   }
 
+  const storedSettings = parseJson<StoredSettings>(row?.settingsJson, settingsSchema, {});
+
   const value: AppConfig = {
     secrets,
     costs: parseJson(row?.aiCostsJson, costsSchema, DEFAULT_COSTS),
@@ -127,6 +138,9 @@ export async function getAppConfig(): Promise<AppConfig> {
       enabled: row?.googleLoginEnabled ?? true,
       active: (row?.googleLoginEnabled ?? true) && !!secrets.googleClientId && !!secrets.googleClientSecret,
     },
+    signupsEnabled: row?.signupsEnabled ?? true,
+    settings: resolveSettings(storedSettings),
+    storedSettings,
   };
   cache = { value, at: Date.now() };
   return value;

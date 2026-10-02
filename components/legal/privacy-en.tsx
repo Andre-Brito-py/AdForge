@@ -1,6 +1,7 @@
-import { COMPANY, LEGAL_UPDATED_AT_EN } from "@/lib/company";
+import { getCompany, LEGAL_UPDATED_AT_EN } from "@/lib/company";
 
-export function PrivacyEn() {
+export async function PrivacyEn() {
+  const COMPANY = await getCompany();
   return (
     <>
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Privacy Policy</h1>

@@ -1,7 +1,5 @@
 import { Resend } from "resend";
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = process.env.EMAIL_FROM || "Vysify <onboarding@resend.dev>";
+import { getAppConfig } from "@/lib/config";
 
 type Lang = "pt" | "en";
 const lang = (l: string | null | undefined): Lang => (l === "en" ? "en" : "pt");
@@ -86,15 +84,21 @@ function layout(l: Lang, title: string, body: string, cta?: { label: string; hre
   </div></body></html>`;
 }
 
+// Reaproveita o cliente enquanto a chave não muda (a chave vem do painel Admin ou do RESEND_API_KEY).
+let client: { key: string; resend: Resend } | null = null;
+
 async function send(to: string, subject: string, html: string, devLink?: string) {
-  if (!resend) {
+  const { secrets, settings } = await getAppConfig();
+  const key = secrets.resendKey;
+  if (!key) {
     // Sem Resend configurado (ex.: desenvolvimento local), registramos o link no log
     // para que o fluxo de verificação/recuperação continue testável.
     console.warn(`[email] RESEND_API_KEY ausente. E-mail "${subject}" para ${to} não enviado.${devLink ? ` Link: ${devLink}` : ""}`);
     return;
   }
+  if (client?.key !== key) client = { key, resend: new Resend(key) };
   try {
-    await resend.emails.send({ from: FROM, to, subject, html });
+    await client.resend.emails.send({ from: settings.emailFrom, to, subject, html });
   } catch (error) {
     console.error(`[email] falha ao enviar "${subject}"`, error);
   }

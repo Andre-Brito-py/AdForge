@@ -5,10 +5,7 @@ import Link from "next/link";
 import Script from "next/script";
 import { useTranslations } from "next-intl";
 import { buttonClass } from "@/components/app/ui-bits";
-import { HAS_OPTIONAL_TRACKERS, OPEN_EVENT, TRACKERS, parseConsent, saveConsent, useConsentRaw, type Consent } from "./consent";
-
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+import { OPEN_EVENT, parseConsent, saveConsent, useConsentRaw, type Consent } from "./consent";
 
 function Toggle({ checked, disabled, onChange, label }: { checked: boolean; disabled?: boolean; onChange?: (v: boolean) => void; label: string }) {
   return (
@@ -25,8 +22,11 @@ function Toggle({ checked, disabled, onChange, label }: { checked: boolean; disa
 /**
  * Banner + preferências de cookies + carregamento condicional dos rastreadores.
  * Sem rastreadores opcionais configurados, nenhum banner é exibido (só cookies essenciais).
+ * Os IDs vêm do painel Admin (validados no servidor), então podem mudar sem redeploy.
  */
-export function ConsentManager() {
+export function ConsentManager({ gaId: GA_ID, pixelId: PIXEL_ID }: { gaId: string | null; pixelId: string | null }) {
+  const TRACKERS = { analytics: !!GA_ID, marketing: !!PIXEL_ID };
+  const HAS_OPTIONAL_TRACKERS = TRACKERS.analytics || TRACKERS.marketing;
   const t = useTranslations("cookies");
   const tc = useTranslations("common");
   const raw = useConsentRaw();

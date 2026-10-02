@@ -1,11 +1,14 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { getAppConfig } from "@/lib/config";
 
 /**
  * Cliente mínimo da Graph API da Meta (Facebook + Instagram).
- * META_GRAPH_VERSION, META_GRAPH_BASE_URL e META_DIALOG_BASE_URL permitem trocar a versão
- * ou apontar para um servidor simulado nos testes.
+ * A versão e o ID de configuração do login vêm do painel Admin (ou META_GRAPH_VERSION /
+ * META_LOGIN_CONFIG_ID). META_GRAPH_BASE_URL e META_DIALOG_BASE_URL apontam para um servidor simulado nos testes.
  */
-export const GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v23.0";
+async function metaSettings() {
+  return (await getAppConfig()).settings.meta;
+}
 const GRAPH_BASE = (process.env.META_GRAPH_BASE_URL || "https://graph.facebook.com").replace(/\/$/, "");
 const DIALOG_BASE = (process.env.META_DIALOG_BASE_URL || "https://www.facebook.com").replace(/\/$/, "");
 
@@ -33,7 +36,8 @@ export class MetaApiError extends Error {
 type Params = Record<string, string | number | boolean | undefined>;
 
 async function graph<T = Record<string, unknown>>(path: string, opts: { method?: "GET" | "POST" | "DELETE"; params?: Params; token?: string } = {}): Promise<T> {
-  const url = new URL(`${GRAPH_BASE}/${GRAPH_VERSION}/${path.replace(/^\//, "")}`);
+  const { graphVersion } = await metaSettings();
+  const url = new URL(`${GRAPH_BASE}/${graphVersion}/${path.replace(/^\//, "")}`);
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(opts.params || {})) if (v !== undefined) params.set(k, String(v));
   const method = opts.method || "GET";
@@ -59,14 +63,15 @@ async function graph<T = Record<string, unknown>>(path: string, opts: { method?:
 
 // ---------------- OAuth ----------------
 
-export function buildAuthUrl(opts: { appId: string; redirectUri: string; state: string }) {
-  const url = new URL(`${DIALOG_BASE}/${GRAPH_VERSION}/dialog/oauth`);
+export async function buildAuthUrl(opts: { appId: string; redirectUri: string; state: string }) {
+  const { graphVersion, loginConfigId } = await metaSettings();
+  const url = new URL(`${DIALOG_BASE}/${graphVersion}/dialog/oauth`);
   url.searchParams.set("client_id", opts.appId);
   url.searchParams.set("redirect_uri", opts.redirectUri);
   url.searchParams.set("state", opts.state);
   url.searchParams.set("response_type", "code");
   // "Facebook Login for Business" usa uma configuração criada no painel da Meta em vez de scopes.
-  if (process.env.META_LOGIN_CONFIG_ID) url.searchParams.set("config_id", process.env.META_LOGIN_CONFIG_ID);
+  if (loginConfigId) url.searchParams.set("config_id", loginConfigId);
   else url.searchParams.set("scope", META_SCOPES.join(","));
   return url.toString();
 }

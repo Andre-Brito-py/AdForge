@@ -28,14 +28,20 @@ Contas antigas não têm senha cadastrada (o login antigo aceitava qualquer senh
 
 ## 2. Variáveis de ambiente na Vercel
 
-Veja `.env.example`. As obrigatórias para subir:
+Veja `.env.example`. Só estas precisam ficar na Vercel (mudá-las exige redeploy):
 
 - `DATABASE_URL`, `DIRECT_URL`
 - `NEXT_PUBLIC_APP_URL` e `NEXTAUTH_URL` (domínio final, com https)
 - `NEXTAUTH_SECRET`, `ENCRYPTION_KEY` e `CRON_SECRET` (gere com `openssl rand -base64 32`)
 - `S3_*` (em produção não existe gravação em disco)
-- `RESEND_API_KEY` e `EMAIL_FROM` (domínio verificado no Resend), sem os quais ninguém confirma o e-mail
-- `NEXT_PUBLIC_COMPANY_NAME`, `NEXT_PUBLIC_COMPANY_CNPJ`, `NEXT_PUBLIC_COMPANY_ADDRESS` e os e-mails de suporte/privacidade, exigidos pelo Decreto 7.962/2013
+
+Todo o resto é configurado no painel Admin e vale em até 15 segundos, sem redeploy. Logo após o primeiro acesso de admin (seção 3), abra **Admin › Configurações gerais** e preencha:
+
+- **Dados da empresa** (razão social, CNPJ, endereço e e-mails de suporte/privacidade), exigidos pelo Decreto 7.962/2013. Enquanto faltarem, os documentos legais mostram "[CNPJ]" etc.
+- **E-mails:** API key do Resend e remetente (domínio verificado no Resend), sem os quais ninguém confirma o e-mail.
+- Opcionais: Google Analytics, Pixel da Meta, Stripe Tax, representantes UE/Reino Unido e o switch **Aceitar novas contas** (útil para um lançamento fechado).
+
+As variáveis antigas (`RESEND_API_KEY`, `NEXT_PUBLIC_COMPANY_*` etc.) continuam funcionando como reserva.
 
 Remova `ADMIN_EMAIL` e `ADMIN_PASSWORD`: o login de admin fixo no código foi eliminado.
 
@@ -101,10 +107,10 @@ Em **Admin › Integrações › Login com Google**: cole o Client ID e o Client
 A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie Policy existem em português e inglês. O idioma e a moeda são escolhidos pelo país do visitante (cabeçalho `x-vercel-ip-country`) e pelo navegador, e o cliente pode trocar em Configurações (idioma) e no Billing (moeda). O painel Admin continua em português.
 
 - **Preços:** cadastre o preço em USD (e, se quiser, em EUR) de cada pacote em **Admin › Pacotes**, junto com a descrição em inglês. Sem preço em EUR, o visitante europeu vê o valor em USD.
-- **Impostos (Stripe Tax):** ative o Stripe Tax, registre-se onde for obrigado (ex.: IVA da UE via OSS, VAT do Reino Unido, estados dos EUA ao atingir o limite) e defina `STRIPE_AUTOMATIC_TAX=true`. O checkout já coleta endereço de cobrança e VAT ID e gera fatura.
+- **Impostos (Stripe Tax):** ative o Stripe Tax, registre-se onde for obrigado (ex.: IVA da UE via OSS, VAT do Reino Unido, estados dos EUA ao atingir o limite) e ligue **Admin › Configurações gerais › Impostos (Stripe)**. O checkout já coleta endereço de cobrança e VAT ID e gera fatura.
 - **Reembolso:** o texto do checkout e dos Termos informa 7 dias para compras em BRL (CDC) e 14 dias para as internacionais (UE/Reino Unido).
-- **Representantes UE/Reino Unido:** se você atende clientes desses mercados sem estabelecimento lá, contrate um representante (art. 27 do GDPR) e preencha `NEXT_PUBLIC_EU_REPRESENTATIVE` e `NEXT_PUBLIC_UK_REPRESENTATIVE`.
-- **Cookies:** GA (`NEXT_PUBLIC_GA_ID`) e Pixel da Meta (`NEXT_PUBLIC_META_PIXEL_ID`) só carregam depois do consentimento. Sem eles, não há banner.
+- **Representantes UE/Reino Unido:** se você atende clientes desses mercados sem estabelecimento lá, contrate um representante (art. 27 do GDPR) e preencha os representantes em **Admin › Configurações gerais › Dados da empresa**.
+- **Cookies:** GA e Pixel da Meta (Admin › Configurações gerais › Análise e marketing) só carregam depois do consentimento. Sem eles, não há banner.
 - **Idioma dos anúncios:** independente do idioma da interface (9 opções, como en-US, es-419, fr-FR e de-DE), escolhido no assistente de campanha.
 - **Jurídico:** os textos em inglês (Terms, Privacy com GDPR/UK GDPR/CCPA e Cookie Policy) também precisam de revisão de um advogado com experiência internacional.
 

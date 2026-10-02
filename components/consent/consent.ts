@@ -16,13 +16,6 @@ const CHANGE_EVENT = "vysify:consent-change";
 export const OPEN_EVENT = "vysify:open-consent";
 const MAX_AGE = 60 * 60 * 24 * 182;
 
-// Rastreadores opcionais configurados (sem eles, não há o que consentir).
-export const TRACKERS = {
-  analytics: !!process.env.NEXT_PUBLIC_GA_ID,
-  marketing: !!process.env.NEXT_PUBLIC_META_PIXEL_ID,
-};
-export const HAS_OPTIONAL_TRACKERS = TRACKERS.analytics || TRACKERS.marketing;
-
 function read(): string | null {
   const match = document.cookie.match(/(?:^|; )vysify_consent=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
