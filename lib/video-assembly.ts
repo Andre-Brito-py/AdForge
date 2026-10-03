@@ -90,7 +90,7 @@ async function hasAudio(file: string): Promise<boolean> {
   return /Audio:/.test(out);
 }
 
-async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buffer | null, maxSeconds?: number): Promise<{ buffer: Buffer; duration: number }> {
+async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buffer | null, maxSeconds?: number, cropAspect?: string | null): Promise<{ buffer: Buffer; duration: number }> {
   const inputs = files.flatMap((f) => ["-i", f]);
   const audioLabels: string[] = [];
   let extra = files.length;
@@ -107,20 +107,50 @@ async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buff
     files.map((_, i) => `[${i}:v:0]setsar=1[v${i}]`).join(";") + ";" +
     audioLabels.map((l, i) => `${l}aresample=44100,aformat=channel_layouts=stereo[a${i}]`).join(";") + ";" +
     files.map((_, i) => `[v${i}][a${i}]`).join("") + `concat=n=${files.length}:v=1:a=1[v][a]`;
-  let vOut = "[v]";
-  if (logoPng) {
-    const logo = path.join(dir, "logo.png");
-    await writeFile(logo, logoPng);
-    inputs.push("-i", logo);
-    const { width } = await probeSize(files[0]);
-    const w = Math.max(32, Math.round(width * LOGO_WIDTH_RATIO / 2) * 2);
-    const margin = Math.round(width * LOGO_MARGIN_RATIO);
-    graph += `;[${extra}:v]scale=${w}:-1[lg];[v][lg]overlay=W-w-${margin}:H-h-${margin}:format=auto[vl]`;
-    vOut = "[vl]";
-  }
+  const tail = await cropAndLogo(dir, files[0], inputs, graph, logoPng, cropAspect);
+  graph = tail.graph;
+  const vOut = tail.out;
   const output = path.join(dir, "final.mp4");
   await run([...inputs, "-filter_complex", graph, "-map", vOut, "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", ...(maxSeconds ? ["-t", String(maxSeconds)] : []), "-movflags", "+faststart", output], 300_000);
   return { buffer: await readFile(output), duration: Math.round(await probeDuration(output)) };
+}
+
+/**
+ * Recorte central no formato pedido (ex.: vídeo 9:16 do Veo -> 4:5 do Feed ou 1:1 do Facebook) e logo no canto,
+ * aplicados sobre a saída "[v]" do filtro. Devolve o filtro completo e o rótulo final do vídeo.
+ */
+async function cropAndLogo(dir: string, firstFile: string, inputs: string[], graph: string, logoPng?: Buffer | null, cropAspect?: string | null) {
+  let label = "[v]";
+  let { width, height } = await probeSize(firstFile);
+  const m = /^(\d+):(\d+)$/.exec(cropAspect || "");
+  if (m) {
+    const ratio = Number(m[1]) / Number(m[2]);
+    let cw = width;
+    let ch = Math.round(width / ratio);
+    if (ch > height) {
+      ch = height;
+      cw = Math.round(height * ratio);
+    }
+    cw -= cw % 2;
+    ch -= ch % 2;
+    if (cw !== width || ch !== height) {
+      graph += `;${label}crop=${cw}:${ch}[vc]`;
+      label = "[vc]";
+      width = cw;
+      height = ch;
+    }
+  }
+  if (logoPng) {
+    const logo = path.join(dir, "logo.png");
+    await writeFile(logo, logoPng);
+    const index = inputs.filter((x) => x === "-i").length;
+    inputs.push("-i", logo);
+    const w = Math.max(32, Math.round(width * LOGO_WIDTH_RATIO / 2) * 2);
+    const margin = Math.round(width * LOGO_MARGIN_RATIO);
+    graph += `;[${index}:v]scale=${w}:-1[lg];${label}[lg]overlay=W-w-${margin}:H-h-${margin}:format=auto[vl]`;
+    label = "[vl]";
+  }
+  return { graph, out: label };
 }
 
 /** Largura e altura do primeiro stream de vídeo. */
@@ -138,7 +168,7 @@ export async function assembleVideo(
   segments: Buffer[],
   narration: Buffer | null,
   logoPng?: Buffer | null,
-  opts: { segmentAudio?: boolean; maxSeconds?: number } = {}
+  opts: { segmentAudio?: boolean; maxSeconds?: number; cropAspect?: string | null } = {}
 ): Promise<{ buffer: Buffer; duration: number }> {
   if (segments.length === 0) throw new Error("Nenhum trecho para montar");
   return withTempDir(async (dir) => {
@@ -151,7 +181,7 @@ export async function assembleVideo(
     );
 
     // Trechos que já trazem a locução (modelos com lip-sync): une vídeo E áudio de cada trecho.
-    if (opts.segmentAudio) return joinWithSegmentAudio(dir, files, logoPng, opts.maxSeconds);
+    if (opts.segmentAudio) return joinWithSegmentAudio(dir, files, logoPng, opts.maxSeconds, opts.cropAspect);
 
     // Modelos com durações fixas (ex.: Veo 8+8 s para um vídeo de 15 s): corta no total pedido.
     const trim = opts.maxSeconds ? ["-t", String(opts.maxSeconds)] : [];
@@ -160,17 +190,9 @@ export async function assembleVideo(
     const joined = path.join(dir, "joined.mp4");
     const inputs = files.flatMap((f) => ["-i", f]);
     let graph = files.map((_, i) => `[${i}:v:0]setsar=1[v${i}]`).join(";") + ";" + files.map((_, i) => `[v${i}]`).join("") + `concat=n=${files.length}:v=1:a=0[v]`;
-    let out = "[v]";
-    if (logoPng) {
-      const logo = path.join(dir, "logo.png");
-      await writeFile(logo, logoPng);
-      inputs.push("-i", logo);
-      const { width } = await probeSize(files[0]);
-      const w = Math.max(32, Math.round(width * LOGO_WIDTH_RATIO / 2) * 2);
-      const margin = Math.round(width * LOGO_MARGIN_RATIO);
-      graph += `;[${files.length}:v]scale=${w}:-1[lg];[v][lg]overlay=W-w-${margin}:H-h-${margin}:format=auto[vl]`;
-      out = "[vl]";
-    }
+    const tail = await cropAndLogo(dir, files[0], inputs, graph, logoPng, opts.cropAspect);
+    graph = tail.graph;
+    const out = tail.out;
     await run([...inputs, "-filter_complex", graph, "-map", out, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-an", ...trim, joined], 240_000);
 
     const videoDuration = await probeDuration(joined);

@@ -54,6 +54,9 @@ export interface VideoProgress {
   segments?: number[];
   /** Os trechos já vêm com a locução (lip-sync): na montagem não se coloca a locução de novo. */
   audioInSegments?: boolean;
+  /** Formato pedido ao modelo e recorte final (ex.: gera 9:16 e recorta 1:1 para o Facebook). */
+  genAspect?: string;
+  cropTo?: string | null;
   /** Cada pedido ESTENDE o vídeo anterior (Veo): o último trecho pronto já é o vídeo inteiro. */
   extend?: boolean;
   /** URI (no Veo) do último vídeo pronto, usada para estendê-lo. */

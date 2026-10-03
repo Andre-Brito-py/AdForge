@@ -13,6 +13,8 @@ export interface VideoModelCaps {
   resolution: { standard: string; premium: string };
   /** O formato sai da imagem inicial (não há parâmetro aspect_ratio). */
   aspectFromImage: boolean;
+  /** Formatos que o modelo gera direto ("any" = qualquer, segue a imagem). Os outros são recortados na montagem. */
+  aspects?: readonly string[];
   /**
    * Segundos que cada EXTENSÃO acrescenta, quando o modelo sabe continuar o próprio vídeo (Veo 3.1/Fast).
    * Com extensão, o vídeo longo é 8 s + extensões, sem recomeçar de um quadro parado (o produto não muda na emenda).
@@ -26,6 +28,7 @@ export function videoModelCaps(model: string): VideoModelCaps {
     const extensible = /^veo-3\.1-(fast-)?generate/i.test(model);
     return {
       provider: "veo", durations: [4, 6, 8], lipSyncAudio: false, resolution: { standard: "720p", premium: "1080p" }, aspectFromImage: false,
+      aspects: ["9:16", "16:9"],
       ...(extensible ? { extensionSeconds: 7 } : {}),
     };
   }
@@ -88,6 +91,16 @@ export function voiceoverSlice(text: string, start: number, seconds: number, tot
   const from = Math.floor((start / total) * words.length);
   const to = Math.ceil(((start + seconds) / total) * words.length);
   return words.slice(from, Math.max(from + 1, to)).join(" ");
+}
+
+/**
+ * Formato em que o modelo deve GERAR o vídeo para entregar `target`: o próprio, se ele suportar; senão 9:16
+ * (vertical, o mais próximo de 4:5 e 1:1), com recorte central na montagem.
+ */
+export function generationAspect(caps: VideoModelCaps, target: string): { generate: string; cropTo: string | null } {
+  if (!caps.aspects || caps.aspects.includes(target)) return { generate: target, cropTo: null };
+  const generate = caps.aspects.includes("9:16") ? "9:16" : caps.aspects[0];
+  return { generate, cropTo: target };
 }
 
 /** Plano com extensão: um pedido de 8 s e extensões até cobrir o total (15 s = 8+7; 30 s = 8+7+7+7+7, cortado). */

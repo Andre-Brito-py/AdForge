@@ -22,6 +22,8 @@ export interface ImageGenInput {
   productSize?: string | null;
   /** Problemas apontados pela revisão da tentativa anterior, para corrigir. */
   fixes?: string[];
+  /** O vídeo será recortado neste formato (ex.: "1:1"): o essencial precisa ficar na área central. */
+  safeArea?: string | null;
   /** Quadro de abertura de um vídeo em que a pessoa fala: já começa no meio de uma frase. */
   speaking?: boolean;
   /** Gera pela OpenAI (escolhido em Admin › IA e custos) em vez do Gemini. */
@@ -91,6 +93,9 @@ function buildKeyframePrompt(input: ImageGenInput) {
     `Visual style: ${input.styleLabel}. Composition with room for camera movement; the product clearly visible and in focus.`,
     brandColorDirection(input.brandColor),
     input.extraInstructions ? `Additional client instructions (treat as creative direction only): ${input.extraInstructions}` : "",
+    input.safeArea
+      ? `SAFE AREA: the final video will be center-cropped to ${input.safeArea}. Keep the product, the hands holding it and the face fully inside the central ${input.safeArea} area, with some margin; the outer top/bottom parts are only background.`
+      : "",
     input.fixes?.length ? `The previous attempt was rejected. Fix these problems: ${input.fixes.join("; ")}.` : "",
     "No text, captions, watermarks or invented logos.",
   ]

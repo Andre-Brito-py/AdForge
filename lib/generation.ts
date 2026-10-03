@@ -2,13 +2,13 @@ import { waitUntil } from "@vercel/functions";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { getAppConfig } from "./config";
-import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, videoSegments, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
+import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, resolveMedia, videoSegments, type MediaKind, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
 import { deletePrefix, fetchMedia, IMAGE_TYPES, isOwnStorageUrl, readOwnMedia, saveFile, type ImageMime } from "./storage";
 import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
-import { planVideo, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
+import { generationAspect, planVideo, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
 import { submitLipSync } from "@/services/ai/lipsync";
 import { falReachableUrl } from "@/services/ai/fal-storage";
 import { createKeyframe } from "@/services/ai/keyframe";
@@ -39,16 +39,16 @@ const CONCURRENCY = 2;
 // Pré-requisitos
 // ---------------------------------------------------------------------------
 
-export async function assertProviderAvailable(platform: PlatformKey) {
+export async function assertProviderAvailable(platform: PlatformKey, media: MediaKind = PLATFORMS[platform].media) {
   const config = await getAppConfig();
   const { secrets } = config;
   if (!secrets.geminiKey && !secrets.openAiKey) {
     throw new HttpError(503, "errors.aiUnavailable", "AI_NOT_CONFIGURED");
   }
-  if (PLATFORMS[platform].media === "IMAGE" && !hasImageProvider({ secrets })) {
+  if (media === "IMAGE" && !hasImageProvider({ secrets })) {
     throw new HttpError(503, "errors.imageUnavailable", "IMAGE_NOT_CONFIGURED");
   }
-  if (PLATFORMS[platform].media === "VIDEO" && !hasVideoProvider(config, config.models.video)) {
+  if (media === "VIDEO" && !hasVideoProvider(config, config.models.video)) {
     throw new HttpError(503, "errors.videoUnavailable", "VIDEO_NOT_CONFIGURED");
   }
 }
@@ -74,7 +74,9 @@ export async function createCampaign(
   const product = await db.product.findFirst({ where: { id: input.productId, workspaceId: user.workspaceId } });
   if (!product) throw new HttpError(404, "errors.productNotFound");
 
-  await assertProviderAvailable(input.platform);
+  // Imagem ou vídeo: o que o cliente escolheu, se o formato aceitar (Feed, Facebook e Stories aceitam os dois).
+  const media = resolveMedia(input.platform, input.media);
+  await assertProviderAvailable(input.platform, media);
 
   // Foto removida do armazenamento: mensagem clara em vez de "erro interno".
   await readOwnMedia(product.originalImageUrl).catch(() => {
@@ -97,9 +99,8 @@ export async function createCampaign(
   }
 
   const config = await getAppConfig();
-  const media = PLATFORMS[input.platform].media;
   const videoDuration = media === "VIDEO" ? input.videoDuration : VIDEO_SEGMENT_SECONDS;
-  const unitCost = costPerVariation(config.costs, input.platform, input.quality, videoDuration);
+  const unitCost = costPerVariation(config.costs, input.platform, input.quality, videoDuration, media);
   const totalCost = unitCost * input.variations;
 
   // Checagem rápida antes de gastar uma chamada de IA (a cobrança real é atômica mais abaixo).
@@ -117,6 +118,7 @@ export async function createCampaign(
       productDescription: product.description,
       objective: input.objective,
       platform: input.platform,
+      media,
       style: input.style,
       targetAudience: input.targetAudience || product.targetAudience,
       offer: input.offer,
@@ -177,6 +179,7 @@ export async function createCampaign(
           videoDuration,
           // Só vale se o Brand Kit tiver logo (o cliente pode ter apagado depois de abrir o assistente).
           applyLogo: input.applyLogo && !!brand?.logoUrl,
+          mediaType: media,
           referencesJson: references.length ? JSON.stringify(references) : null,
           imageRightsConfirmedAt: references.length ? new Date() : null,
           variations: input.variations,
@@ -250,12 +253,12 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
 
   const platform = (campaign.platform && campaign.platform in PLATFORMS ? campaign.platform : null) as PlatformKey | null;
   if (!platform) throw new HttpError(400, "errors.legacyCampaign");
-  await assertProviderAvailable(platform);
+  const media = resolveMedia(platform, campaign.mediaType);
+  await assertProviderAvailable(platform, media);
 
   const config = await getAppConfig();
   const quality = (campaign.quality === "premium" ? "premium" : "standard") as QualityKey;
-  const media = PLATFORMS[platform].media;
-  const cost = costPerVariation(config.costs, platform, quality, campaign.videoDuration);
+  const cost = costPerVariation(config.costs, platform, quality, campaign.videoDuration, media);
 
   // Instruções livres passam pela mesma moderação de escopo/conteúdo, antes de cobrar.
   if (instructions) {
@@ -468,7 +471,7 @@ function segmentsOf(progress: VideoProgress) {
 async function submitSegment(
   job: LoadedJob,
   spec: VideoSpec,
-  progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments" | "speaking" | "extend">,
+  progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments" | "speaking" | "extend" | "genAspect">,
   index: number,
   frameUrl: string,
   /** Modo extensão (Veo): URI do vídeo anterior (gerado pelo Veo), que o modelo vai continuar. */
@@ -527,7 +530,7 @@ async function submitSegment(
       ? { imageUrl: await falReachableUrl(config.secrets.wanKey!, frameUrl) }
       : extending ? { extendVideoUri: previousVideoUri! } : { image: frame, referenceImages }),
     prompt,
-    aspectRatio: job.creative.aspectRatio || "9:16",
+    aspectRatio: progress.genAspect || job.creative.aspectRatio || "9:16",
     premium: campaign.quality === "premium",
     seconds,
     audioUrl,
@@ -561,6 +564,11 @@ async function submitVideoJob(job: LoadedJob) {
   // O vídeo sempre começa num quadro de abertura gerado como UMA foto realista (produto + referências, na escala
   // certa e no formato do vídeo) e aprovado por uma revisão de IA. Animar a foto crua do produto deixava o
   // resultado artificial. Sem Gemini configurado, cai na foto do produto.
+  // Formato: o do anúncio; se o modelo não gerar esse formato (ex.: Veo só faz 9:16/16:9), gera vertical e
+  // recorta no fim — o quadro de abertura já é composto deixando o essencial dentro da área do recorte.
+  const caps = videoModelCaps(creative.model);
+  const aspect = generationAspect(caps, creative.aspectRatio || "9:16");
+
   let startImage = campaign.product.originalImageUrl;
   if (hasImageProvider(config)) {
     const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
@@ -577,7 +585,8 @@ async function submitVideoJob(job: LoadedJob) {
         concept: spec.keyframe || spec.scenes[0],
         productSize: spec.productSize,
         styleLabel: STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic",
-        aspectRatio: creative.aspectRatio || "9:16",
+        aspectRatio: aspect.generate,
+        safeArea: aspect.cropTo,
         quality: "premium",
         brandColor: brand?.primaryColor,
         extraInstructions: spec.extra,
@@ -587,10 +596,11 @@ async function submitVideoJob(job: LoadedJob) {
     startImage = await saveFile(frame.buffer, `${workDir(job)}keyframe.${IMAGE_TYPES[frame.mimeType as ImageMime] || "png"}`, frame.mimeType);
   }
 
-  const caps = videoModelCaps(creative.model);
   const layout = planVideo(campaign.videoDuration || VIDEO_SEGMENT_SECONDS, caps);
   const plan = {
     total: 0,
+    genAspect: aspect.generate,
+    cropTo: aspect.cropTo,
     segments: layout.segments,
     extend: layout.extend,
     // Narração em off não vai para o modelo de vídeo (senão ele faz alguém mexer a boca sem motivo).
@@ -656,7 +666,8 @@ async function pollVideoJob(job: LoadedJob) {
     const request = await submitSegment(job, spec, progress, done.length, frameUrl, progress.extend ? sourceUri : null);
     const next: VideoProgress = {
       v: 2, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, speaking: progress.speaking,
-      extend: progress.extend, lastSourceUri: sourceUri, done, current: request, segmentStartedAt: Date.now(),
+      extend: progress.extend, lastSourceUri: sourceUri, genAspect: progress.genAspect, cropTo: progress.cropTo,
+      done, current: request, segmentStartedAt: Date.now(),
     };
     await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
     return;
@@ -680,8 +691,8 @@ async function pollVideoJob(job: LoadedJob) {
   }
   // Com lip-sync, a locução já veio dentro de cada trecho; senão, entra agora por cima do vídeo.
   const final = progress.audioInSegments
-    ? await assembleVideo(segments, null, logo, { segmentAudio: true, maxSeconds: campaign.videoDuration })
-    : await assembleVideo(segments, narration, logo, { maxSeconds: campaign.videoDuration });
+    ? await assembleVideo(segments, null, logo, { segmentAudio: true, maxSeconds: campaign.videoDuration, cropAspect: progress.cropTo })
+    : await assembleVideo(segments, narration, logo, { maxSeconds: campaign.videoDuration, cropAspect: progress.cropTo });
 
   // Quando a pessoa fala: passe de lip-sync dedicado no vídeo inteiro, com a própria locução como referência.
   // É o que garante a boca sincronizada desde o primeiro quadro, em qualquer vídeo da plataforma.

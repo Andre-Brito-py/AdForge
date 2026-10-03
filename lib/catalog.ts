@@ -11,12 +11,25 @@ export const OBJECTIVES = {
   LAUNCH: { label: "Lançamento", description: "Apresentar um produto novo" },
 } as const;
 
+/**
+ * Onde o anúncio roda (define o formato). `media` é o tipo padrão; `mediaOptions` diz o que o cliente pode
+ * escolher — Feed, Facebook e Stories aceitam imagem OU vídeo; Reels/TikTok é sempre vídeo.
+ */
 export const PLATFORMS = {
-  INSTAGRAM_FEED: { label: "Instagram Feed", media: "IMAGE", aspectRatio: "4:5", hint: "Imagem 4:5" },
-  FACEBOOK_ADS: { label: "Facebook Ads", media: "IMAGE", aspectRatio: "1:1", hint: "Imagem 1:1" },
-  STORIES: { label: "Stories", media: "IMAGE", aspectRatio: "9:16", hint: "Imagem 9:16" },
-  REELS_TIKTOK: { label: "Reels / TikTok", media: "VIDEO", aspectRatio: "9:16", hint: "Vídeo 9:16 + locução" },
+  INSTAGRAM_FEED: { label: "Instagram Feed", media: "IMAGE", mediaOptions: ["IMAGE", "VIDEO"], aspectRatio: "4:5", hint: "4:5 · imagem ou vídeo" },
+  FACEBOOK_ADS: { label: "Facebook Ads", media: "IMAGE", mediaOptions: ["IMAGE", "VIDEO"], aspectRatio: "1:1", hint: "1:1 · imagem ou vídeo" },
+  STORIES: { label: "Stories", media: "IMAGE", mediaOptions: ["IMAGE", "VIDEO"], aspectRatio: "9:16", hint: "9:16 · imagem ou vídeo" },
+  REELS_TIKTOK: { label: "Reels / TikTok", media: "VIDEO", mediaOptions: ["VIDEO"], aspectRatio: "9:16", hint: "Vídeo 9:16 + locução" },
 } as const;
+
+export const MEDIA_KINDS = ["IMAGE", "VIDEO"] as const;
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+/** Tipo de mídia efetivo: o pedido, se o formato aceitar; senão o padrão do formato (campanhas antigas = padrão). */
+export function resolveMedia(platform: PlatformKey, requested?: string | null): MediaKind {
+  const options = PLATFORMS[platform].mediaOptions as readonly string[];
+  return requested && options.includes(requested) ? (requested as MediaKind) : PLATFORMS[platform].media;
+}
 
 export const STYLES = {
   CINEMATIC: "Cinematográfico",
@@ -72,14 +85,14 @@ export interface AiCosts {
 export const DEFAULT_COSTS: AiCosts = { image: 3, video: 10, premiumMultiplier: 2 };
 
 /** Créditos por variação. Para vídeo, `costs.video` é o preço de cada trecho de 5 s. */
-export function costPerVariation(costs: AiCosts, platform: PlatformKey, quality: QualityKey, videoDuration?: number | null): number {
-  const isVideo = PLATFORMS[platform].media === "VIDEO";
+export function costPerVariation(costs: AiCosts, platform: PlatformKey, quality: QualityKey, videoDuration?: number | null, media?: string | null): number {
+  const isVideo = resolveMedia(platform, media) === "VIDEO";
   const base = isVideo ? costs.video * videoSegments(videoDuration) : costs.image;
   return quality === "premium" ? Math.ceil(base * costs.premiumMultiplier) : base;
 }
 
-export function campaignCost(costs: AiCosts, platform: PlatformKey, quality: QualityKey, variations: number, videoDuration?: number | null): number {
-  return costPerVariation(costs, platform, quality, videoDuration) * variations;
+export function campaignCost(costs: AiCosts, platform: PlatformKey, quality: QualityKey, variations: number, videoDuration?: number | null, media?: string | null): number {
+  return costPerVariation(costs, platform, quality, videoDuration, media) * variations;
 }
 
 export const OBJECTIVE_KEYS = Object.keys(OBJECTIVES) as [ObjectiveKey, ...ObjectiveKey[]];

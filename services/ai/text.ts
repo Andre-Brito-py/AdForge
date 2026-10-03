@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { generateJson, hasTextProvider } from "./llm";
 import { readOwnMedia } from "@/lib/storage";
-import { PLATFORMS, type ObjectiveKey, type PlatformKey, type StyleKey } from "@/lib/catalog";
+import { PLATFORMS, type MediaKind, type ObjectiveKey, type PlatformKey, type StyleKey } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { colorName, websiteDomain } from "@/lib/brand-assets";
 import { IMAGE_POLICY } from "./moderation";
@@ -37,6 +37,8 @@ export interface StrategyInput {
   productDescription?: string | null;
   objective: ObjectiveKey;
   platform: PlatformKey;
+  /** Imagem ou vídeo (o formato pode aceitar os dois). */
+  media: MediaKind;
   style: StyleKey;
   targetAudience?: string | null;
   offer?: string | null;
@@ -134,7 +136,7 @@ function languageInstructions(input: StrategyInput): { rule: string; outputField
 }
 
 function buildPrompt(input: StrategyInput): string {
-  const isVideo = PLATFORMS[input.platform].media === "VIDEO";
+  const isVideo = input.media === "VIDEO";
   const seconds = input.videoDuration || 5;
   const scenes = Math.max(1, Math.round(seconds / 5));
   const words = voiceoverWordBudget(seconds);

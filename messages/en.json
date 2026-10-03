@@ -101,15 +101,15 @@
     "platforms": {
       "INSTAGRAM_FEED": {
         "label": "Instagram Feed",
-        "hint": "4:5 image"
+        "hint": "4:5 · image or video"
       },
       "FACEBOOK_ADS": {
         "label": "Facebook Ads",
-        "hint": "1:1 image"
+        "hint": "1:1 · image or video"
       },
       "STORIES": {
         "label": "Stories",
-        "hint": "9:16 image"
+        "hint": "9:16 · image or video"
       },
       "REELS_TIKTOK": {
         "label": "Reels / TikTok",
@@ -396,7 +396,13 @@
       "imageRights": "I'm authorized to use the image of the people shown in these photos (or they're me).",
       "vyImageTitle": "I can't use that image",
       "vyImageFooter": "Underwear and swimwear are welcome as products: on a hanger, a mannequin or worn by adults in catalog poses. Nudity, sensual content, violence, minors in that context and celebrities aren't allowed.",
-      "summaryReferences": "Reference images"
+      "summaryReferences": "Reference images",
+      "mediaTitle": "Image or video?",
+      "mediaImage": "Image",
+      "mediaImageHint": "Ad photo ready to post.",
+      "mediaVideo": "Video with voiceover",
+      "mediaVideoHint": "{aspect} video with speech and caption.",
+      "mediaUnavailable": "Video is unavailable right now."
     },
     "generating": {
       "title": "Generating your campaign",

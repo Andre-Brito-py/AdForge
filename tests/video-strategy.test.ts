@@ -5,7 +5,7 @@ import { costPerVariation, videoSegments, DEFAULT_COSTS } from "@/lib/catalog";
 import { campaignSchema } from "@/lib/validation";
 
 const input = (over: Partial<StrategyInput> = {}): StrategyInput => ({
-  imageUrl: "/uploads/x.png", productName: "Garrafa", objective: "SALES", platform: "REELS_TIKTOK", style: "CINEMATIC",
+  imageUrl: "/uploads/x.png", productName: "Garrafa", objective: "SALES", platform: "REELS_TIKTOK", media: "VIDEO", style: "CINEMATIC",
   variations: 2, language: "auto", fallbackLanguage: "pt-BR", videoDuration: 15, uiLocale: "pt", ...over,
 });
 const variant = { headline: "H", copy: "Copy ☕", cta: "Compre", visualConcept: "Bottle on marble", voiceover: "Seu café quente o dia todo.", scenes: ["s1", "s2", "s3"] };

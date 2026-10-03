@@ -9,8 +9,8 @@ import { ArrowLeft, ArrowRight, Check, Globe, Image as ImageIcon, Loader2, Plus,
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
-  MAX_REFERENCES, OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, VIDEO_DURATIONS, campaignCost, costPerVariation,
-  type AiCosts, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey, type VideoDuration,
+  MAX_REFERENCES, OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, VIDEO_DURATIONS, campaignCost, costPerVariation, resolveMedia,
+  type AiCosts, type MediaKind, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey, type VideoDuration,
 } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { buttonClass } from "@/components/app/ui-bits";
@@ -50,6 +50,7 @@ export function CampaignWizard({
   const [language, setLanguage] = useState<AdLanguage | "auto">("auto");
   const [briefing, setBriefing] = useState("");
   const [duration, setDuration] = useState<VideoDuration>(5);
+  const [mediaChoice, setMediaChoice] = useState<MediaKind | null>(null);
   const [applyLogo, setApplyLogo] = useState(!!logoUrl);
   const [references, setReferences] = useState<string[]>([]);
   const [uploadingRef, setUploadingRef] = useState(false);
@@ -78,8 +79,10 @@ export function CampaignWizard({
   };
 
   const product = products.find((p) => p.id === productId);
-  const isVideo = !!platform && PLATFORMS[platform].media === "VIDEO";
-  const total = platform ? campaignCost(costs, platform, quality, variations, isVideo ? duration : null) : 0;
+  // Imagem ou vídeo: Feed, Facebook e Stories aceitam os dois; Reels/TikTok é sempre vídeo.
+  const media: MediaKind | null = platform ? resolveMedia(platform, mediaChoice) : null;
+  const isVideo = media === "VIDEO";
+  const total = platform ? campaignCost(costs, platform, quality, variations, isVideo ? duration : null, media) : 0;
   const enough = balance >= total;
 
   const canNext = useMemo(
@@ -98,7 +101,7 @@ export function CampaignWizard({
         body: JSON.stringify({
           productId, objective, targetAudience: targetAudience || null, offer: offer || null, platform, style, quality, variations, language,
           briefing: briefing.trim() || null, videoDuration: isVideo ? duration : 5, applyLogo: !!logoUrl && applyLogo,
-          references, imageRights: references.length > 0 && imageRights,
+          references, imageRights: references.length > 0 && imageRights, media,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -235,11 +238,14 @@ export function CampaignWizard({
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(Object.keys(PLATFORMS) as PlatformKey[]).map((key) => {
                     const p = PLATFORMS[key];
-                    const available = availability[p.media];
+                    const available = (p.mediaOptions as readonly MediaKind[]).some((m) => availability[m]);
                     return (
-                      <button key={key} type="button" disabled={!available} onClick={() => setPlatform(key)} data-selected={platform === key}
+                      <button key={key} type="button" disabled={!available} data-selected={platform === key}
+                        onClick={() => { setPlatform(key); setMediaChoice(availability[p.media] ? p.media : (p.mediaOptions as readonly MediaKind[]).find((m) => availability[m]) || p.media); }}
                         className="choice flex items-start gap-3 disabled:cursor-not-allowed disabled:opacity-50">
-                        {p.media === "VIDEO" ? <Video className="mt-0.5 h-5 w-5 text-brand" /> : <ImageIcon className="mt-0.5 h-5 w-5 text-brand" />}
+                        {p.mediaOptions.length > 1 ? (
+                          <span className="mt-0.5 flex shrink-0 gap-0.5"><ImageIcon className="h-5 w-5 text-brand" /><Video className="h-5 w-5 text-brand" /></span>
+                        ) : p.media === "VIDEO" ? <Video className="mt-0.5 h-5 w-5 text-brand" /> : <ImageIcon className="mt-0.5 h-5 w-5 text-brand" />}
                         <span>
                           <span className="block font-medium">{tcat(`platforms.${key}.label`)}</span>
                           <span className="block text-sm text-muted-foreground">
@@ -251,6 +257,26 @@ export function CampaignWizard({
                   })}
                 </div>
 
+                {platform && PLATFORMS[platform].mediaOptions.length > 1 && (
+                  <>
+                    <h3 className="mb-3 mt-7 text-sm font-medium">{t("mediaTitle")}</h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(PLATFORMS[platform].mediaOptions as readonly MediaKind[]).map((m) => (
+                        <button key={m} type="button" disabled={!availability[m]} onClick={() => setMediaChoice(m)} data-selected={media === m}
+                          className="choice flex items-start gap-3 disabled:cursor-not-allowed disabled:opacity-50">
+                          {m === "VIDEO" ? <Video className="mt-0.5 h-5 w-5 text-brand" /> : <ImageIcon className="mt-0.5 h-5 w-5 text-brand" />}
+                          <span>
+                            <span className="block font-medium">{m === "VIDEO" ? t("mediaVideo") : t("mediaImage")}</span>
+                            <span className="block text-sm text-muted-foreground">
+                              {!availability[m] ? t("mediaUnavailable") : m === "VIDEO" ? t("mediaVideoHint", { aspect: PLATFORMS[platform].aspectRatio }) : t("mediaImageHint")}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
                 {isVideo && (
                   <>
                     <h3 className="mb-1 mt-7 text-sm font-medium">{t("duration")}</h3>
@@ -259,7 +285,7 @@ export function CampaignWizard({
                       {VIDEO_DURATIONS.map((s) => (
                         <button key={s} type="button" onClick={() => setDuration(s)} data-selected={duration === s} className="choice py-2.5 text-center">
                           <span className="block font-semibold tabular-nums">{t("durationOption", { s })}</span>
-                          <span className="block text-xs text-muted-foreground">{tc("credits", { count: costPerVariation(costs, platform as PlatformKey, quality, s) })}</span>
+                          <span className="block text-xs text-muted-foreground">{tc("credits", { count: costPerVariation(costs, platform as PlatformKey, quality, s, "VIDEO") })}</span>
                         </button>
                       ))}
                     </div>
@@ -285,7 +311,7 @@ export function CampaignWizard({
                       </span>
                       <span className="mt-0.5 block text-sm text-muted-foreground">
                         {tcat(`qualities.${key}.description`)}
-                        {platform ? ` · ${t("perVariation", { count: costPerVariation(costs, platform, key, isVideo ? duration : null) })}` : ""}
+                        {platform ? ` · ${t("perVariation", { count: costPerVariation(costs, platform, key, isVideo ? duration : null, media) })}` : ""}
                       </span>
                     </button>
                   ))}
@@ -336,7 +362,7 @@ export function CampaignWizard({
                 <dl className="mt-6 grid gap-x-6 gap-y-3 rounded-2xl bg-muted/50 p-5 text-sm sm:grid-cols-2">
                   <Row k={t("summary.product")} v={product?.name} />
                   <Row k={t("summary.objective")} v={tcat(`objectives.${objective}.label`)} />
-                  <Row k={t("summary.format")} v={`${tcat(`platforms.${platform}.label`)} (${tcat(`platforms.${platform}.hint`)})`} />
+                  <Row k={t("summary.format")} v={`${tcat(`platforms.${platform}.label`)} · ${PLATFORMS[platform].aspectRatio} · ${isVideo ? t("mediaVideo") : t("mediaImage")}`} />
                   <Row k={t("summary.style")} v={`${tcat(`styles.${style}`)} · ${tcat(`qualities.${quality}.label`)}`} />
                   <Row k={t("summary.language")} v={language === "auto" ? t("languageAuto") : AD_LANGUAGES[language][locale]} />
                   {isVideo && <Row k={t("summaryDuration")} v={t("durationOption", { s: duration })} />}
@@ -351,7 +377,7 @@ export function CampaignWizard({
                     <p className={`text-xs ${enough ? "text-muted-foreground" : "text-destructive"}`}>{t("yourBalance", { count: balance })}</p>
                   </div>
                   <p className="max-w-xs text-xs text-muted-foreground">
-                    {t("refundNote")} {PLATFORMS[platform].media === "VIDEO" ? t("videoTime") : t("imageTime")}
+                    {t("refundNote")} {isVideo ? t("videoTime") : t("imageTime")}
                   </p>
                 </div>
 

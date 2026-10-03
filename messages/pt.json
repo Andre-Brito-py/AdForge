@@ -101,15 +101,15 @@
     "platforms": {
       "INSTAGRAM_FEED": {
         "label": "Instagram Feed",
-        "hint": "Imagem 4:5"
+        "hint": "4:5 · imagem ou vídeo"
       },
       "FACEBOOK_ADS": {
         "label": "Facebook Ads",
-        "hint": "Imagem 1:1"
+        "hint": "1:1 · imagem ou vídeo"
       },
       "STORIES": {
         "label": "Stories",
-        "hint": "Imagem 9:16"
+        "hint": "9:16 · imagem ou vídeo"
       },
       "REELS_TIKTOK": {
         "label": "Reels / TikTok",
@@ -396,7 +396,13 @@
       "imageRights": "Tenho autorização para usar a imagem das pessoas que aparecem nessas fotos (ou elas sou eu).",
       "vyImageTitle": "Essa imagem eu não posso usar",
       "vyImageFooter": "Moda íntima e praia são bem-vindas como produto: em cabide, manequim ou vestidas por adultos em pose de catálogo. Nudez, conteúdo sensual, violência, menores de idade nesse contexto e famosos não são permitidos.",
-      "summaryReferences": "Imagens de referência"
+      "summaryReferences": "Imagens de referência",
+      "mediaTitle": "Imagem ou vídeo?",
+      "mediaImage": "Imagem",
+      "mediaImageHint": "Foto publicitária pronta para postar.",
+      "mediaVideo": "Vídeo com locução",
+      "mediaVideoHint": "Vídeo no formato {aspect}, com fala e legenda.",
+      "mediaUnavailable": "Vídeo indisponível no momento."
     },
     "generating": {
       "title": "Gerando sua campanha",
