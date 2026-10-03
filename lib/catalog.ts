@@ -38,6 +38,14 @@ export const MAX_VARIATIONS = 4;
 export const MAX_REFERENCES = 3;
 
 /**
+ * A pessoa em cena fala a locução (lábios sincronizados) quando há alguém apresentando o produto;
+ * sem apresentador (só o produto), a locução fica como narração em off. Decisão automática, para todos os vídeos.
+ */
+export function isSpeakingOnCamera(presenter: string | null | undefined): boolean {
+  return presenter === "female" || presenter === "male";
+}
+
+/**
  * Vídeos longos são feitos em trechos de 5 s: cada trecho parte do último quadro do anterior
  * (continuidade) e no fim tudo é unido com a locução. O custo em créditos é por trecho.
  */

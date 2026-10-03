@@ -417,7 +417,8 @@
       "back": "Back to campaigns",
       "connectionError": "Connection error",
       "scene": "scene {done} of {total}",
-      "assembling": "putting scenes and voiceover together"
+      "assembling": "putting scenes and voiceover together",
+      "lipsync": "syncing the lips"
     },
     "gallery": {
       "deleteConfirm": "Delete this campaign and all of its creatives? This can't be undone.",

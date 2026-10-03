@@ -61,6 +61,9 @@ export const DEFAULT_MODELS: AiModels = {
   // Os modelos Wan 2.1/2.2 continuam suportados (trechos de 5 s, sem lip-sync) se escolhidos no Admin.
   video: "wan/v2.6/image-to-video",
   videoPremium: "wan/v2.6/image-to-video",
+  // Passe final de lip-sync: refaz a boca de quem fala no vídeo inteiro (o lip-sync do Wan às vezes atrasa).
+  lipsyncEnabled: true,
+  lipsync: "fal-ai/sync-lipsync/v2",
 };
 
 export const DEFAULT_PLANS: Plan[] = [

@@ -36,7 +36,7 @@ export const GET = handler(async (_request: Request, ctx: RouteContext<"/api/cam
   // Vídeos longos: quantas cenas já ficaram prontas (o estado interno do provedor não sai daqui).
   const creatives = campaign.creatives.map(({ job, ...c }) => {
     const p = c.type === "VIDEO" && c.status === "PROCESSING" ? parseVideoProgress(job?.externalData ?? null, job?.startedAt?.getTime() ?? 0) : null;
-    return { ...c, segments: p ? { done: p.done.length, total: p.total } : null };
+    return { ...c, segments: p ? { done: p.done.length, total: p.total, lipsync: !!p.lipsync } : null };
   });
   return NextResponse.json({ ...campaign, creatives });
 });

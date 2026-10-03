@@ -417,7 +417,8 @@
       "back": "Voltar para campanhas",
       "connectionError": "Erro de conexão",
       "scene": "cena {done} de {total}",
-      "assembling": "juntando cenas e locução"
+      "assembling": "juntando cenas e locução",
+      "lipsync": "sincronizando a fala"
     },
     "gallery": {
       "deleteConfirm": "Excluir esta campanha e todos os criativos? Esta ação não pode ser desfeita.",

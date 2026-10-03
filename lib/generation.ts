@@ -2,13 +2,15 @@ import { waitUntil } from "@vercel/functions";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { getAppConfig } from "./config";
-import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, videoSegments, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
-import { deletePrefix, externallyReachableUrl, fetchMedia, IMAGE_TYPES, isOwnStorageUrl, readOwnMedia, saveFile, type ImageMime } from "./storage";
+import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, videoSegments, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
+import { deletePrefix, fetchMedia, IMAGE_TYPES, isOwnStorageUrl, readOwnMedia, saveFile, type ImageMime } from "./storage";
 import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
-import { planSegments, segmentPrompt, videoModelCaps } from "./video-models";
+import { planSegments, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
+import { submitLipSync } from "@/services/ai/lipsync";
+import { falReachableUrl } from "@/services/ai/fal-storage";
 import { createKeyframe } from "@/services/ai/keyframe";
 import { directMotion } from "@/services/ai/motion";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
@@ -455,7 +457,7 @@ function segmentsOf(progress: VideoProgress) {
 }
 
 /** `frameUrl` é o quadro inicial no NOSSO armazenamento (o diretor de movimento precisa vê-lo). */
-async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments">, index: number, frameUrl: string) {
+async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments" | "speaking">, index: number, frameUrl: string) {
   const config = await getAppConfig();
   if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
   const campaign = job.creative.campaign;
@@ -470,7 +472,7 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<Vid
     const fresh = await db.creative.findUnique({ where: { id: job.creativeId }, select: { audioUrl: true } });
     const narration = fresh?.audioUrl ? await readOwnMedia(fresh.audioUrl).then((m) => m.buffer).catch(() => null) : null;
     const slice = narration ? await sliceAudio(narration, start, seconds) : null;
-    if (slice) audioUrl = await externallyReachableUrl(await saveFile(slice, `${workDir(job)}voice-${index}.mp3`, "audio/mpeg"));
+    if (slice) audioUrl = await falReachableUrl(config.secrets.wanKey, await saveFile(slice, `${workDir(job)}voice-${index}.mp3`, "audio/mpeg"));
   }
 
   const basePrompt = buildVideoPrompt(
@@ -482,11 +484,14 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<Vid
   );
   const frame = await readOwnMedia(frameUrl);
   // Diretor de movimento: olha este quadro e escreve um prompt com luz e movimento físicos (evita "PNG colado").
+  const total = segments.reduce((a, b) => a + b, 0);
   const prompt = await directMotion({
     frame,
     direction: basePrompt,
     seconds,
-    speaking: !!audioUrl && spec.presenter !== "none",
+    speaking: !!progress.speaking,
+    // O que a pessoa fala neste pedido: ajuda o modelo a mexer a boca desde o primeiro quadro.
+    transcript: progress.speaking ? voiceoverSlice(spec.voiceover, start, seconds, total) : null,
     productSize: spec.productSize,
     fallback: basePrompt,
   });
@@ -494,7 +499,7 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<Vid
   return submitVideo({
     falKey: config.secrets.wanKey,
     model: job.creative.model,
-    imageUrl: await externallyReachableUrl(frameUrl),
+    imageUrl: await falReachableUrl(config.secrets.wanKey, frameUrl),
     prompt,
     aspectRatio: job.creative.aspectRatio || "9:16",
     premium: campaign.quality === "premium",
@@ -524,6 +529,9 @@ async function submitVideoJob(job: LoadedJob) {
     }
   }
 
+  // Com alguém apresentando, a pessoa FALA a locução (lábios sincronizados); só com o produto, é narração em off.
+  const speaking = hasNarration && isSpeakingOnCamera(spec.presenter);
+
   // O vídeo sempre começa num quadro de abertura gerado como UMA foto realista (produto + referências, na escala
   // certa e no formato do vídeo) e aprovado por uma revisão de IA. Animar a foto crua do produto deixava o
   // resultado artificial. Sem Gemini configurado, cai na foto do produto.
@@ -547,6 +555,7 @@ async function submitVideoJob(job: LoadedJob) {
         quality: "premium",
         brandColor: brand?.primaryColor,
         extraInstructions: spec.extra,
+        speaking,
       }
     );
     startImage = await saveFile(frame.buffer, `${workDir(job)}keyframe.${IMAGE_TYPES[frame.mimeType as ImageMime] || "png"}`, frame.mimeType);
@@ -556,7 +565,9 @@ async function submitVideoJob(job: LoadedJob) {
   const plan = {
     total: 0,
     segments: planSegments(campaign.videoDuration || VIDEO_SEGMENT_SECONDS, caps.durations),
-    audioInSegments: caps.lipSyncAudio && hasNarration,
+    // Narração em off não vai para o modelo de vídeo (senão ele faz alguém mexer a boca sem motivo).
+    audioInSegments: caps.lipSyncAudio && speaking,
+    speaking,
   };
   plan.total = plan.segments.length;
   const request = await submitSegment(job, spec, plan, 0, startImage);
@@ -571,6 +582,9 @@ async function pollVideoJob(job: LoadedJob) {
   const progress = parseVideoProgress(raw, job.startedAt?.getTime() ?? Date.now());
   if (!progress) return failJob(job.id, "Estado do vídeo inválido");
   if (isClaimed(progress)) return; // outro worker está unindo/enviando o próximo trecho
+
+  // Etapa final: lip-sync dedicado sobre o vídeo já montado.
+  if (progress.lipsync) return pollLipSync(job, raw, progress, config.secrets.wanKey);
 
   let finishedUrl: string | null = null;
   if (progress.current) {
@@ -609,7 +623,10 @@ async function pollVideoJob(job: LoadedJob) {
     const previous = lastBuffer ?? (await readOwnMedia(done[done.length - 1])).buffer;
     const frameUrl = await saveFile(await lastFrame(previous), `${dir}frame-${done.length}.png`, "image/png");
     const request = await submitSegment(job, spec, progress, done.length, frameUrl);
-    const next: VideoProgress = { v: 2, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, done, current: request, segmentStartedAt: Date.now() };
+    const next: VideoProgress = {
+      v: 2, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, speaking: progress.speaking,
+      done, current: request, segmentStartedAt: Date.now(),
+    };
     await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
     return;
   }
@@ -632,16 +649,72 @@ async function pollVideoJob(job: LoadedJob) {
     ? await assembleVideo(segments, null, logo, { segmentAudio: true })
     : await assembleVideo(segments, narration, logo);
 
-  const url = await saveFile(final.buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${job.creativeId}.mp4`, "video/mp4");
+  // Quando a pessoa fala: passe de lip-sync dedicado no vídeo inteiro, com a própria locução como referência.
+  // É o que garante a boca sincronizada desde o primeiro quadro, em qualquer vídeo da plataforma.
+  if (progress.speaking && fresh?.audioUrl && config.models.lipsyncEnabled) {
+    try {
+      const assembledUrl = await saveFile(final.buffer, `${dir}assembled.mp4`, "video/mp4");
+      const request = await submitLipSync({
+        falKey: config.secrets.wanKey,
+        model: config.models.lipsync,
+        videoUrl: await falReachableUrl(config.secrets.wanKey, assembledUrl),
+        audioUrl: await falReachableUrl(config.secrets.wanKey, fresh.audioUrl),
+        premium: campaign.quality === "premium",
+      });
+      const next: VideoProgress = { ...progress, done, current: null, claimedAt: undefined, lipsync: { request, startedAt: Date.now(), assembledUrl, duration: final.duration } };
+      await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
+      return;
+    } catch (error) {
+      // Lip-sync indisponível: entrega o vídeo montado (nunca perde o resultado por causa desta etapa).
+      console.warn("[generation] lip-sync final indisponível, entregando sem ele", error);
+    }
+  }
+
+  await completeVideo(job, { ...progress, done, current: null }, final.buffer, final.duration);
+}
+
+const LIPSYNC_TIMEOUT_MS = 20 * 60_000;
+
+/** Salva o vídeo final, conclui o job e limpa os arquivos intermediários. */
+async function completeVideo(job: LoadedJob, progress: VideoProgress, buffer: Buffer, duration: number) {
+  const campaign = job.creative.campaign;
+  const url = await saveFile(buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${job.creativeId}.mp4`, "video/mp4");
   const completed = await db.generationJob.updateMany({
     where: { id: job.id, status: "PROCESSING" },
-    data: { status: "COMPLETED", completedAt: new Date(), externalData: JSON.stringify({ ...progress, done, current: null, claimedAt: undefined }) },
+    data: { status: "COMPLETED", completedAt: new Date(), externalData: JSON.stringify({ ...progress, claimedAt: undefined }) },
   });
   if (completed.count === 1) {
-    await db.creative.update({ where: { id: job.creativeId }, data: { status: "COMPLETED", outputUrl: url, duration: final.duration } });
-    await deletePrefix(dir).catch((e) => console.warn("[generation] limpeza dos trechos falhou", e));
+    await db.creative.update({ where: { id: job.creativeId }, data: { status: "COMPLETED", outputUrl: url, duration } });
+    await deletePrefix(workDir(job)).catch((e) => console.warn("[generation] limpeza dos trechos falhou", e));
   }
   await maybeFinalizeCampaign(campaign.id);
+}
+
+/** Acompanha o lip-sync final; se falhar ou demorar demais, entrega o vídeo montado sem ele. */
+async function pollLipSync(job: LoadedJob, raw: string, progress: VideoProgress, falKey: string) {
+  const ls = progress.lipsync!;
+  const status = await checkVideo(falKey, ls.request);
+  if (status.state === "pending" && Date.now() - ls.startedAt < LIPSYNC_TIMEOUT_MS) {
+    await db.generationJob.update({ where: { id: job.id }, data: { status: "PROCESSING" } }); // atualiza updatedAt
+    return;
+  }
+
+  const claimed = await db.generationJob.updateMany({
+    where: { id: job.id, status: "PROCESSING", externalData: raw },
+    data: { externalData: JSON.stringify({ ...progress, claimedAt: Date.now() }) },
+  });
+  if (claimed.count === 0) return;
+
+  let buffer: Buffer;
+  if (status.state === "completed") {
+    buffer = (await fetchMedia(status.videoUrl)).buffer;
+  } else {
+    if (status.state === "pending") await cancelVideo(falKey, ls.request);
+    console.warn(`[generation] lip-sync final ${status.state === "failed" ? `falhou (${status.error})` : "excedeu o tempo"}; entregando o vídeo montado`);
+    buffer = (await readOwnMedia(ls.assembledUrl)).buffer;
+  }
+  const duration = ls.duration ?? Math.round(progress.segments?.reduce((a, b) => a + b, 0) ?? progress.total * VIDEO_SEGMENT_SECONDS);
+  await completeVideo(job, { ...progress, lipsync: null }, buffer, duration);
 }
 
 /** Converte erros da IA de texto em respostas HTTP (Vy mostra a recusa de escopo/conteúdo). */

@@ -159,6 +159,9 @@ export const modelsSchema = z.object({
   openaiImagePremium: modelName,
   video: modelName,
   videoPremium: modelName,
+  /** Passe final de sincronização labial (fal.ai) quando a pessoa fala no vídeo. */
+  lipsyncEnabled: z.boolean(),
+  lipsync: modelName,
 });
 export type AiModels = z.infer<typeof modelsSchema>;
 

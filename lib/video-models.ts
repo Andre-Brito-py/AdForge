@@ -45,6 +45,18 @@ export function planSegments(total: number, durations: number[]): number[] {
 }
 
 /**
+ * Parte do roteiro falada dentro de [start, start+seconds) de um vídeo de `total` segundos
+ * (proporcional ao número de palavras; serve para o prompt dizer o que a pessoa fala naquele pedido).
+ */
+export function voiceoverSlice(text: string, start: number, seconds: number, total: number): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0 || total <= 0) return "";
+  const from = Math.floor((start / total) * words.length);
+  const to = Math.ceil(((start + seconds) / total) * words.length);
+  return words.slice(from, Math.max(from + 1, to)).join(" ");
+}
+
+/**
  * Prompt de um pedido que cobre várias cenas de 5 s (ex.: 15 s = 3 cenas): descreve a ação em sequência,
  * num plano contínuo, para o modelo não cortar nem trocar de cenário.
  */

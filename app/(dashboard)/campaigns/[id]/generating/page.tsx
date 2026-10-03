@@ -9,7 +9,7 @@ import { setMascotMood } from "@/components/mascot/mascot-events";
 import { buttonClass } from "@/components/app/ui-bits";
 import { useTranslations } from "next-intl";
 
-interface CreativeStatus { id: string; type: string; status: string; variantIndex: number; headline: string | null; segments?: { done: number; total: number } | null }
+interface CreativeStatus { id: string; type: string; status: string; variantIndex: number; headline: string | null; segments?: { done: number; total: number; lipsync?: boolean } | null }
 interface CampaignStatus { id: string; name: string; status: string; creatives: CreativeStatus[] }
 
 
@@ -97,9 +97,9 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
                 : <CircleDashed className="h-4 w-4 text-muted-foreground" />}
               <span className="font-medium">{t("variation", { n: i + 1 })}</span>
               <span className="truncate text-muted-foreground">{headlines.get(c.variantIndex)}</span>
-              {c.segments && c.segments.total > 1 && (
+              {c.segments && (c.segments.total > 1 || c.segments.lipsync) && (
                 <span className="ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
-                  {c.segments.done >= c.segments.total ? t("assembling") : t("scene", { done: c.segments.done + 1, total: c.segments.total })}
+                  {c.segments.lipsync ? t("lipsync") : c.segments.done >= c.segments.total ? t("assembling") : t("scene", { done: c.segments.done + 1, total: c.segments.total })}
                 </span>
               )}
             </li>

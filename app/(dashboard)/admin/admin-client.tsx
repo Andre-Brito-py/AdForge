@@ -14,8 +14,8 @@ interface Plan {
 interface ConfigResponse {
   secrets: Record<string, SecretInfo>;
   costs: { image: number; video: number; premiumMultiplier: number };
-  models: Record<string, string>;
-  defaultModels: Record<string, string>;
+  models: Record<string, string | boolean>;
+  defaultModels: Record<string, string | boolean>;
   plans: Plan[];
   freeTrial: { enabled: boolean; credits: number; planVisible: boolean };
   googleLogin: { enabled: boolean; active: boolean };
@@ -276,7 +276,7 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
   const modelGroups: { title: string; fields: Record<string, string> }[] = [
     { title: "Google Gemini", fields: { text: "Texto / estratégia / revisões", image: "Imagem (padrão)", imagePremium: "Imagem (premium e quadro de abertura)" } },
     { title: "OpenAI", fields: { openaiText: "Texto / estratégia / revisões", openaiImage: "Imagem (padrão)", openaiImagePremium: "Imagem (premium e quadro de abertura)" } },
-    { title: "Vídeo (fal.ai)", fields: { video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)" } },
+    { title: "Vídeo (fal.ai)", fields: { video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)", lipsync: "Lip-sync final" } },
   ];
   const providerOptions = [
     { value: "gemini", label: "Google Gemini", ok: config.secrets.geminiKey?.configured },
@@ -314,7 +314,7 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
           {([["textProvider", "Textos, estratégia, moderação e revisões"], ["imageProvider", "Imagens e quadro de abertura dos vídeos"]] as const).map(([k, label]) => (
             <div key={k} className="space-y-1.5">
               <label className="label-base" htmlFor={`p-${k}`}>{label}</label>
-              <select id={`p-${k}`} className="input-base" value={models[k] || config.defaultModels[k]} onChange={(e) => setModels({ ...models, [k]: e.target.value })}>
+              <select id={`p-${k}`} className="input-base" value={String(models[k] || config.defaultModels[k])} onChange={(e) => setModels({ ...models, [k]: e.target.value })}>
                 {providerOptions.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}{o.ok ? "" : " (sem chave)"}</option>
                 ))}
@@ -322,6 +322,16 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
             </div>
           ))}
         </div>
+        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border p-4">
+          <span>
+            <span className="block font-medium">Lip-sync final nos vídeos com apresentador</span>
+            <span className="block text-sm text-muted-foreground">
+              Quando alguém fala no vídeo, um modelo especializado refaz a boca no vídeo inteiro, sincronizada com a locução desde o primeiro quadro.
+              Recomendado: sem ele, o modelo de vídeo às vezes deixa a pessoa calada nos primeiros segundos. Custo extra na fal.ai por vídeo.
+            </span>
+          </span>
+          <Switch checked={models.lipsyncEnabled !== false} onChange={(v) => setModels({ ...models, lipsyncEnabled: v })} />
+        </label>
       </section>
 
       <section className="surface space-y-5 p-5 sm:p-6">
@@ -336,7 +346,7 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
               {Object.entries(g.fields).map(([k, label]) => (
                 <div key={k} className="space-y-1.5">
                   <label className="label-base" htmlFor={`m-${k}`}>{label}</label>
-                  <input id={`m-${k}`} className="input-base font-mono" value={models[k] || ""} placeholder={config.defaultModels[k]} onChange={(e) => setModels({ ...models, [k]: e.target.value })} />
+                  <input id={`m-${k}`} className="input-base font-mono" value={String(models[k] ?? "")} placeholder={String(config.defaultModels[k] ?? "")} onChange={(e) => setModels({ ...models, [k]: e.target.value })} />
                 </div>
               ))}
             </div>

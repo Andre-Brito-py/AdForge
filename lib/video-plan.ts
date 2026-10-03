@@ -54,6 +54,10 @@ export interface VideoProgress {
   segments?: number[];
   /** Os trechos já vêm com a locução (lip-sync): na montagem não se coloca a locução de novo. */
   audioInSegments?: boolean;
+  /** A pessoa em cena fala a locução (lábios sincronizados) — senão é narração em off. */
+  speaking?: boolean;
+  /** Etapa final de lip-sync dedicado sobre o vídeo já montado. */
+  lipsync?: { request: FalRequest; startedAt: number; assembledUrl: string; duration?: number } | null;
   /** URLs (no nosso armazenamento) dos trechos já prontos, em ordem. */
   done: string[];
   /** Pedido em andamento na fal.ai (null entre um trecho e outro). */

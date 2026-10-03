@@ -4,6 +4,8 @@ import { openAiSize } from "@/services/ai/image";
 import { directorPrompt } from "@/services/ai/motion";
 import { DEFAULT_MODELS } from "@/lib/config";
 import { modelsSchema } from "@/lib/validation";
+import { isSpeakingOnCamera } from "@/lib/catalog";
+import { voiceoverSlice } from "@/lib/video-models";
 
 const secrets = (g: string | null, o: string | null) => ({ geminiKey: g, openAiKey: o }) as never;
 
@@ -45,11 +47,39 @@ describe("escolha do provedor de imagem (Admin)", () => {
 
 describe("diretor de movimento", () => {
   it("pede reflexos e sombras que acompanham o movimento (contra o aspecto de PNG colado)", () => {
-    const p = directorPrompt({ direction: "woman lifts the bottle", seconds: 15, speaking: true, productSize: "~28 cm" });
+    const p = directorPrompt({ direction: "woman lifts the bottle", seconds: 15, speaking: true, productSize: "~28 cm", transcript: 'Sua bebida "gelada" o dia todo' });
     expect(p).toMatch(/specular highlights and reflections of THIS environment slide across its surface/);
     expect(p).toMatch(/never look like a flat sticker with frozen lighting/);
-    expect(p).toMatch(/natural lip movement/);
     expect(p).toMatch(/~28 cm/);
     expect(directorPrompt({ direction: "x", seconds: 5, speaking: false })).toMatch(/No one speaks/);
+  });
+
+  it("quem apresenta fala DESDE O PRIMEIRO QUADRO, com o texto que está falando", () => {
+    const p = directorPrompt({ direction: "x", seconds: 15, speaking: true, transcript: 'Sua bebida "gelada" o dia todo' });
+    expect(p).toMatch(/FROM THE VERY FIRST FRAME \(0\.0 s\)/);
+    expect(p).toMatch(/no silent intro/);
+    expect(p).toContain("Sua bebida 'gelada' o dia todo"); // aspas do texto não quebram o prompt
+  });
+});
+
+describe("fala sincronizada em todos os vídeos", () => {
+  it("decisão automática: com apresentador a pessoa fala; só produto = narração em off", () => {
+    expect(isSpeakingOnCamera("female")).toBe(true);
+    expect(isSpeakingOnCamera("male")).toBe(true);
+    expect(isSpeakingOnCamera("none")).toBe(false);
+    expect(isSpeakingOnCamera(null)).toBe(false);
+  });
+
+  it("cada pedido recebe a parte do roteiro falada naquele trecho", () => {
+    const text = "um dois tres quatro cinco seis";
+    expect(voiceoverSlice(text, 0, 15, 15)).toBe(text);
+    expect(voiceoverSlice(text, 0, 15, 30)).toBe("um dois tres");
+    expect(voiceoverSlice(text, 15, 15, 30)).toBe("quatro cinco seis");
+    expect(voiceoverSlice("", 0, 5, 5)).toBe("");
+  });
+
+  it("lip-sync final ligado por padrão", () => {
+    expect(DEFAULT_MODELS.lipsyncEnabled).toBe(true);
+    expect(DEFAULT_MODELS.lipsync).toBe("fal-ai/sync-lipsync/v2");
   });
 });

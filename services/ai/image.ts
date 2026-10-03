@@ -22,6 +22,8 @@ export interface ImageGenInput {
   productSize?: string | null;
   /** Problemas apontados pela revisão da tentativa anterior, para corrigir. */
   fixes?: string[];
+  /** Quadro de abertura de um vídeo em que a pessoa fala: já começa no meio de uma frase. */
+  speaking?: boolean;
   /** Gera pela OpenAI (escolhido em Admin › IA e custos) em vez do Gemini. */
   openai?: { apiKey: string; model: string } | null;
 }
@@ -81,6 +83,10 @@ function buildKeyframePrompt(input: ImageGenInput) {
       : "REAL-WORLD SCALE: infer the product's real size from image 1 and keep it realistic relative to people, hands and furniture.",
     "PHYSICAL INTEGRATION: the same light direction, color temperature and exposure on the product and the scene; the product's surface reflects THIS environment (its light sources, windows and surroundings) — never studio-lit or cut out; contact shadows and reflections where it touches hands or surfaces; matching perspective, lens, grain and depth of field; natural grip with correct finger count and fingers wrapping around the product.",
     refs ? "People from the references keep their face, skin tone, hair and body; natural pose and expression; fully and appropriately dressed as in the reference; never sexualized." : "",
+    // Começar a animação com a boca fechada faz o modelo de vídeo "demorar" para falar: o quadro já nasce falando.
+    input.speaking
+      ? "The presenter is captured MID-SENTENCE, talking to the camera: lips naturally parted as in speech, engaged expression, eyes on the lens (not a closed-mouth smile, not a frozen pose)."
+      : "",
     `Art direction: ${input.concept}`,
     `Visual style: ${input.styleLabel}. Composition with room for camera movement; the product clearly visible and in focus.`,
     brandColorDirection(input.brandColor),
