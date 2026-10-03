@@ -90,7 +90,7 @@ async function hasAudio(file: string): Promise<boolean> {
   return /Audio:/.test(out);
 }
 
-async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buffer | null): Promise<{ buffer: Buffer; duration: number }> {
+async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buffer | null, maxSeconds?: number): Promise<{ buffer: Buffer; duration: number }> {
   const inputs = files.flatMap((f) => ["-i", f]);
   const audioLabels: string[] = [];
   let extra = files.length;
@@ -119,7 +119,7 @@ async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buff
     vOut = "[vl]";
   }
   const output = path.join(dir, "final.mp4");
-  await run([...inputs, "-filter_complex", graph, "-map", vOut, "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", output], 300_000);
+  await run([...inputs, "-filter_complex", graph, "-map", vOut, "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", ...(maxSeconds ? ["-t", String(maxSeconds)] : []), "-movflags", "+faststart", output], 300_000);
   return { buffer: await readFile(output), duration: Math.round(await probeDuration(output)) };
 }
 
@@ -138,7 +138,7 @@ export async function assembleVideo(
   segments: Buffer[],
   narration: Buffer | null,
   logoPng?: Buffer | null,
-  opts: { segmentAudio?: boolean } = {}
+  opts: { segmentAudio?: boolean; maxSeconds?: number } = {}
 ): Promise<{ buffer: Buffer; duration: number }> {
   if (segments.length === 0) throw new Error("Nenhum trecho para montar");
   return withTempDir(async (dir) => {
@@ -151,7 +151,10 @@ export async function assembleVideo(
     );
 
     // Trechos que já trazem a locução (modelos com lip-sync): une vídeo E áudio de cada trecho.
-    if (opts.segmentAudio) return joinWithSegmentAudio(dir, files, logoPng);
+    if (opts.segmentAudio) return joinWithSegmentAudio(dir, files, logoPng, opts.maxSeconds);
+
+    // Modelos com durações fixas (ex.: Veo 8+8 s para um vídeo de 15 s): corta no total pedido.
+    const trim = opts.maxSeconds ? ["-t", String(opts.maxSeconds)] : [];
 
     // 1) Concatena re-codificando (os trechos podem vir com parâmetros levemente diferentes) e aplica o logo.
     const joined = path.join(dir, "joined.mp4");
@@ -168,7 +171,7 @@ export async function assembleVideo(
       graph += `;[${files.length}:v]scale=${w}:-1[lg];[v][lg]overlay=W-w-${margin}:H-h-${margin}:format=auto[vl]`;
       out = "[vl]";
     }
-    await run([...inputs, "-filter_complex", graph, "-map", out, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-an", joined], 240_000);
+    await run([...inputs, "-filter_complex", graph, "-map", out, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-an", ...trim, joined], 240_000);
 
     const videoDuration = await probeDuration(joined);
     const output = path.join(dir, "final.mp4");

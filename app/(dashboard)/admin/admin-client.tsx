@@ -5,6 +5,7 @@ import { BarChart3, ChevronDown, Copy, CreditCard, Download, Gift, ImageOff, Key
 import { toast } from "sonner";
 import { buttonClass } from "@/components/app/ui-bits";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { VIDEO_MODEL_PRESETS } from "@/lib/video-models";
 
 type SecretInfo = { configured: boolean; hint: string | null; source: "painel" | "env" | null };
 interface Plan {
@@ -276,7 +277,7 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
   const modelGroups: { title: string; fields: Record<string, string> }[] = [
     { title: "Google Gemini", fields: { text: "Texto / estratégia / revisões", image: "Imagem (padrão)", imagePremium: "Imagem (premium e quadro de abertura)" } },
     { title: "OpenAI", fields: { openaiText: "Texto / estratégia / revisões", openaiImage: "Imagem (padrão)", openaiImagePremium: "Imagem (premium e quadro de abertura)" } },
-    { title: "Vídeo (fal.ai)", fields: { video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)", lipsync: "Lip-sync final" } },
+    { title: "Vídeo", fields: { video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)", lipsync: "Lip-sync final (fal.ai)" } },
   ];
   const providerOptions = [
     { value: "gemini", label: "Google Gemini", ok: config.secrets.geminiKey?.configured },
@@ -321,6 +322,25 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
               </select>
             </div>
           ))}
+        </div>
+        <div className="space-y-1.5">
+          <label className="label-base" htmlFor="p-video">Vídeos</label>
+          <select
+            id="p-video"
+            className="input-base"
+            value={VIDEO_MODEL_PRESETS.some((p) => p.id === models.video) ? String(models.video) : "custom"}
+            onChange={(e) => e.target.value !== "custom" && setModels({ ...models, video: e.target.value, videoPremium: e.target.value })}
+          >
+            {VIDEO_MODEL_PRESETS.map((p) => {
+              const veo = p.id.startsWith("veo-");
+              const ok = veo ? config.secrets.geminiKey?.configured : config.secrets.wanKey?.configured;
+              return <option key={p.id} value={p.id}>{p.label}{ok ? "" : veo ? " (sem chave do Gemini)" : " (sem chave da fal.ai)"}</option>;
+            })}
+            <option value="custom">Outro modelo (campo “Vídeo” abaixo)</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Wan usa a chave da fal.ai; Veo usa a chave do Gemini (com faturamento ativo). Vale para padrão e premium; ajuste os modelos individualmente abaixo, se quiser.
+          </p>
         </div>
         <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border p-4">
           <span>

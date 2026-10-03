@@ -1,4 +1,5 @@
 import type { AppConfig } from "./config";
+import { videoModelCaps } from "./video-models";
 
 /**
  * Qual provedor gera as imagens (e o quadro de abertura dos vídeos), conforme Admin › IA e custos.
@@ -20,6 +21,16 @@ export function imageEngine(config: Pick<AppConfig, "secrets" | "models">, premi
 
 export function hasImageProvider(config: Pick<AppConfig, "secrets">) {
   return !!config.secrets.geminiKey || !!config.secrets.openAiKey;
+}
+
+/** Chaves dos provedores de vídeo (fal.ai para Wan/Kling; Gemini para o Veo). */
+export function videoKeys(config: Pick<AppConfig, "secrets">) {
+  return { fal: config.secrets.wanKey, gemini: config.secrets.geminiKey };
+}
+
+/** O modelo de vídeo escolhido tem a chave do provedor dele configurada? */
+export function hasVideoProvider(config: Pick<AppConfig, "secrets">, model: string) {
+  return videoModelCaps(model).provider === "veo" ? !!config.secrets.geminiKey : !!config.secrets.wanKey;
 }
 
 export function hasTextProviderKey(config: Pick<AppConfig, "secrets">) {

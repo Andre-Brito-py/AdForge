@@ -1,3 +1,4 @@
+import { hasVideoProvider } from "@/lib/ai-engine";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -36,7 +37,7 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
         initialProductId={products.some((p) => p.id === initialProductId) ? initialProductId : ""}
         balance={balance}
         costs={config.costs}
-        availability={{ IMAGE: !!config.secrets.geminiKey || !!config.secrets.openAiKey, VIDEO: !!config.secrets.wanKey && (!!config.secrets.geminiKey || !!config.secrets.openAiKey) }}
+        availability={{ IMAGE: !!config.secrets.geminiKey || !!config.secrets.openAiKey, VIDEO: hasVideoProvider(config, config.models.video) && (!!config.secrets.geminiKey || !!config.secrets.openAiKey) }}
         emailVerified={!!user.emailVerified}
         locale={locale}
         logoUrl={brand?.logoUrl || null}

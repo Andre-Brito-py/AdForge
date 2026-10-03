@@ -1,8 +1,9 @@
 import { brandColorDirection } from "@/lib/brand-assets";
 import { videoModelCaps } from "@/lib/video-models";
+import { checkVeo, submitVeo } from "./veo";
 
 /**
- * Geração de vídeo (image-to-video) via fila assíncrona da fal.ai.
+ * Geração de vídeo (image-to-video) via fila assíncrona da fal.ai (Wan...) ou do Google Veo.
  * O vídeo leva minutos, então não esperamos na mesma requisição:
  *  1. submitVideo() envia o pedido e guarda request_id/status_url no GenerationJob;
  *  2. checkVideo() é chamado depois (polling da tela + cron) até concluir.
@@ -14,10 +15,19 @@ export interface FalRequest {
   responseUrl: string;
 }
 
+/** Pedido em andamento: na fila da fal.ai (antigos não têm "provider") ou uma operação do Google Veo. */
+export type VideoRequest = (FalRequest & { provider?: "fal" }) | { provider: "veo"; operation: string };
+
 export type VideoStatus =
   | { state: "pending" }
-  | { state: "completed"; videoUrl: string }
+  | { state: "completed"; videoUrl?: string; buffer?: Buffer }
   | { state: "failed"; error: string };
+
+/** Chaves que os provedores de vídeo usam. */
+export interface VideoKeys {
+  fal: string | null;
+  gemini: string | null;
+}
 
 export class VideoGenerationError extends Error {}
 
@@ -32,9 +42,11 @@ const NEGATIVE_PROMPT =
   "distorted or resized product, product changing shape or label, oversized or tiny product, pasted or collage look, flat sticker-like product, frozen or static reflections, product lighting not matching the scene, extra fingers, deformed hands, face changing identity, on-screen text, watermark, logo artifacts, jump cuts";
 
 export async function submitVideo(opts: {
-  falKey: string;
+  keys: VideoKeys;
   model: string;
-  imageUrl: string;
+  /** Imagem inicial: URL pública (fal.ai) ou os bytes (Veo). */
+  imageUrl?: string;
+  image?: { buffer: Buffer; mimeType: string };
   prompt: string;
   aspectRatio: string;
   premium: boolean;
@@ -42,8 +54,18 @@ export async function submitVideo(opts: {
   seconds?: number;
   /** Locução deste trecho (URL ou data URI) para o modelo sincronizar os lábios. */
   audioUrl?: string | null;
-}): Promise<FalRequest> {
+}): Promise<VideoRequest> {
   const caps = videoModelCaps(opts.model);
+  if (caps.provider === "veo") {
+    if (!opts.keys.gemini) throw new VideoGenerationError("Chave do Gemini não configurada (necessária para o Veo)");
+    if (!opts.image) throw new VideoGenerationError("Imagem inicial ausente");
+    return submitVeo({
+      apiKey: opts.keys.gemini, model: opts.model, image: opts.image, prompt: opts.prompt,
+      aspectRatio: opts.aspectRatio, seconds: opts.seconds || 8, premium: opts.premium, negativePrompt: NEGATIVE_PROMPT,
+    });
+  }
+  if (!opts.keys.fal) throw new VideoGenerationError("Chave da fal.ai não configurada");
+  if (!opts.imageUrl) throw new VideoGenerationError("Imagem inicial ausente");
   const body = caps.lipSyncAudio
     ? {
         prompt: opts.prompt.slice(0, 1500),
@@ -66,7 +88,7 @@ export async function submitVideo(opts: {
       };
   const res = await fetch(`${FAL_QUEUE}/${opts.model}`, {
     method: "POST",
-    headers: { Authorization: `Key ${opts.falKey}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Key ${opts.keys.fal}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(60_000),
   });
@@ -77,11 +99,16 @@ export async function submitVideo(opts: {
   if (!data.request_id || !data.status_url || !data.response_url) {
     throw new VideoGenerationError("Resposta inesperada da fal.ai");
   }
-  return { requestId: data.request_id, statusUrl: data.status_url, responseUrl: data.response_url };
+  return { provider: "fal", requestId: data.request_id, statusUrl: data.status_url, responseUrl: data.response_url };
 }
 
-export async function checkVideo(falKey: string, req: FalRequest): Promise<VideoStatus> {
-  const headers = { Authorization: `Key ${falKey}` };
+export async function checkVideo(keys: VideoKeys, req: VideoRequest): Promise<VideoStatus> {
+  if (req.provider === "veo") {
+    if (!keys.gemini) return { state: "failed", error: "Chave do Gemini removida durante a geração" };
+    return checkVeo(keys.gemini, req.operation);
+  }
+  if (!keys.fal) return { state: "failed", error: "Chave da fal.ai removida durante a geração" };
+  const headers = { Authorization: `Key ${keys.fal}` };
   const statusRes = await fetch(req.statusUrl, { headers, signal: AbortSignal.timeout(15_000) });
   if (!statusRes.ok) {
     if (statusRes.status >= 500) return { state: "pending" };
@@ -101,9 +128,11 @@ export async function checkVideo(falKey: string, req: FalRequest): Promise<Video
 }
 
 /** Cancela um pedido na fila da fal.ai (melhor esforço: se já estiver rodando, pode não ser cancelável). */
-export async function cancelVideo(falKey: string, req: FalRequest): Promise<void> {
+export async function cancelVideo(keys: VideoKeys, req: VideoRequest): Promise<void> {
+  // Operações do Veo não são canceladas (a API não oferece cancelamento por operação).
+  if (req.provider === "veo" || !keys.fal) return;
   const url = req.statusUrl.replace(/\/status(\?.*)?$/, "/cancel");
-  await fetch(url, { method: "PUT", headers: { Authorization: `Key ${falKey}` }, signal: AbortSignal.timeout(15_000) }).catch(() => {});
+  await fetch(url, { method: "PUT", headers: { Authorization: `Key ${keys.fal}` }, signal: AbortSignal.timeout(15_000) }).catch(() => {});
 }
 
 export function buildVideoPrompt(concept: string, styleLabel: string, extra?: string | null, segment?: { index: number; total: number }, brandColor?: string | null) {

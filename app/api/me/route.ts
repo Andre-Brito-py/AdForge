@@ -1,3 +1,4 @@
+import { hasVideoProvider } from "@/lib/ai-engine";
 import { NextResponse } from "next/server";
 import { handler } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth";
@@ -13,7 +14,7 @@ export const GET = handler(async () => {
 
   const availability = {
     IMAGE: !!config.secrets.geminiKey || !!config.secrets.openAiKey,
-    VIDEO: !!config.secrets.wanKey && (!!config.secrets.geminiKey || !!config.secrets.openAiKey),
+    VIDEO: hasVideoProvider(config, config.models.video) && (!!config.secrets.geminiKey || !!config.secrets.openAiKey),
   };
 
   return NextResponse.json({

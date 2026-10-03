@@ -1,4 +1,4 @@
-import type { FalRequest } from "@/services/ai/video";
+import type { FalRequest, VideoRequest } from "@/services/ai/video";
 
 /**
  * O que um criativo de vídeo deve conter (guardado em Creative.prompt como JSON):
@@ -57,11 +57,11 @@ export interface VideoProgress {
   /** A pessoa em cena fala a locução (lábios sincronizados) — senão é narração em off. */
   speaking?: boolean;
   /** Etapa final de lip-sync dedicado sobre o vídeo já montado. */
-  lipsync?: { request: FalRequest; startedAt: number; assembledUrl: string; duration?: number } | null;
+  lipsync?: { request: VideoRequest; startedAt: number; assembledUrl: string; duration?: number } | null;
   /** URLs (no nosso armazenamento) dos trechos já prontos, em ordem. */
   done: string[];
-  /** Pedido em andamento na fal.ai (null entre um trecho e outro). */
-  current: FalRequest | null;
+  /** Pedido em andamento (fal.ai ou Veo; null entre um trecho e outro). */
+  current: VideoRequest | null;
   /** Início do trecho atual (para o tempo limite por trecho). */
   segmentStartedAt: number;
   /** Quando algum worker pegou o avanço (unir/baixar/enviar o próximo). */

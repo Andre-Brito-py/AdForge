@@ -45,6 +45,17 @@ describe("modelos de vídeo e plano de pedidos", () => {
     expect(planSegments(15, [5])).toEqual([5, 5, 5]);
   });
 
+  it("Veo: 4/6/8 s por pedido, com corte no total (15 s = 8+8 cortado em 15)", () => {
+    expect(videoModelCaps("veo-3.1-fast-generate-preview")).toMatchObject({ provider: "veo", durations: [4, 6, 8], lipSyncAudio: false });
+    expect(videoModelCaps("wan/v2.6/image-to-video").provider).toBe("fal");
+    const d = [4, 6, 8];
+    expect(planSegments(5, d)).toEqual([6]);
+    expect(planSegments(10, d)).toEqual([6, 4]);
+    expect(planSegments(15, d)).toEqual([8, 8]);
+    expect(planSegments(20, d)).toEqual([8, 6, 6]);
+    expect(planSegments(30, d)).toEqual([8, 8, 8, 6]);
+  });
+
   it("um pedido de 15 s descreve as 3 cenas em sequência, num plano contínuo", () => {
     const p = segmentPrompt(["a", "b", "c", "d", "e", "f"], 15, 15);
     expect(p).toBe("One continuous shot, no cuts. 0-5s: d 5-10s: e 10-15s: f");
@@ -70,6 +81,15 @@ describe("locução por trecho (lip-sync) e montagem com áudio dos trechos", ()
     // A fala já acabou: esse trecho vai sem áudio.
     expect(await sliceAudio(voice, 15, 5)).toBeNull();
   }, 60_000);
+
+  it("corta o vídeo montado na duração pedida (8+8 s -> 15 s)", async () => {
+    const clip = fixture(["-f", "lavfi", "-i", "color=c=green:s=320x568:r=16:d=8", "-c:v", "libx264", "-pix_fmt", "yuv420p"], "g.mp4");
+    const out = await assembleVideo([clip, clip], voice, null, { maxSeconds: 15 });
+    const i = info(out.buffer);
+    expect(i.duration).toBeGreaterThan(14.5);
+    expect(i.duration).toBeLessThan(15.5);
+    expect(i.audio).toBe(true);
+  }, 120_000);
 
   it("une trechos que já têm áudio (e completa com silêncio o que não tem)", async () => {
     const withAudio = fixture(["-f", "lavfi", "-i", "color=c=red:s=320x568:r=16:d=2", "-f", "lavfi", "-i", "sine=duration=2", "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac"], "a.mp4");

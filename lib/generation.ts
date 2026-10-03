@@ -14,12 +14,12 @@ import { falReachableUrl } from "@/services/ai/fal-storage";
 import { createKeyframe } from "@/services/ai/keyframe";
 import { directMotion } from "@/services/ai/motion";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
-import { hasImageProvider, imageEngine } from "./ai-engine";
+import { hasImageProvider, hasVideoProvider, imageEngine, videoKeys } from "./ai-engine";
 import { buildImageRightsRecord } from "./image-rights";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
 import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
-import { buildVideoPrompt, cancelVideo, checkVideo, submitVideo } from "@/services/ai/video";
+import { buildVideoPrompt, cancelVideo, checkVideo, submitVideo, type VideoKeys } from "@/services/ai/video";
 import { generateNarration } from "@/services/ai/audio";
 import { sendCampaignReadyEmail } from "@/services/email";
 import { txDescription } from "./generation-text";
@@ -40,14 +40,15 @@ const CONCURRENCY = 2;
 // ---------------------------------------------------------------------------
 
 export async function assertProviderAvailable(platform: PlatformKey) {
-  const { secrets } = await getAppConfig();
+  const config = await getAppConfig();
+  const { secrets } = config;
   if (!secrets.geminiKey && !secrets.openAiKey) {
     throw new HttpError(503, "errors.aiUnavailable", "AI_NOT_CONFIGURED");
   }
   if (PLATFORMS[platform].media === "IMAGE" && !hasImageProvider({ secrets })) {
     throw new HttpError(503, "errors.imageUnavailable", "IMAGE_NOT_CONFIGURED");
   }
-  if (PLATFORMS[platform].media === "VIDEO" && !secrets.wanKey) {
+  if (PLATFORMS[platform].media === "VIDEO" && !hasVideoProvider(config, config.models.video)) {
     throw new HttpError(503, "errors.videoUnavailable", "VIDEO_NOT_CONFIGURED");
   }
 }
@@ -147,7 +148,7 @@ export async function createCampaign(
           referenceId: campaignId,
           usage: {
             operation: `CAMPAIGN_${media}_${input.quality.toUpperCase()}`,
-            provider: media === "VIDEO" ? "fal.ai" : imageEngine(config, input.quality === "premium").provider,
+            provider: media === "VIDEO" ? (videoModelCaps(config.models.video).provider === "veo" ? "google-veo" : "fal.ai") : imageEngine(config, input.quality === "premium").provider,
             model: media === "VIDEO" ? config.models.video : imageEngine(config, input.quality === "premium").label,
             estimatedCostUsd: input.variations * (media === "VIDEO" ? 0.25 * videoSegments(videoDuration) : 0.04),
           },
@@ -212,7 +213,7 @@ export async function createCampaign(
             campaignId,
             type: media,
             variantIndex: i,
-            provider: media === "VIDEO" ? "fal.ai" : imageEngine(config, input.quality === "premium").provider,
+            provider: media === "VIDEO" ? (videoModelCaps(config.models.video).provider === "veo" ? "google-veo" : "fal.ai") : imageEngine(config, input.quality === "premium").provider,
             model: media === "VIDEO" ? (input.quality === "premium" ? config.models.videoPremium : config.models.video) : imageEngine(config, input.quality === "premium").label,
             prompt: media === "VIDEO"
               ? serializeVideoSpec({
@@ -451,6 +452,13 @@ function workDir(job: LoadedJob) {
   return `creatives/${c.workspaceId}/${c.id}/${job.creativeId}-parts/`;
 }
 
+/** Falta a chave do provedor do modelo de vídeo (fal.ai ou Gemini/Veo)? Erro claro em vez de falha genérica. */
+function assertVideoKey(config: Awaited<ReturnType<typeof getAppConfig>>, model: string) {
+  if (!hasVideoProvider(config, model)) {
+    throw new Error(videoModelCaps(model).provider === "veo" ? "Gemini não configurado (necessário para o Veo)" : "fal.ai não configurado");
+  }
+}
+
 /** Durações dos pedidos (vídeos antigos: um trecho de 5 s por cena). */
 function segmentsOf(progress: VideoProgress) {
   return progress.segments ?? Array(progress.total).fill(VIDEO_SEGMENT_SECONDS);
@@ -459,7 +467,8 @@ function segmentsOf(progress: VideoProgress) {
 /** `frameUrl` é o quadro inicial no NOSSO armazenamento (o diretor de movimento precisa vê-lo). */
 async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments" | "speaking">, index: number, frameUrl: string) {
   const config = await getAppConfig();
-  if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
+  const caps = videoModelCaps(job.creative.model);
+  assertVideoKey(config, job.creative.model);
   const campaign = job.creative.campaign;
   const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
   const segments = segmentsOf(progress as VideoProgress);
@@ -472,7 +481,7 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<Vid
     const fresh = await db.creative.findUnique({ where: { id: job.creativeId }, select: { audioUrl: true } });
     const narration = fresh?.audioUrl ? await readOwnMedia(fresh.audioUrl).then((m) => m.buffer).catch(() => null) : null;
     const slice = narration ? await sliceAudio(narration, start, seconds) : null;
-    if (slice) audioUrl = await falReachableUrl(config.secrets.wanKey, await saveFile(slice, `${workDir(job)}voice-${index}.mp3`, "audio/mpeg"));
+    if (slice) audioUrl = await falReachableUrl(config.secrets.wanKey!, await saveFile(slice, `${workDir(job)}voice-${index}.mp3`, "audio/mpeg"));
   }
 
   const basePrompt = buildVideoPrompt(
@@ -497,9 +506,10 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<Vid
   });
 
   return submitVideo({
-    falKey: config.secrets.wanKey,
+    keys: videoKeys(config),
     model: job.creative.model,
-    imageUrl: await falReachableUrl(config.secrets.wanKey, frameUrl),
+    // fal.ai baixa a imagem por URL; o Veo recebe os bytes direto.
+    ...(caps.provider === "fal" ? { imageUrl: await falReachableUrl(config.secrets.wanKey!, frameUrl) } : { image: frame }),
     prompt,
     aspectRatio: job.creative.aspectRatio || "9:16",
     premium: campaign.quality === "premium",
@@ -512,7 +522,7 @@ async function submitVideoJob(job: LoadedJob) {
   const { creative } = job;
   const campaign = creative.campaign;
   const config = await getAppConfig();
-  if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
+  assertVideoKey(config, creative.model);
   const spec = await videoSpecFor(job);
 
   // Locução no idioma do anúncio, com a voz de quem apresenta. É um extra: se falhar, o vídeo sai sem áudio.
@@ -577,29 +587,29 @@ async function submitVideoJob(job: LoadedJob) {
 
 async function pollVideoJob(job: LoadedJob) {
   const config = await getAppConfig();
-  if (!config.secrets.wanKey) return;
+  const keys = videoKeys(config);
   const raw = job.externalData!;
   const progress = parseVideoProgress(raw, job.startedAt?.getTime() ?? Date.now());
   if (!progress) return failJob(job.id, "Estado do vídeo inválido");
   if (isClaimed(progress)) return; // outro worker está unindo/enviando o próximo trecho
 
   // Etapa final: lip-sync dedicado sobre o vídeo já montado.
-  if (progress.lipsync) return pollLipSync(job, raw, progress, config.secrets.wanKey);
+  if (progress.lipsync) return pollLipSync(job, raw, progress, keys);
 
-  let finishedUrl: string | null = null;
+  let finished: { videoUrl?: string; buffer?: Buffer } | null = null;
   if (progress.current) {
-    // Primeiro pergunta à fal.ai: um trecho que ficou pronto depois do prazo ainda é aproveitado.
-    const status = await checkVideo(config.secrets.wanKey, progress.current);
+    // Primeiro pergunta ao provedor: um trecho que ficou pronto depois do prazo ainda é aproveitado.
+    const status = await checkVideo(keys, progress.current);
     if (status.state === "pending") {
       if (Date.now() - progress.segmentStartedAt > VIDEO_TIMEOUT_MS) {
-        await cancelVideo(config.secrets.wanKey, progress.current); // não paga por um trecho que seria descartado
+        await cancelVideo(keys, progress.current); // não paga por um trecho que seria descartado
         return failJob(job.id, "Tempo limite de geração excedido");
       }
       await db.generationJob.update({ where: { id: job.id }, data: { status: "PROCESSING" } }); // atualiza updatedAt
       return;
     }
     if (status.state === "failed") return failJob(job.id, status.error);
-    finishedUrl = status.videoUrl;
+    finished = status;
   }
 
   // Trava otimista: só quem conseguir trocar o estado exato que leu segue adiante.
@@ -613,8 +623,8 @@ async function pollVideoJob(job: LoadedJob) {
   const dir = workDir(job);
   const done = [...progress.done];
   let lastBuffer: Buffer | null = null;
-  if (finishedUrl) {
-    lastBuffer = (await fetchMedia(finishedUrl)).buffer;
+  if (finished) {
+    lastBuffer = finished.buffer ?? (await fetchMedia(finished.videoUrl!)).buffer;
     done.push(await saveFile(lastBuffer, `${dir}seg-${done.length}.mp4`, "video/mp4"));
   }
 
@@ -646,12 +656,12 @@ async function pollVideoJob(job: LoadedJob) {
   }
   // Com lip-sync, a locução já veio dentro de cada trecho; senão, entra agora por cima do vídeo.
   const final = progress.audioInSegments
-    ? await assembleVideo(segments, null, logo, { segmentAudio: true })
-    : await assembleVideo(segments, narration, logo);
+    ? await assembleVideo(segments, null, logo, { segmentAudio: true, maxSeconds: campaign.videoDuration })
+    : await assembleVideo(segments, narration, logo, { maxSeconds: campaign.videoDuration });
 
   // Quando a pessoa fala: passe de lip-sync dedicado no vídeo inteiro, com a própria locução como referência.
   // É o que garante a boca sincronizada desde o primeiro quadro, em qualquer vídeo da plataforma.
-  if (progress.speaking && fresh?.audioUrl && config.models.lipsyncEnabled) {
+  if (progress.speaking && fresh?.audioUrl && config.models.lipsyncEnabled && config.secrets.wanKey) {
     try {
       const assembledUrl = await saveFile(final.buffer, `${dir}assembled.mp4`, "video/mp4");
       const request = await submitLipSync({
@@ -691,9 +701,9 @@ async function completeVideo(job: LoadedJob, progress: VideoProgress, buffer: Bu
 }
 
 /** Acompanha o lip-sync final; se falhar ou demorar demais, entrega o vídeo montado sem ele. */
-async function pollLipSync(job: LoadedJob, raw: string, progress: VideoProgress, falKey: string) {
+async function pollLipSync(job: LoadedJob, raw: string, progress: VideoProgress, keys: VideoKeys) {
   const ls = progress.lipsync!;
-  const status = await checkVideo(falKey, ls.request);
+  const status = await checkVideo(keys, ls.request);
   if (status.state === "pending" && Date.now() - ls.startedAt < LIPSYNC_TIMEOUT_MS) {
     await db.generationJob.update({ where: { id: job.id }, data: { status: "PROCESSING" } }); // atualiza updatedAt
     return;
@@ -707,9 +717,9 @@ async function pollLipSync(job: LoadedJob, raw: string, progress: VideoProgress,
 
   let buffer: Buffer;
   if (status.state === "completed") {
-    buffer = (await fetchMedia(status.videoUrl)).buffer;
+    buffer = status.buffer ?? (await fetchMedia(status.videoUrl!)).buffer;
   } else {
-    if (status.state === "pending") await cancelVideo(falKey, ls.request);
+    if (status.state === "pending") await cancelVideo(keys, ls.request);
     console.warn(`[generation] lip-sync final ${status.state === "failed" ? `falhou (${status.error})` : "excedeu o tempo"}; entregando o vídeo montado`);
     buffer = (await readOwnMedia(ls.assembledUrl)).buffer;
   }

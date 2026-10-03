@@ -3,6 +3,8 @@
  * aqui ficam só as diferenças que mudam o pedido e a montagem.
  */
 export interface VideoModelCaps {
+  /** Quem gera: fal.ai (Wan, Kling...) ou Google Veo (chave do Gemini). */
+  provider: "fal" | "veo";
   /** Durações aceitas por pedido (s). */
   durations: number[];
   /** Aceita a locução (audio_url) e sincroniza os lábios de quem fala. */
@@ -14,34 +16,57 @@ export interface VideoModelCaps {
 }
 
 export function videoModelCaps(model: string): VideoModelCaps {
+  // Google Veo 3.x (veo-3.1-generate-preview, -fast-, -lite-): 4/6/8 s por pedido; física e mãos mais fortes.
+  if (/^veo-/i.test(model)) {
+    return { provider: "veo", durations: [4, 6, 8], lipSyncAudio: false, resolution: { standard: "720p", premium: "1080p" }, aspectFromImage: false };
+  }
   // Wan 2.6 (e versões seguintes da mesma família): até 15 s por pedido, áudio com lip-sync.
   if (/wan\/v2\.(6|[7-9])|wan-2\.(6|[7-9])|wan\/v3|wan-3/i.test(model)) {
-    return { durations: [5, 10, 15], lipSyncAudio: true, resolution: { standard: "720p", premium: "1080p" }, aspectFromImage: true };
+    return { provider: "fal", durations: [5, 10, 15], lipSyncAudio: true, resolution: { standard: "720p", premium: "1080p" }, aspectFromImage: true };
   }
   // Wan 2.1 / 2.2: trechos de ~5 s, sem áudio.
-  return { durations: [5], lipSyncAudio: false, resolution: { standard: "480p", premium: "720p" }, aspectFromImage: false };
+  return { provider: "fal", durations: [5], lipSyncAudio: false, resolution: { standard: "480p", premium: "720p" }, aspectFromImage: false };
 }
+
+/** Modelos de vídeo prontos para escolher no Admin (o campo continua livre para versões novas). */
+export const VIDEO_MODEL_PRESETS = [
+  { id: "wan/v2.6/image-to-video", label: "Wan 2.6 (fal.ai) — mais barato, lip-sync nativo" },
+  { id: "veo-3.1-lite-generate-preview", label: "Google Veo 3.1 Lite — econômico" },
+  { id: "veo-3.1-fast-generate-preview", label: "Google Veo 3.1 Fast — equilíbrio qualidade/custo" },
+  { id: "veo-3.1-generate-preview", label: "Google Veo 3.1 — máxima qualidade" },
+] as const;
 
 /**
  * Divide a duração total em pedidos que o modelo aceita, com o menor número de pedidos e partes iguais
  * quando possível (30 s -> 15+15; 20 s -> 10+10; 10 s -> 10). Menos emendas = vídeo mais coerente.
  */
 export function planSegments(total: number, durations: number[]): number[] {
-  const allowed = [...durations].sort((a, b) => b - a);
+  const allowed = [...new Set(durations)].sort((a, b) => b - a);
   const max = allowed[0];
-  for (let n = Math.ceil(total / max); n <= Math.ceil(total / allowed[allowed.length - 1]); n++) {
-    const each = total / n;
-    if (Number.isInteger(each) && allowed.includes(each)) return Array(n).fill(each);
+  const min = allowed[allowed.length - 1];
+  // Menor número de pedidos; entre eles, o que menos passa do total (o excedente é cortado na montagem)
+  // e, no empate, partes mais parecidas entre si (30 s -> 15+15, não 15+10+5).
+  for (let n = Math.ceil(total / max); n <= Math.ceil(total / min); n++) {
+    let best: number[] | null = null;
+    const score = (c: number[]) => [c.reduce((a, b) => a + b, 0) - total, Math.max(...c) - Math.min(...c)];
+    const walk = (start: number, picked: number[]) => {
+      if (picked.length === n) {
+        const sum = picked.reduce((a, b) => a + b, 0);
+        if (sum < total) return;
+        if (!best) best = [...picked];
+        else {
+          const [o1, s1] = score(picked);
+          const [o2, s2] = score(best);
+          if (o1 < o2 || (o1 === o2 && s1 < s2)) best = [...picked];
+        }
+        return;
+      }
+      for (let i = start; i < allowed.length; i++) walk(i, [...picked, allowed[i]]);
+    };
+    walk(0, []);
+    if (best) return best;
   }
-  // Sem divisão exata: maiores primeiro, completando com o menor que couber.
-  const out: number[] = [];
-  let left = total;
-  while (left > 0) {
-    const d = allowed.find((x) => x <= left) ?? allowed[allowed.length - 1];
-    out.push(d);
-    left -= d;
-  }
-  return out;
+  return Array(Math.ceil(total / min)).fill(min);
 }
 
 /**
