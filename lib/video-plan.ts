@@ -54,6 +54,10 @@ export interface VideoProgress {
   segments?: number[];
   /** Os trechos já vêm com a locução (lip-sync): na montagem não se coloca a locução de novo. */
   audioInSegments?: boolean;
+  /** Cada pedido ESTENDE o vídeo anterior (Veo): o último trecho pronto já é o vídeo inteiro. */
+  extend?: boolean;
+  /** URI (no Veo) do último vídeo pronto, usada para estendê-lo. */
+  lastSourceUri?: string | null;
   /** A pessoa em cena fala a locução (lábios sincronizados) — senão é narração em off. */
   speaking?: boolean;
   /** Etapa final de lip-sync dedicado sobre o vídeo já montado. */

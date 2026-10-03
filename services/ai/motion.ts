@@ -23,6 +23,7 @@ Write ONE prompt (English, max 1200 characters) that makes the result look filme
 ${opts.speaking
     ? `- The person speaks directly to the camera FROM THE VERY FIRST FRAME (0.0 s) until the last one — no silent intro, no pause before talking — with lips, jaw and expressions matching the attached voice line${opts.transcript ? `: "${opts.transcript.replace(/"/g, "'")}"` : ""}. Any action with the product happens WHILE she/he talks. State this explicitly at the start of your prompt.`
     : "- No one speaks; motion focuses on the product and the scene."}
+- PRODUCT STABILITY (models often morph objects): the product stays in the SAME hand for the whole shot and fully visible, never covered by fingers, arms or the face — especially in the final second; no swapping hands, no passing it across the body or in front of the face, no opening, pouring, squeezing or disassembling it, no actions that are not in the creative direction. Its shape, color, material and label never change.
 - Keep the same person identity, product shape/label/colors, scale, setting, light direction and color grading as the frame. One continuous shot: no cuts, no new objects or people, no on-screen text.
 Reply ONLY with JSON: {"prompt": "..."}`;
 }

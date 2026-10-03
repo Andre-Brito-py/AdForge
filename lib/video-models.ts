@@ -13,12 +13,21 @@ export interface VideoModelCaps {
   resolution: { standard: string; premium: string };
   /** O formato sai da imagem inicial (não há parâmetro aspect_ratio). */
   aspectFromImage: boolean;
+  /**
+   * Segundos que cada EXTENSÃO acrescenta, quando o modelo sabe continuar o próprio vídeo (Veo 3.1/Fast).
+   * Com extensão, o vídeo longo é 8 s + extensões, sem recomeçar de um quadro parado (o produto não muda na emenda).
+   */
+  extensionSeconds?: number;
 }
 
 export function videoModelCaps(model: string): VideoModelCaps {
   // Google Veo 3.x (veo-3.1-generate-preview, -fast-, -lite-): 4/6/8 s por pedido; física e mãos mais fortes.
   if (/^veo-/i.test(model)) {
-    return { provider: "veo", durations: [4, 6, 8], lipSyncAudio: false, resolution: { standard: "720p", premium: "1080p" }, aspectFromImage: false };
+    const extensible = /^veo-3\.1-(fast-)?generate/i.test(model);
+    return {
+      provider: "veo", durations: [4, 6, 8], lipSyncAudio: false, resolution: { standard: "720p", premium: "1080p" }, aspectFromImage: false,
+      ...(extensible ? { extensionSeconds: 7 } : {}),
+    };
   }
   // Wan 2.6 (e versões seguintes da mesma família): até 15 s por pedido, áudio com lip-sync.
   if (/wan\/v2\.(6|[7-9])|wan-2\.(6|[7-9])|wan\/v3|wan-3/i.test(model)) {
@@ -79,6 +88,19 @@ export function voiceoverSlice(text: string, start: number, seconds: number, tot
   const from = Math.floor((start / total) * words.length);
   const to = Math.ceil(((start + seconds) / total) * words.length);
   return words.slice(from, Math.max(from + 1, to)).join(" ");
+}
+
+/** Plano com extensão: um pedido de 8 s e extensões até cobrir o total (15 s = 8+7; 30 s = 8+7+7+7+7, cortado). */
+export function planExtension(total: number, extensionSeconds: number, first = 8): number[] {
+  const out = [first];
+  while (out.reduce((a, b) => a + b, 0) < total) out.push(extensionSeconds);
+  return out;
+}
+
+/** Como dividir o vídeo para este modelo: extensões (quando suportado) ou pedidos independentes. */
+export function planVideo(total: number, caps: VideoModelCaps): { segments: number[]; extend: boolean } {
+  if (caps.extensionSeconds && total > 8) return { segments: planExtension(total, caps.extensionSeconds), extend: true };
+  return { segments: planSegments(total, caps.durations), extend: false };
 }
 
 /**

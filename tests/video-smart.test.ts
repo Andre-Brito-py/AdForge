@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 import ffmpegStatic from "ffmpeg-static";
-import { planSegments, segmentPrompt, videoModelCaps } from "@/lib/video-models";
+import { planSegments, planVideo, segmentPrompt, videoModelCaps } from "@/lib/video-models";
 import { parseKeyframeReview } from "@/services/ai/keyframe";
 import { assembleVideo, sliceAudio } from "@/lib/video-assembly";
 
@@ -54,6 +54,16 @@ describe("modelos de vídeo e plano de pedidos", () => {
     expect(planSegments(15, d)).toEqual([8, 8]);
     expect(planSegments(20, d)).toEqual([8, 6, 6]);
     expect(planSegments(30, d)).toEqual([8, 8, 8, 6]);
+  });
+
+  it("Veo 3.1/Fast estendem o próprio vídeo (8 + 7 s...); Lite e Wan não", () => {
+    const fast = videoModelCaps("veo-3.1-fast-generate-preview");
+    expect(fast.extensionSeconds).toBe(7);
+    expect(videoModelCaps("veo-3.1-lite-generate-preview").extensionSeconds).toBeUndefined();
+    expect(planVideo(15, fast)).toEqual({ segments: [8, 7], extend: true });
+    expect(planVideo(30, fast)).toEqual({ segments: [8, 7, 7, 7, 7], extend: true });
+    expect(planVideo(5, fast)).toEqual({ segments: [6], extend: false }); // curto: um pedido só
+    expect(planVideo(15, videoModelCaps("wan/v2.6/image-to-video"))).toEqual({ segments: [15], extend: false });
   });
 
   it("um pedido de 15 s descreve as 3 cenas em sequência, num plano contínuo", () => {

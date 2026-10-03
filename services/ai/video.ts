@@ -20,7 +20,7 @@ export type VideoRequest = (FalRequest & { provider?: "fal" }) | { provider: "ve
 
 export type VideoStatus =
   | { state: "pending" }
-  | { state: "completed"; videoUrl?: string; buffer?: Buffer }
+  | { state: "completed"; videoUrl?: string; buffer?: Buffer; sourceUri?: string }
   | { state: "failed"; error: string };
 
 /** Chaves que os provedores de vídeo usam. */
@@ -47,6 +47,10 @@ export async function submitVideo(opts: {
   /** Imagem inicial: URL pública (fal.ai) ou os bytes (Veo). */
   imageUrl?: string;
   image?: { buffer: Buffer; mimeType: string };
+  /** Veo: vídeo anterior a ser estendido (+7 s), em vez de recomeçar de um quadro. */
+  extendVideoUri?: string;
+  /** Veo: fotos do produto que devem continuar fiéis (só na primeira geração). */
+  referenceImages?: { buffer: Buffer; mimeType: string }[];
   prompt: string;
   aspectRatio: string;
   premium: boolean;
@@ -58,9 +62,9 @@ export async function submitVideo(opts: {
   const caps = videoModelCaps(opts.model);
   if (caps.provider === "veo") {
     if (!opts.keys.gemini) throw new VideoGenerationError("Chave do Gemini não configurada (necessária para o Veo)");
-    if (!opts.image) throw new VideoGenerationError("Imagem inicial ausente");
+    if (!opts.image && !opts.extendVideoUri) throw new VideoGenerationError("Imagem inicial ausente");
     return submitVeo({
-      apiKey: opts.keys.gemini, model: opts.model, image: opts.image, prompt: opts.prompt,
+      apiKey: opts.keys.gemini, model: opts.model, image: opts.image, extendVideoUri: opts.extendVideoUri, referenceImages: opts.referenceImages, prompt: opts.prompt,
       aspectRatio: opts.aspectRatio, seconds: opts.seconds || 8, premium: opts.premium, negativePrompt: NEGATIVE_PROMPT,
     });
   }

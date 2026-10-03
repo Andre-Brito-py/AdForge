@@ -8,7 +8,7 @@ import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
-import { planSegments, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
+import { planVideo, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
 import { submitLipSync } from "@/services/ai/lipsync";
 import { falReachableUrl } from "@/services/ai/fal-storage";
 import { createKeyframe } from "@/services/ai/keyframe";
@@ -465,7 +465,15 @@ function segmentsOf(progress: VideoProgress) {
 }
 
 /** `frameUrl` é o quadro inicial no NOSSO armazenamento (o diretor de movimento precisa vê-lo). */
-async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments" | "speaking">, index: number, frameUrl: string) {
+async function submitSegment(
+  job: LoadedJob,
+  spec: VideoSpec,
+  progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments" | "speaking" | "extend">,
+  index: number,
+  frameUrl: string,
+  /** Modo extensão (Veo): URI do vídeo anterior (gerado pelo Veo), que o modelo vai continuar. */
+  previousVideoUri?: string | null
+) {
   const config = await getAppConfig();
   const caps = videoModelCaps(job.creative.model);
   assertVideoKey(config, job.creative.model);
@@ -505,11 +513,19 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<Vid
     fallback: basePrompt,
   });
 
+  // Veo: a partir do segundo pedido, o modelo estende o próprio vídeo em vez de recomeçar de um quadro parado
+  // (é o que mantém o produto igual na emenda). Obs.: o Veo recusa "primeiro quadro + imagens de referência"
+  // no mesmo pedido; o quadro de abertura revisado já carrega o produto fiel.
+  const extending = caps.provider === "veo" && !!progress.extend && index > 0 && !!previousVideoUri;
+  const referenceImages = undefined;
+
   return submitVideo({
     keys: videoKeys(config),
     model: job.creative.model,
     // fal.ai baixa a imagem por URL; o Veo recebe os bytes direto.
-    ...(caps.provider === "fal" ? { imageUrl: await falReachableUrl(config.secrets.wanKey!, frameUrl) } : { image: frame }),
+    ...(caps.provider === "fal"
+      ? { imageUrl: await falReachableUrl(config.secrets.wanKey!, frameUrl) }
+      : extending ? { extendVideoUri: previousVideoUri! } : { image: frame, referenceImages }),
     prompt,
     aspectRatio: job.creative.aspectRatio || "9:16",
     premium: campaign.quality === "premium",
@@ -572,9 +588,11 @@ async function submitVideoJob(job: LoadedJob) {
   }
 
   const caps = videoModelCaps(creative.model);
+  const layout = planVideo(campaign.videoDuration || VIDEO_SEGMENT_SECONDS, caps);
   const plan = {
     total: 0,
-    segments: planSegments(campaign.videoDuration || VIDEO_SEGMENT_SECONDS, caps.durations),
+    segments: layout.segments,
+    extend: layout.extend,
     // Narração em off não vai para o modelo de vídeo (senão ele faz alguém mexer a boca sem motivo).
     audioInSegments: caps.lipSyncAudio && speaking,
     speaking,
@@ -596,7 +614,7 @@ async function pollVideoJob(job: LoadedJob) {
   // Etapa final: lip-sync dedicado sobre o vídeo já montado.
   if (progress.lipsync) return pollLipSync(job, raw, progress, keys);
 
-  let finished: { videoUrl?: string; buffer?: Buffer } | null = null;
+  let finished: { videoUrl?: string; buffer?: Buffer; sourceUri?: string } | null = null;
   if (progress.current) {
     // Primeiro pergunta ao provedor: um trecho que ficou pronto depois do prazo ainda é aproveitado.
     const status = await checkVideo(keys, progress.current);
@@ -631,18 +649,24 @@ async function pollVideoJob(job: LoadedJob) {
   // Ainda faltam cenas: o próximo trecho começa exatamente onde este terminou.
   if (done.length < progress.total) {
     const previous = lastBuffer ?? (await readOwnMedia(done[done.length - 1])).buffer;
+    // O último quadro sempre vai para o diretor de movimento; no modo extensão o modelo recebe o vídeo inteiro.
     const frameUrl = await saveFile(await lastFrame(previous), `${dir}frame-${done.length}.png`, "image/png");
-    const request = await submitSegment(job, spec, progress, done.length, frameUrl);
+    // Modo extensão: o Veo continua o próprio vídeo a partir da URI que ele devolveu.
+    const sourceUri = finished?.sourceUri ?? progress.lastSourceUri ?? null;
+    const request = await submitSegment(job, spec, progress, done.length, frameUrl, progress.extend ? sourceUri : null);
     const next: VideoProgress = {
       v: 2, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, speaking: progress.speaking,
-      done, current: request, segmentStartedAt: Date.now(),
+      extend: progress.extend, lastSourceUri: sourceUri, done, current: request, segmentStartedAt: Date.now(),
     };
     await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
     return;
   }
 
   // Todas as cenas prontas: une os trechos e coloca a locução num único MP4.
-  const segments = await Promise.all(done.map(async (url, i) => (i === done.length - 1 && lastBuffer ? lastBuffer : (await readOwnMedia(url)).buffer)));
+  // No modo extensão, o último resultado JÁ É o vídeo inteiro (o Veo devolve original + extensão).
+  const segments = progress.extend
+    ? [lastBuffer ?? (await readOwnMedia(done[done.length - 1])).buffer]
+    : await Promise.all(done.map(async (url, i) => (i === done.length - 1 && lastBuffer ? lastBuffer : (await readOwnMedia(url)).buffer)));
   const fresh = await db.creative.findUnique({ where: { id: job.creativeId }, select: { audioUrl: true } });
   const narration = fresh?.audioUrl ? await readOwnMedia(fresh.audioUrl).then((m) => m.buffer).catch(() => null) : null;
   const campaign = job.creative.campaign;
