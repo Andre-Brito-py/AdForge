@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { generateTextContent } from "./gemini-client";
+import { generateJson } from "./llm";
 import { generateAdImage, type ImageGenInput } from "./image";
 
 /**
@@ -28,8 +28,6 @@ export function parseKeyframeReview(raw: string): KeyframeReview {
 }
 
 export async function reviewKeyframe(opts: {
-  apiKey: string;
-  model: string;
   candidate: Img;
   product: Img;
   references: Img[];
@@ -48,23 +46,16 @@ Check the candidate for:
 2. Realistic SCALE of the product relative to people, hands and surroundings.
 3. Real photo look: no cut-out/pasted/collage appearance; consistent lighting, shadows, reflections, perspective and focus.
 4. Anatomy: natural hands (correct number of fingers, believable grip), body and face; ${refs ? "the person keeps the identity of the reference image." : "no deformed people."}
-5. Matches the intended frame; no text, watermarks or invented logos.
+5. Product LIGHTING belongs to this scene: highlights, reflections and shading on the product come from the light sources and environment visible in the frame (not a flat or studio-lit product pasted in); same color temperature and contrast as the rest of the image.
+6. Matches the intended frame; no text, watermarks or invented logos.
 Score 0-10 (10 = indistinguishable from a professional photo shoot). Be strict: oversized product or pasted look must fail.
 Reply ONLY with JSON: {"score": <0-10>, "pass": <true if score >= ${PASS_SCORE} and no serious problem>, "issues": ["short, specific fix instructions in English"]}`;
 
-  const response = await generateTextContent(opts.apiKey, {
-    model: opts.model,
-    contents: [{ role: "user", parts: [{ text: prompt }, ...images.flatMap((img, i) => [{ text: `Image ${i + 1}:` }, { inlineData: { data: img.buffer.toString("base64"), mimeType: img.mimeType } }])] }],
-    config: { responseMimeType: "application/json", temperature: 0 },
-  });
-  return parseKeyframeReview(response.text || "");
+  return generateJson({ prompt, images, temperature: 0, parse: parseKeyframeReview });
 }
 
 /** Gera o quadro de abertura com revisão; devolve a melhor tentativa (nunca trava a geração por causa da revisão). */
-export async function createKeyframe(
-  input: Omit<ImageGenInput, "mode" | "fixes">,
-  review: { apiKey: string; model: string }
-): Promise<Img & { attempts: number; score: number | null }> {
+export async function createKeyframe(input: Omit<ImageGenInput, "mode" | "fixes">): Promise<Img & { attempts: number; score: number | null }> {
   let best: (Img & { score: number }) | null = null;
   let fixes: string[] = [];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -72,7 +63,7 @@ export async function createKeyframe(
     let verdict: KeyframeReview;
     try {
       verdict = await reviewKeyframe({
-        apiKey: review.apiKey, model: review.model, candidate: image, product: input.product,
+        candidate: image, product: input.product,
         references: input.references || [], productSize: input.productSize, concept: input.concept,
       });
     } catch (error) {

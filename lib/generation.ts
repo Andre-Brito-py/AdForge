@@ -10,7 +10,9 @@ import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, seriali
 import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
 import { planSegments, segmentPrompt, videoModelCaps } from "./video-models";
 import { createKeyframe } from "@/services/ai/keyframe";
+import { directMotion } from "@/services/ai/motion";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
+import { hasImageProvider, imageEngine } from "./ai-engine";
 import { buildImageRightsRecord } from "./image-rights";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
 import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
@@ -40,7 +42,7 @@ export async function assertProviderAvailable(platform: PlatformKey) {
   if (!secrets.geminiKey && !secrets.openAiKey) {
     throw new HttpError(503, "errors.aiUnavailable", "AI_NOT_CONFIGURED");
   }
-  if (PLATFORMS[platform].media === "IMAGE" && !secrets.geminiKey) {
+  if (PLATFORMS[platform].media === "IMAGE" && !hasImageProvider({ secrets })) {
     throw new HttpError(503, "errors.imageUnavailable", "IMAGE_NOT_CONFIGURED");
   }
   if (PLATFORMS[platform].media === "VIDEO" && !secrets.wanKey) {
@@ -87,7 +89,7 @@ export async function createCampaign(
     referenceFiles.push({ url, buffer: media.buffer });
   }
   // Juntar produto + referências num quadro exige o modelo de imagem (também nos vídeos).
-  if (references.length > 0 && !(await getAppConfig()).secrets.geminiKey) {
+  if (references.length > 0 && !hasImageProvider(await getAppConfig())) {
     throw new HttpError(503, "errors.referencesNeedImageAi", "REFERENCES_NEED_IMAGE_AI");
   }
 
@@ -143,8 +145,8 @@ export async function createCampaign(
           referenceId: campaignId,
           usage: {
             operation: `CAMPAIGN_${media}_${input.quality.toUpperCase()}`,
-            provider: media === "VIDEO" ? "fal.ai" : "gemini",
-            model: media === "VIDEO" ? config.models.video : config.models.image,
+            provider: media === "VIDEO" ? "fal.ai" : imageEngine(config, input.quality === "premium").provider,
+            model: media === "VIDEO" ? config.models.video : imageEngine(config, input.quality === "premium").label,
             estimatedCostUsd: input.variations * (media === "VIDEO" ? 0.25 * videoSegments(videoDuration) : 0.04),
           },
         },
@@ -208,8 +210,8 @@ export async function createCampaign(
             campaignId,
             type: media,
             variantIndex: i,
-            provider: media === "VIDEO" ? "fal.ai" : "gemini",
-            model: media === "VIDEO" ? (input.quality === "premium" ? config.models.videoPremium : config.models.video) : (input.quality === "premium" ? config.models.imagePremium : config.models.image),
+            provider: media === "VIDEO" ? "fal.ai" : imageEngine(config, input.quality === "premium").provider,
+            model: media === "VIDEO" ? (input.quality === "premium" ? config.models.videoPremium : config.models.video) : imageEngine(config, input.quality === "premium").label,
             prompt: media === "VIDEO"
               ? serializeVideoSpec({
                   scenes: variant.scenes, voiceover: variant.voiceover, keyframe: variant.keyframe || variant.visualConcept,
@@ -382,17 +384,20 @@ async function runImageJob(job: LoadedJob) {
   const { creative } = job;
   const campaign = creative.campaign;
   const config = await getAppConfig();
-  if (!config.secrets.geminiKey) throw new Error("Gemini não configurado");
+  if (!hasImageProvider(config)) throw new Error("Nenhum provedor de imagem configurado");
 
   const product = await readOwnMedia(campaign.product.originalImageUrl);
   const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId } });
   const { concept, extra } = splitPrompt(creative.prompt);
   const quality = (campaign.quality === "premium" ? "premium" : "standard") as QualityKey;
 
+  // Provedor (Gemini ou OpenAI) conforme Admin › IA e custos no momento da geração.
+  const engine = imageEngine(config, quality === "premium");
   const out = await generateAdImage({
-    apiKey: config.secrets.geminiKey,
-    model: creative.model,
-    fallbackModel: config.models.image,
+    apiKey: engine.apiKey,
+    model: engine.model,
+    fallbackModel: engine.fallbackModel,
+    openai: engine.openai,
     product,
     concept,
     styleLabel: STYLES[(campaign.style as StyleKey) || "STUDIO"] || campaign.style || "Studio",
@@ -449,7 +454,8 @@ function segmentsOf(progress: VideoProgress) {
   return progress.segments ?? Array(progress.total).fill(VIDEO_SEGMENT_SECONDS);
 }
 
-async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments">, index: number, imageUrl: string) {
+/** `frameUrl` é o quadro inicial no NOSSO armazenamento (o diretor de movimento precisa vê-lo). */
+async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<VideoProgress, "segments" | "total" | "audioInSegments">, index: number, frameUrl: string) {
   const config = await getAppConfig();
   if (!config.secrets.wanKey) throw new Error("fal.ai não configurado");
   const campaign = job.creative.campaign;
@@ -467,17 +473,29 @@ async function submitSegment(job: LoadedJob, spec: VideoSpec, progress: Pick<Vid
     if (slice) audioUrl = await externallyReachableUrl(await saveFile(slice, `${workDir(job)}voice-${index}.mp3`, "audio/mpeg"));
   }
 
+  const basePrompt = buildVideoPrompt(
+    segmentPrompt(spec.scenes, start, seconds),
+    STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic",
+    spec.extra,
+    { index, total: segments.length },
+    brand?.primaryColor
+  );
+  const frame = await readOwnMedia(frameUrl);
+  // Diretor de movimento: olha este quadro e escreve um prompt com luz e movimento físicos (evita "PNG colado").
+  const prompt = await directMotion({
+    frame,
+    direction: basePrompt,
+    seconds,
+    speaking: !!audioUrl && spec.presenter !== "none",
+    productSize: spec.productSize,
+    fallback: basePrompt,
+  });
+
   return submitVideo({
     falKey: config.secrets.wanKey,
     model: job.creative.model,
-    imageUrl,
-    prompt: buildVideoPrompt(
-      segmentPrompt(spec.scenes, start, seconds),
-      STYLES[campaign.style as StyleKey] || campaign.style || "Cinematic",
-      spec.extra,
-      { index, total: segments.length },
-      brand?.primaryColor
-    ),
+    imageUrl: await externallyReachableUrl(frameUrl),
+    prompt,
     aspectRatio: job.creative.aspectRatio || "9:16",
     premium: campaign.quality === "premium",
     seconds,
@@ -510,14 +528,16 @@ async function submitVideoJob(job: LoadedJob) {
   // certa e no formato do vídeo) e aprovado por uma revisão de IA. Animar a foto crua do produto deixava o
   // resultado artificial. Sem Gemini configurado, cai na foto do produto.
   let startImage = campaign.product.originalImageUrl;
-  if (config.secrets.geminiKey) {
+  if (hasImageProvider(config)) {
     const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
+    // Composição é a parte mais difícil: sempre o modelo de imagem mais forte do provedor escolhido.
+    const engine = imageEngine(config, true);
     const frame = await createKeyframe(
       {
-        apiKey: config.secrets.geminiKey,
-        // Composição é a parte mais difícil: sempre o modelo de imagem mais forte.
-        model: config.models.imagePremium,
-        fallbackModel: config.models.image,
+        apiKey: engine.apiKey,
+        model: engine.model,
+        fallbackModel: engine.fallbackModel,
+        openai: engine.openai,
         product: await readOwnMedia(campaign.product.originalImageUrl),
         references: await loadReferences(campaign.referencesJson),
         concept: spec.keyframe || spec.scenes[0],
@@ -527,8 +547,7 @@ async function submitVideoJob(job: LoadedJob) {
         quality: "premium",
         brandColor: brand?.primaryColor,
         extraInstructions: spec.extra,
-      },
-      { apiKey: config.secrets.geminiKey, model: config.models.text }
+      }
     );
     startImage = await saveFile(frame.buffer, `${workDir(job)}keyframe.${IMAGE_TYPES[frame.mimeType as ImageMime] || "png"}`, frame.mimeType);
   }
@@ -540,7 +559,7 @@ async function submitVideoJob(job: LoadedJob) {
     audioInSegments: caps.lipSyncAudio && hasNarration,
   };
   plan.total = plan.segments.length;
-  const request = await submitSegment(job, spec, plan, 0, await externallyReachableUrl(startImage));
+  const request = await submitSegment(job, spec, plan, 0, startImage);
   const progress: VideoProgress = { v: 2, ...plan, done: [], current: request, segmentStartedAt: Date.now() };
   await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(progress) } });
 }
@@ -589,7 +608,7 @@ async function pollVideoJob(job: LoadedJob) {
   if (done.length < progress.total) {
     const previous = lastBuffer ?? (await readOwnMedia(done[done.length - 1])).buffer;
     const frameUrl = await saveFile(await lastFrame(previous), `${dir}frame-${done.length}.png`, "image/png");
-    const request = await submitSegment(job, spec, progress, done.length, await externallyReachableUrl(frameUrl));
+    const request = await submitSegment(job, spec, progress, done.length, frameUrl);
     const next: VideoProgress = { v: 2, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, done, current: request, segmentStartedAt: Date.now() };
     await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
     return;

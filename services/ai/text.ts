@@ -1,13 +1,14 @@
 import { z } from "zod";
-import { generateTextContent } from "./gemini-client";
-import { getAppConfig } from "@/lib/config";
-import { readOwnMedia, toDataUri } from "@/lib/storage";
+import { generateJson, hasTextProvider } from "./llm";
+import { readOwnMedia } from "@/lib/storage";
 import { PLATFORMS, type ObjectiveKey, type PlatformKey, type StyleKey } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { colorName, websiteDomain } from "@/lib/brand-assets";
 import { IMAGE_POLICY } from "./moderation";
 
 export class PolicyViolationError extends Error {
+  /** Recusa é uma resposta válida: não tenta o outro provedor. */
+  readonly keepProvider = true;
   constructor(reason?: string) {
     super(reason || "O conteúdo solicitado viola nossas Políticas de Uso.");
     this.name = "PolicyViolationError";
@@ -16,6 +17,7 @@ export class PolicyViolationError extends Error {
 
 /** O pedido não é um anúncio (novela, filme, conteúdo adulto/violento etc.): a plataforma só faz propaganda. */
 export class OutOfScopeError extends Error {
+  readonly keepProvider = true;
   constructor(reason?: string) {
     super(reason || "A Vysify cria apenas anúncios de produtos e serviços.");
     this.name = "OutOfScopeError";
@@ -251,77 +253,18 @@ export function normalizeScenes(scenes: string[] | undefined, concept: string, c
   return out;
 }
 
-type Img = { buffer: Buffer; mimeType: string };
-
-async function withGemini(apiKey: string, model: string, prompt: string, images: Img[]) {
-  const response = await generateTextContent(apiKey, {
-    model,
-    contents: [
-      {
-        role: "user",
-        // Cada imagem vem precedida do número dela ("Image 1", "Image 2"...), como o pedido do cliente as cita.
-        parts: [{ text: prompt }, ...images.flatMap((img, i) => [{ text: `Image ${i + 1}:` }, { inlineData: { data: img.buffer.toString("base64"), mimeType: img.mimeType } }])],
-      },
-    ],
-    config: { responseMimeType: "application/json", temperature: 0.9 },
-  });
-  return response.text || "";
-}
-
-async function withOpenAI(apiKey: string, prompt: string, images: Img[]) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            ...images.flatMap((img, i) => [
-              { type: "text", text: `Image ${i + 1}:` },
-              { type: "image_url", image_url: { url: toDataUri(img.buffer, img.mimeType) } },
-            ]),
-          ],
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(90_000),
-  });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
-}
-
 /**
  * Gera estratégia + textos + conceitos visuais. Roda ANTES da cobrança de créditos:
  * se falhar ou violar a política, o usuário não paga nada.
+ * O provedor (Gemini ou OpenAI) segue o escolhido em Admin › IA e custos; o outro é reserva.
  */
 export async function generateCampaignStrategy(input: StrategyInput): Promise<CampaignStrategy> {
-  const config = await getAppConfig();
-  const { geminiKey, openAiKey } = config.secrets;
-  if (!geminiKey && !openAiKey) throw new AiUnavailableError("Nenhum provedor de texto configurado.");
-
+  if (!(await hasTextProvider())) throw new AiUnavailableError("Nenhum provedor de texto configurado.");
   const images = await Promise.all([input.imageUrl, ...(input.referenceUrls || [])].map((url) => readOwnMedia(url)));
-  const prompt = buildPrompt(input);
-
-  if (geminiKey) {
-    try {
-      return parseStrategy(await withGemini(geminiKey, config.models.text, prompt, images), input);
-    } catch (error) {
-      if (error instanceof PolicyViolationError || error instanceof OutOfScopeError) throw error;
-      console.error("[ai/text] Gemini falhou", error);
-      if (!openAiKey) throw error instanceof AiUnavailableError ? error : new AiUnavailableError();
-    }
-  }
-
   try {
-    return parseStrategy(await withOpenAI(openAiKey!, prompt, images), input);
+    return await generateJson({ prompt: buildPrompt(input), images, temperature: 0.9, parse: (raw) => parseStrategy(raw, input) });
   } catch (error) {
     if (error instanceof PolicyViolationError || error instanceof OutOfScopeError) throw error;
-    console.error("[ai/text] OpenAI falhou", error);
     throw error instanceof AiUnavailableError ? error : new AiUnavailableError();
   }
 }
@@ -331,9 +274,7 @@ export async function generateCampaignStrategy(input: StrategyInput): Promise<Ca
  * fora do escopo de anúncios ou contra as regras de conteúdo = recusa.
  */
 export async function checkInstructionsScope(instructions: string, uiLocale: "pt" | "en"): Promise<void> {
-  const config = await getAppConfig();
-  const { geminiKey, openAiKey } = config.secrets;
-  if (!geminiKey && !openAiKey) throw new AiUnavailableError("Nenhum provedor de texto configurado.");
+  if (!(await hasTextProvider())) throw new AiUnavailableError("Nenhum provedor de texto configurado.");
   const reasonLanguage = uiLocale === "en" ? "English" : "Brazilian Portuguese";
   const prompt = `You moderate change requests for an existing product AD on Vysify.
 ${SCOPE_RULES}
@@ -347,37 +288,19 @@ or {"outOfScope": true, "scopeReason": "one friendly sentence in ${reasonLanguag
 or {"violation": true, "violationReason": "short reason in ${reasonLanguage}"}`;
 
   const schema = strategySchema.pick({ violation: true, violationReason: true, outOfScope: true, scopeReason: true });
-  const raw = geminiKey ? await withGeminiText(geminiKey, config.models.text, prompt).catch(() => null) : null;
-  const text = raw ?? (openAiKey ? await withOpenAIText(openAiKey, prompt) : null);
-  if (text === null) throw new AiUnavailableError();
-  let parsed;
   try {
-    parsed = schema.safeParse(JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")));
-  } catch {
-    throw new AiUnavailableError("A IA retornou uma resposta inválida.");
+    await generateJson({
+      prompt,
+      temperature: 0,
+      parse: (raw) => {
+        const parsed = schema.safeParse(JSON.parse(raw));
+        if (!parsed.success) throw new AiUnavailableError("A IA retornou uma resposta incompleta.");
+        if (parsed.data.violation) throw new PolicyViolationError(parsed.data.violationReason);
+        if (parsed.data.outOfScope) throw new OutOfScopeError(parsed.data.scopeReason);
+      },
+    });
+  } catch (error) {
+    if (error instanceof PolicyViolationError || error instanceof OutOfScopeError) throw error;
+    throw error instanceof AiUnavailableError ? error : new AiUnavailableError();
   }
-  if (!parsed.success) throw new AiUnavailableError("A IA retornou uma resposta incompleta.");
-  if (parsed.data.violation) throw new PolicyViolationError(parsed.data.violationReason);
-  if (parsed.data.outOfScope) throw new OutOfScopeError(parsed.data.scopeReason);
-}
-
-async function withGeminiText(apiKey: string, model: string, prompt: string) {
-  const response = await generateTextContent(apiKey, {
-    model,
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { responseMimeType: "application/json", temperature: 0 },
-  });
-  return response.text || "";
-}
-
-async function withOpenAIText(apiKey: string, prompt: string) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0, response_format: { type: "json_object" }, messages: [{ role: "user", content: prompt }] }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
 }

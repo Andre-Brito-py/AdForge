@@ -1,7 +1,5 @@
 import { z } from "zod";
-import { generateTextContent } from "./gemini-client";
-import { getAppConfig } from "@/lib/config";
-import { toDataUri } from "@/lib/storage";
+import { generateJson, hasTextProvider } from "./llm";
 
 /**
  * Moderação das imagens enviadas pelo cliente (foto do produto, logo e imagens de referência).
@@ -72,33 +70,6 @@ or {"allowed": false, "category": "<one of: ${BLOCK_CATEGORIES.join(", ")}>", "r
  * e a revisão obrigatória acontece de novo na criação da campanha).
  */
 export async function reviewImage(image: { buffer: Buffer; mimeType: string }, uiLocale: "pt" | "en"): Promise<ImageReview | null> {
-  const config = await getAppConfig();
-  const { geminiKey, openAiKey } = config.secrets;
-  const text = prompt(uiLocale);
-
-  if (geminiKey) {
-    const response = await generateTextContent(geminiKey, {
-      model: config.models.text,
-      contents: [{ role: "user", parts: [{ text }, { inlineData: { data: image.buffer.toString("base64"), mimeType: image.mimeType } }] }],
-      config: { responseMimeType: "application/json", temperature: 0 },
-    });
-    return parseReview(response.text || "");
-  }
-  if (openAiKey) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openAiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [{ role: "user", content: [{ type: "text", text }, { type: "image_url", image_url: { url: toDataUri(image.buffer, image.mimeType) } }] }],
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-    const data = await res.json();
-    return parseReview(data.choices?.[0]?.message?.content || "");
-  }
-  return null;
+  if (!(await hasTextProvider())) return null;
+  return generateJson({ prompt: prompt(uiLocale), images: [image], temperature: 0, parse: parseReview });
 }

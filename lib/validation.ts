@@ -144,12 +144,21 @@ export const costsSchema = z.object({
   premiumMultiplier: z.number().min(1).max(10).default(2),
 });
 
+const modelName = z.string().trim().min(1).max(100);
+export const AI_PROVIDERS = ["gemini", "openai"] as const;
 export const modelsSchema = z.object({
-  text: z.string().trim().min(1).max(100),
-  image: z.string().trim().min(1).max(100),
-  imagePremium: z.string().trim().min(1).max(100),
-  video: z.string().trim().min(1).max(100),
-  videoPremium: z.string().trim().min(1).max(100),
+  /** Quem faz textos, estratégia, moderação e revisões (o outro provedor, se tiver chave, vira reserva). */
+  textProvider: z.enum(AI_PROVIDERS),
+  /** Quem gera as imagens e o quadro de abertura dos vídeos. */
+  imageProvider: z.enum(AI_PROVIDERS),
+  text: modelName,
+  image: modelName,
+  imagePremium: modelName,
+  openaiText: modelName,
+  openaiImage: modelName,
+  openaiImagePremium: modelName,
+  video: modelName,
+  videoPremium: modelName,
 });
 export type AiModels = z.infer<typeof modelsSchema>;
 

@@ -48,6 +48,12 @@ const ENV_FALLBACK: Record<SecretField, string> = {
 
 // gemini-2.5-* não é mais liberado para contas novas do Google (out/2026). Trocáveis em Admin › IA e custos.
 export const DEFAULT_MODELS: AiModels = {
+  textProvider: "gemini",
+  imageProvider: "gemini",
+  // OpenAI (out/2026): gpt-6.1-sol (texto + visão, equilibrado); gpt-image-2.5-flare (rápido) e -sunburst (máxima qualidade).
+  openaiText: "gpt-6.1-sol",
+  openaiImage: "gpt-image-2.5-flare",
+  openaiImagePremium: "gpt-image-2.5-sunburst",
   text: "gemini-3.8-flash",
   image: "gemini-3.1-flash-image",
   imagePremium: "gemini-3-pro-image",

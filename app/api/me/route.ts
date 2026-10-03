@@ -12,7 +12,7 @@ export const GET = handler(async () => {
   const balance = await getWorkspaceBalance(user.workspaceId);
 
   const availability = {
-    IMAGE: !!config.secrets.geminiKey,
+    IMAGE: !!config.secrets.geminiKey || !!config.secrets.openAiKey,
     VIDEO: !!config.secrets.wanKey && (!!config.secrets.geminiKey || !!config.secrets.openAiKey),
   };
 

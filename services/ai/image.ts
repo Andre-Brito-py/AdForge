@@ -22,6 +22,51 @@ export interface ImageGenInput {
   productSize?: string | null;
   /** Problemas apontados pela revisão da tentativa anterior, para corrigir. */
   fixes?: string[];
+  /** Gera pela OpenAI (escolhido em Admin › IA e custos) em vez do Gemini. */
+  openai?: { apiKey: string; model: string } | null;
+}
+
+const OPENAI_BASE = (process.env.OPENAI_BASE_URL || "https://api.openai.com").replace(/\/$/, "");
+
+/** Tamanho em pixels para a OpenAI (múltiplos de 16; proporção do formato do anúncio). */
+export function openAiSize(aspectRatio: string): string {
+  return ({ "1:1": "1024x1024", "4:5": "1024x1280", "9:16": "1008x1792", "16:9": "1792x1008" } as Record<string, string>)[aspectRatio] || "1024x1024";
+}
+
+async function generateWithOpenAI(input: ImageGenInput, openai: { apiKey: string; model: string }) {
+  const images = [input.product, ...(input.references || [])];
+  const form = new FormData();
+  form.append("model", openai.model);
+  form.append(
+    "prompt",
+    `${images.length > 1 ? `The input images are numbered in order: image 1 is the product${images.length > 1 ? `, images 2-${images.length} are the client's references` : ""}.\n` : ""}${buildPrompt(input)}`
+  );
+  images.forEach((img, i) => {
+    const ext = img.mimeType.split("/")[1] || "png";
+    form.append("image[]", new Blob([new Uint8Array(img.buffer)], { type: img.mimeType }), `image-${i + 1}.${ext}`);
+  });
+  form.append("size", openAiSize(input.aspectRatio));
+  form.append("quality", input.mode === "keyframe" || input.quality === "premium" ? "high" : "medium");
+  form.append("n", "1");
+
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`${OPENAI_BASE}/v1/images/edits`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openai.apiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(180_000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.data?.[0]?.b64_json) {
+      return { buffer: Buffer.from(data.data[0].b64_json, "base64"), mimeType: "image/png", model: openai.model };
+    }
+    const error = Object.assign(new ImageGenerationError(`OpenAI imagem ${res.status}: ${data?.error?.message || "sem imagem"}`.slice(0, 400)), {
+      status: res.status,
+      message: `${data?.error?.message || ""}`,
+    });
+    if (attempt >= 2 || !isTransient(error)) throw error;
+    await new Promise((r) => setTimeout(r, attempt === 0 ? 2_000 : 6_000));
+  }
 }
 
 export class ImageGenerationError extends Error {}
@@ -34,7 +79,7 @@ function buildKeyframePrompt(input: ImageGenInput) {
     input.productSize
       ? `REAL-WORLD SCALE: the product is ${input.productSize}. Keep that size relative to people, hands and furniture — it must not look oversized or tiny.`
       : "REAL-WORLD SCALE: infer the product's real size from image 1 and keep it realistic relative to people, hands and furniture.",
-    "PHYSICAL INTEGRATION: the same light direction, color temperature and exposure on the product and the scene; contact shadows and reflections where it touches hands or surfaces; matching perspective, lens and depth of field; natural grip with correct finger count and fingers wrapping around the product.",
+    "PHYSICAL INTEGRATION: the same light direction, color temperature and exposure on the product and the scene; the product's surface reflects THIS environment (its light sources, windows and surroundings) — never studio-lit or cut out; contact shadows and reflections where it touches hands or surfaces; matching perspective, lens, grain and depth of field; natural grip with correct finger count and fingers wrapping around the product.",
     refs ? "People from the references keep their face, skin tone, hair and body; natural pose and expression; fully and appropriately dressed as in the reference; never sexualized." : "",
     `Art direction: ${input.concept}`,
     `Visual style: ${input.styleLabel}. Composition with room for camera movement; the product clearly visible and in focus.`,
@@ -117,6 +162,15 @@ async function callModelOnce(input: ImageGenInput, model: string, withSize: bool
 
 /** Gera uma imagem publicitária a partir da foto do produto. */
 export async function generateAdImage(input: ImageGenInput): Promise<{ buffer: Buffer; mimeType: string; model: string }> {
+  if (input.openai) {
+    try {
+      return await generateWithOpenAI(input, input.openai);
+    } catch (error) {
+      // OpenAI fora do ar: usa o Gemini como reserva, se houver chave.
+      if (!input.apiKey) throw error;
+      console.warn("[ai/image] OpenAI falhou, usando o Gemini como reserva", error);
+    }
+  }
   const premium = input.quality === "premium";
   try {
     const out = await callModel(input, input.model, premium);

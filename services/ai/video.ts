@@ -29,7 +29,7 @@ function falAspect(aspectRatio: string) {
 
 /** O que nunca queremos no vídeo (vale para os modelos que aceitam prompt negativo). */
 const NEGATIVE_PROMPT =
-  "distorted or resized product, product changing shape or label, oversized or tiny product, pasted or collage look, extra fingers, deformed hands, face changing identity, on-screen text, watermark, logo artifacts, jump cuts";
+  "distorted or resized product, product changing shape or label, oversized or tiny product, pasted or collage look, flat sticker-like product, frozen or static reflections, product lighting not matching the scene, extra fingers, deformed hands, face changing identity, on-screen text, watermark, logo artifacts, jump cuts";
 
 export async function submitVideo(opts: {
   falKey: string;

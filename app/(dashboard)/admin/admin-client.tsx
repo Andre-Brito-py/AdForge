@@ -273,17 +273,25 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
     }
   };
 
-  const modelLabels: Record<string, string> = { text: "Texto / estratégia", image: "Imagem (padrão)", imagePremium: "Imagem (premium)", video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)" };
+  const modelGroups: { title: string; fields: Record<string, string> }[] = [
+    { title: "Google Gemini", fields: { text: "Texto / estratégia / revisões", image: "Imagem (padrão)", imagePremium: "Imagem (premium e quadro de abertura)" } },
+    { title: "OpenAI", fields: { openaiText: "Texto / estratégia / revisões", openaiImage: "Imagem (padrão)", openaiImagePremium: "Imagem (premium e quadro de abertura)" } },
+    { title: "Vídeo (fal.ai)", fields: { video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)" } },
+  ];
+  const providerOptions = [
+    { value: "gemini", label: "Google Gemini", ok: config.secrets.geminiKey?.configured },
+    { value: "openai", label: "OpenAI", ok: config.secrets.openAiKey?.configured },
+  ];
 
   return (
     <div className="space-y-5">
       <section className="surface space-y-4 p-5 sm:p-6">
         <h3 className="font-semibold">Chaves dos provedores</h3>
         <p className="text-sm text-muted-foreground">Salvas criptografadas no banco. Por segurança, a chave nunca é exibida de novo, só os 4 últimos caracteres.</p>
-        <SecretField label="Google Gemini" field="geminiKey" info={config.secrets.geminiKey} value={draft.secrets.geminiKey} onChange={draft.change} help="Obrigatória para imagens e estratégia. aistudio.google.com" />
+        <SecretField label="Google Gemini" field="geminiKey" info={config.secrets.geminiKey} value={draft.secrets.geminiKey} onChange={draft.change} help="Textos e/ou imagens (conforme “Qual IA usar”). aistudio.google.com — ative o faturamento para os modelos de imagem." />
         <SecretField label="fal.ai (vídeo Wan)" field="wanKey" info={config.secrets.wanKey} value={draft.secrets.wanKey} onChange={draft.change} help="Obrigatória para vídeos. fal.ai/dashboard/keys" />
         <SecretField label="ElevenLabs (locução)" field="elevenLabsKey" info={config.secrets.elevenLabsKey} value={draft.secrets.elevenLabsKey} onChange={draft.change} help="Opcional: locução dos vídeos." />
-        <SecretField label="OpenAI (reserva)" field="openAiKey" info={config.secrets.openAiKey} value={draft.secrets.openAiKey} onChange={draft.change} help="Opcional: reserva para texto e locução." />
+        <SecretField label="OpenAI" field="openAiKey" info={config.secrets.openAiKey} value={draft.secrets.openAiKey} onChange={draft.change} help="Textos e/ou imagens (conforme “Qual IA usar”); também reserva da locução. platform.openai.com/api-keys" />
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
@@ -296,16 +304,44 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
-        <h3 className="font-semibold">Modelos</h3>
-        <p className="text-sm text-muted-foreground">Troque quando um provedor lançar uma versão nova, sem precisar de deploy.</p>
+        <div>
+          <h3 className="font-semibold">Qual IA usar</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Escolha o provedor de cada tarefa. Se ele falhar ou estiver sem chave, o outro (com chave) entra como reserva automaticamente.
+          </p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {Object.keys(modelLabels).map((k) => (
+          {([["textProvider", "Textos, estratégia, moderação e revisões"], ["imageProvider", "Imagens e quadro de abertura dos vídeos"]] as const).map(([k, label]) => (
             <div key={k} className="space-y-1.5">
-              <label className="label-base" htmlFor={`m-${k}`}>{modelLabels[k]}</label>
-              <input id={`m-${k}`} className="input-base font-mono" value={models[k] || ""} placeholder={config.defaultModels[k]} onChange={(e) => setModels({ ...models, [k]: e.target.value })} />
+              <label className="label-base" htmlFor={`p-${k}`}>{label}</label>
+              <select id={`p-${k}`} className="input-base" value={models[k] || config.defaultModels[k]} onChange={(e) => setModels({ ...models, [k]: e.target.value })}>
+                {providerOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}{o.ok ? "" : " (sem chave)"}</option>
+                ))}
+              </select>
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="surface space-y-5 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">Modelos</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Troque quando um provedor lançar uma versão nova, sem precisar de deploy.</p>
+        </div>
+        {modelGroups.map((g) => (
+          <div key={g.title} className="space-y-3">
+            <p className="text-sm font-medium">{g.title}</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {Object.entries(g.fields).map(([k, label]) => (
+                <div key={k} className="space-y-1.5">
+                  <label className="label-base" htmlFor={`m-${k}`}>{label}</label>
+                  <input id={`m-${k}`} className="input-base font-mono" value={models[k] || ""} placeholder={config.defaultModels[k]} onChange={(e) => setModels({ ...models, [k]: e.target.value })} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
