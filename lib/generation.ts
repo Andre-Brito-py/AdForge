@@ -305,8 +305,8 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
           campaignId,
           type: media,
           variantIndex: nextIndex,
-          provider: base.provider,
-          model: base.model,
+          // Sempre o modelo escolhido hoje no Admin (não o da variação original, que pode ter sido trocado).
+          ...(media === "VIDEO" ? videoEngine(config, quality === "premium") : { provider: imageEngine(config, quality === "premium").provider, model: imageEngine(config, quality === "premium").label }),
           prompt: media === "VIDEO"
             ? serializeVideoSpec({ ...parseVideoSpec(base.prompt, baseCopy?.text || ""), ...(instructions ? { extra: instructions } : {}) })
             : instructions ? `${splitPrompt(base.prompt).concept}\n[INSTRUCTIONS] ${instructions}` : base.prompt,
@@ -458,6 +458,12 @@ function workDir(job: LoadedJob) {
   return `creatives/${c.workspaceId}/${c.id}/${job.creativeId}-parts/`;
 }
 
+/** Modelo de vídeo escolhido agora em Admin › IA e custos (e o provedor que aparece no criativo). */
+function videoEngine(config: Awaited<ReturnType<typeof getAppConfig>>, premium: boolean) {
+  const model = premium ? config.models.videoPremium : config.models.video;
+  return { model, provider: videoModelCaps(model).provider === "veo" ? "google-veo" : "fal.ai" };
+}
+
 /** Falta a chave do provedor do modelo de vídeo (fal.ai ou Gemini/Veo)? Erro claro em vez de falha genérica. */
 function assertVideoKey(config: Awaited<ReturnType<typeof getAppConfig>>, model: string) {
   if (!hasVideoProvider(config, model)) {
@@ -544,6 +550,12 @@ async function submitVideoJob(job: LoadedJob) {
   const { creative } = job;
   const campaign = creative.campaign;
   const config = await getAppConfig();
+  // O modelo vale a partir de quando o vídeo começa: se o admin trocou (ex.: Veo → Wan), o que estava na fila já usa o novo.
+  const current = videoEngine(config, campaign.quality === "premium");
+  if (creative.model !== current.model) {
+    await db.creative.update({ where: { id: creative.id }, data: current });
+    Object.assign(creative, current);
+  }
   assertVideoKey(config, creative.model);
   const spec = await videoSpecFor(job);
 
