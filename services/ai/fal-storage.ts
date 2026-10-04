@@ -15,7 +15,10 @@ export async function falUpload(falKey: string, buffer: Buffer, contentType: str
     signal: AbortSignal.timeout(30_000),
   });
   const data = await init.json().catch(() => ({}));
-  if (!init.ok || !data.upload_url || !data.file_url) throw new Error(`fal.ai recusou o upload (${init.status})`);
+  if (!init.ok || !data.upload_url || !data.file_url) {
+    // O motivo da fal (ex.: "Exhausted balance") vai junto: sem ele, um 403 não diz se é saldo ou permissão.
+    throw new Error(`fal.ai recusou o upload (${init.status}): ${JSON.stringify(data?.detail ?? data).slice(0, 300)}`);
+  }
   const put = await fetch(data.upload_url, {
     method: "PUT",
     headers: { "Content-Type": contentType },
