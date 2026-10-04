@@ -22,7 +22,7 @@ export function isModelUnavailable(error: unknown): boolean {
 export function isTransient(error: unknown): boolean {
   const e = error as { status?: number; message?: string };
   // Cota zerada / plano sem faturamento não passa esperando: não adianta tentar de novo.
-  if (/quota|billing|limit: 0|free_tier/i.test(e?.message || "")) return false;
+  if (/quota|billing|prepay|depleted|limit: 0|free_tier/i.test(e?.message || "")) return false;
   return [429, 500, 502, 503, 504].includes(e?.status ?? 0) || /UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|try again later/i.test(e?.message || "");
 }
 

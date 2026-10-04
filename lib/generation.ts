@@ -19,7 +19,9 @@ import { buildImageRightsRecord } from "./image-rights";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
 import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
-import { buildVideoPrompt, cancelVideo, checkVideo, submitVideo, type VideoKeys } from "@/services/ai/video";
+import {
+  buildVideoPrompt, cancelVideo, checkVideo, describeVideoError, isPermanentVideoError, submitVideo, type VideoKeys, type VideoRequest,
+} from "@/services/ai/video";
 import { generateNarration } from "@/services/ai/audio";
 import { sendCampaignReadyEmail } from "@/services/email";
 import { txDescription } from "./generation-text";
@@ -378,11 +380,12 @@ export async function runJob(jobId: string): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[generation] job ${jobId} tentativa ${job.attempts} falhou:`, message);
-    if (job.attempts < MAX_ATTEMPTS) {
+    // Recusa definitiva do provedor (ex.: sem créditos): falha já e devolve os créditos, sem gastar novas tentativas.
+    if (job.attempts < MAX_ATTEMPTS && !isPermanentVideoError(error)) {
       await db.generationJob.update({ where: { id: jobId }, data: { status: "PENDING", error: message.slice(0, 500) } });
       return runJob(jobId);
     }
-    await failJob(jobId, message);
+    await failJob(jobId, describeVideoError(error));
   }
 }
 
@@ -663,12 +666,26 @@ async function pollVideoJob(job: LoadedJob) {
     const frameUrl = await saveFile(await lastFrame(previous), `${dir}frame-${done.length}.png`, "image/png");
     // Modo extensão: o Veo continua o próprio vídeo a partir da URI que ele devolveu.
     const sourceUri = finished?.sourceUri ?? progress.lastSourceUri ?? null;
-    const request = await submitSegment(job, spec, progress, done.length, frameUrl, progress.extend ? sourceUri : null);
-    const next: VideoProgress = {
-      v: 2, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, speaking: progress.speaking,
-      extend: progress.extend, lastSourceUri: sourceUri, genAspect: progress.genAspect, cropTo: progress.cropTo,
-      done, current: request, segmentStartedAt: Date.now(),
+    const base = {
+      v: 2 as const, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, speaking: progress.speaking,
+      extend: progress.extend, lastSourceUri: sourceUri, genAspect: progress.genAspect, cropTo: progress.cropTo, done,
     };
+    let request: VideoRequest;
+    try {
+      request = await submitSegment(job, spec, progress, done.length, frameUrl, progress.extend ? sourceUri : null);
+    } catch (error) {
+      // Recusa definitiva (ex.: créditos esgotados) ou tentativas além do prazo: falha e devolve os créditos.
+      if (isPermanentVideoError(error) || Date.now() - progress.segmentStartedAt > VIDEO_TIMEOUT_MS) {
+        console.error(`[generation] job ${job.id}: envio do trecho ${done.length + 1} recusado`, error);
+        return failJob(job.id, describeVideoError(error));
+      }
+      // Falha momentânea: guarda o que já ficou pronto (sem baixar de novo) e tenta no próximo ciclo.
+      // O prazo das novas tentativas conta a partir da primeira falha deste envio.
+      const retry: VideoProgress = { ...base, current: null, segmentStartedAt: finished ? Date.now() : progress.segmentStartedAt };
+      await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(retry) } });
+      throw error;
+    }
+    const next: VideoProgress = { ...base, current: request, segmentStartedAt: Date.now() };
     await db.generationJob.update({ where: { id: job.id }, data: { externalData: JSON.stringify(next) } });
     return;
   }

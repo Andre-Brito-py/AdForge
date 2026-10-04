@@ -31,6 +31,31 @@ export interface VideoKeys {
 
 export class VideoGenerationError extends Error {}
 
+/**
+ * O provedor recusou de vez (créditos esgotados, chave inválida, pedido rejeitado): tentar de novo
+ * só repete o erro. Sobrecarga, limite momentâneo (408/429) e 5xx continuam sendo tentados.
+ */
+export function isPermanentVideoError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/depleted|billing|prepay|quota|limit: 0|free_tier|insufficient|exhausted balance/i.test(message)) return true;
+  const status = Number(/recusou (?:o pedido|o lip-sync|o upload) \((\d{3})\)/.exec(message)?.[1]);
+  if (status >= 400 && status < 500) return status !== 408 && status !== 429;
+  // Erros nossos de configuração (chave ausente, imagem inicial ausente) também não melhoram sozinhos.
+  return error instanceof VideoGenerationError && !/^fal\.ai recusou|Resposta inesperada/.test(message);
+}
+
+/** Mensagem curta para o painel quando o provedor de vídeo fica sem créditos. */
+export function describeVideoError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/Veo/.test(message) && /depleted|prepay|billing|\(402\)/i.test(message)) {
+    return "Créditos do Google (Gemini/Veo) esgotados: recarregue em AI Studio › Billing. " + message;
+  }
+  if (/fal\.ai/.test(message) && /\(402\)|\(403\)|balance|insufficient/i.test(message)) {
+    return "Créditos da fal.ai esgotados ou chave sem permissão: confira em fal.ai › Billing. " + message;
+  }
+  return message;
+}
+
 const FAL_QUEUE = process.env.FAL_QUEUE_URL || "https://queue.fal.run";
 
 function falAspect(aspectRatio: string) {
