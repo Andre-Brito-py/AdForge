@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, Loader2, Send, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Megaphone, Send, Store, XCircle } from "lucide-react";
+import { StorePanel } from "./publish-store";
+import { AdPanel } from "./publish-ad";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,6 +18,13 @@ export interface PublishingInfo {
   expired: boolean;
   instagram: { id: string; name: string }[];
   pages: { id: string; name: string }[];
+  /** Lojas conectadas (ativas) do workspace. */
+  stores: { slug: string; label: string }[];
+  /** Dono/admin: pode criar anúncio pago. */
+  canManage: boolean;
+  /** Sugestões para o anúncio pago: site do Brand Kit e país da conta. */
+  defaultLink: string;
+  defaultCountry: string;
 }
 
 export interface PublicationRow {
@@ -32,16 +41,19 @@ export interface PublicationRow {
 interface Destination { key: string; target: PublishTarget; accountId: string; label: string; network: "instagram" | "facebook" }
 
 export function PublishDialog({
-  open, onClose, creative, defaultCaption, info, onPublished,
+  open, onClose, creative, defaultCaption, headline = "", info, onPublished, onAdCreated,
 }: {
   open: boolean;
   onClose: () => void;
   creative: { id: string; type: string; aspectRatio: string | null } | null;
   defaultCaption: string;
+  headline?: string;
   info: PublishingInfo;
   onPublished: (p: PublicationRow) => void;
+  onAdCreated?: () => void;
 }) {
   const t = useTranslations("publish");
+  const [tab, setTab] = useState<"social" | "store" | "ad">("social");
   const tc = useTranslations("common");
   const destinations = useMemo<Destination[]>(() => {
     if (!creative) return [];
@@ -82,7 +94,29 @@ export function PublishDialog({
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
-        {!info.available ? (
+        <div className="flex gap-1.5" role="tablist">
+          {([["social", t("tabs.social")], ["store", t("tabs.store")], ["ad", t("tabs.ad")]] as const).map(([key, label]) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} data-selected={tab === key} className="choice flex items-center gap-1.5 px-3 py-1.5 text-sm">
+              {key === "store" ? <Store className="h-3.5 w-3.5" /> : key === "ad" ? <Megaphone className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />} {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "store" ? (
+          creative && <StorePanel creativeId={creative.id} isImage={creative.type === "IMAGE"} stores={info.stores} onPublished={onPublished} onClose={onClose} />
+        ) : tab === "ad" ? (
+          !info.available || !info.connected ? (
+            <div className="space-y-3 rounded-xl bg-muted p-4 text-sm">
+              <p>{t("ad.connectFirst")}</p>
+              <Link href="/integrations" className={buttonClass("brand", "sm")}>{t("connect")}</Link>
+            </div>
+          ) : (
+            creative && (
+              <AdPanel creativeId={creative.id} pages={info.pages} instagram={info.instagram} defaultHeadline={headline} defaultMessage={defaultCaption}
+                defaultLink={info.defaultLink} defaultCountry={info.defaultCountry} canManage={info.canManage} onCreated={() => onAdCreated?.()} onClose={onClose} />
+            )
+          )
+        ) : !info.available ? (
           <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">{t("unavailable")}</p>
         ) : !info.connected ? (
           <div className="space-y-3 rounded-xl bg-muted p-4 text-sm">
@@ -128,6 +162,37 @@ export function PublishDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+export interface AdRow { id: string; creativeId: string; status: string; error: string | null; dailyBudget: number; currency: string; managerUrl: string | null }
+
+/** Anúncios pagos criados na Meta a partir do criativo. */
+export function AdList({ items }: { items: AdRow[] }) {
+  const t = useTranslations("publish.ad");
+  if (items.length === 0) return null;
+  return (
+    <ul className="space-y-1.5 border-t border-border px-4 py-3 text-xs">
+      {items.map((a) => (
+        <li key={a.id} className="flex items-start gap-2">
+          {a.status === "CREATED" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+            : a.status === "FAILED" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+            : <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-brand" />}
+          <div className="min-w-0 flex-1">
+            <p className="break-words">
+              {t("listLabel", { budget: `${a.dailyBudget} ${a.currency}` })}
+              {a.status === "CREATED" && a.managerUrl && (
+                <a href={a.managerUrl} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-brand hover:underline">
+                  {t("openManager")} <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              {(a.status === "PENDING" || a.status === "PROCESSING") && <span className="ml-1.5 text-muted-foreground">{t("creating")}</span>}
+            </p>
+            {a.status === "FAILED" && a.error && <p className="text-destructive">{a.error}</p>}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 

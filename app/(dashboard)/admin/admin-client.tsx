@@ -991,6 +991,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 }
 
 function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onSaved: () => void; baseUrl: string }) {
+  const tr = useTr();
   const draft = useSecretDraft();
   const [saving, setSaving] = useState(false);
   const configured = config.secrets.metaAppId?.configured && config.secrets.metaAppSecret?.configured;
@@ -999,7 +1000,7 @@ function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse;
     setSaving(true);
     try {
       await api("/api/admin/config", "PUT", { secrets: draft.payload() });
-      toast.success("Credenciais da Meta salvas");
+      toast.success(tr("Credenciais salvas", "Credentials saved"));
       draft.reset();
       onSaved();
     } catch (e) {
@@ -1040,6 +1041,29 @@ function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse;
         <CopyRow label="URL dos Termos de Serviço" value={`${baseUrl}/legal/terms`} />
         <CopyRow label="Domínio do app" value={baseUrl.replace(/^https?:\/\//, "")} />
         <p className="text-xs text-muted-foreground">Passo a passo completo, incluindo o App Review: docs/META_SETUP.md no repositório.</p>
+        <p className="text-xs text-muted-foreground">{tr("Anúncios pagos usam também as permissões ads_management e ads_read (peça no App Review). Clientes que conectaram antes precisam reconectar para conceder.", "Paid ads also use the ads_management and ads_read permissions (request them in App Review). Customers who connected before need to reconnect to grant them.")}</p>
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">{tr("Lojas virtuais", "Online stores")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{tr("Com as credenciais do app de cada plataforma, os clientes conectam a loja em Integrações e colocam as imagens geradas direto nos anúncios/produtos.", "With each platform's app credentials, customers connect their store in Integrations and push generated images straight to their listings/products.")}</p>
+        </div>
+        <p className="text-sm font-medium">Mercado Livre <span className="font-normal text-muted-foreground">· developers.mercadolivre.com.br › Suas aplicações</span></p>
+        <SecretField label="App ID (client_id)" field="mercadoLivreAppId" info={config.secrets.mercadoLivreAppId} value={draft.secrets.mercadoLivreAppId} onChange={draft.change} />
+        <SecretField label="Secret key" field="mercadoLivreSecret" info={config.secrets.mercadoLivreSecret} value={draft.secrets.mercadoLivreSecret} onChange={draft.change} />
+        <CopyRow label={tr("URI de redirecionamento", "Redirect URI")} value={`${baseUrl}/api/integrations/stores/mercadolivre/callback`} />
+        <p className="pt-2 text-sm font-medium">Nuvemshop <span className="font-normal text-muted-foreground">· partners.nuvemshop.com.br › Aplicativos</span></p>
+        <SecretField label="App ID" field="nuvemshopAppId" info={config.secrets.nuvemshopAppId} value={draft.secrets.nuvemshopAppId} onChange={draft.change} />
+        <SecretField label="Client secret" field="nuvemshopSecret" info={config.secrets.nuvemshopSecret} value={draft.secrets.nuvemshopSecret} onChange={draft.change} />
+        <CopyRow label={tr("URL de redirecionamento (cadastrada no app)", "Redirect URL (set in the app)")} value={`${baseUrl}/api/integrations/stores/nuvemshop/callback`} />
+        <p className="pt-2 text-sm font-medium">Shopify <span className="font-normal text-muted-foreground">· partners.shopify.com › Apps (escopos: read_products, write_products)</span></p>
+        <SecretField label="Client ID" field="shopifyClientId" info={config.secrets.shopifyClientId} value={draft.secrets.shopifyClientId} onChange={draft.change} />
+        <SecretField label="Client secret" field="shopifyClientSecret" info={config.secrets.shopifyClientSecret} value={draft.secrets.shopifyClientSecret} onChange={draft.change} />
+        <CopyRow label={tr("URL de redirecionamento permitida", "Allowed redirection URL")} value={`${baseUrl}/api/integrations/stores/shopify/callback`} />
+        <button onClick={save} disabled={saving} className={buttonClass("brand")}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
+        </button>
       </section>
     </div>
   );

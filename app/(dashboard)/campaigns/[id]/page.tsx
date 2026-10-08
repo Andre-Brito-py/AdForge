@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/auth";
 import { getAppConfig } from "@/lib/config";
 import { PLATFORMS, costPerVariation, type PlatformKey, type QualityKey } from "@/lib/catalog";
 import { getMetaApp, getMetaConnection } from "@/lib/meta/connection";
+import { listStoreConnections } from "@/lib/stores";
+import { canManageSettings } from "@/lib/workspaces";
 import CreativeGalleryClient from "./CreativeGalleryClient";
 
 export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) {
@@ -29,9 +31,11 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
   const platform = campaign.platform && campaign.platform in PLATFORMS ? (campaign.platform as PlatformKey) : null;
   const unitCost = platform ? costPerVariation(config.costs, platform, (campaign.quality as QualityKey) || "standard", campaign.videoDuration, campaign.mediaType) : null;
 
-  const [metaApp, metaConn, publications] = await Promise.all([
+  const [metaApp, metaConn, stores, brand, publications] = await Promise.all([
     getMetaApp(),
     getMetaConnection(user.workspaceId),
+    listStoreConnections(user.workspaceId),
+    db.brandKit.findUnique({ where: { workspaceId: user.workspaceId }, select: { website: true } }),
     db.publication.findMany({
       where: { workspaceId: user.workspaceId, creative: { campaignId: id } },
       orderBy: { createdAt: "desc" },
@@ -45,6 +49,10 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
     expired: !!metaConn && metaConn.status !== "ACTIVE",
     instagram: (metaConn?.assets || []).filter((a) => a.instagram).map((a) => ({ id: a.instagram!.id, name: `@${a.instagram!.username || a.instagram!.id}` })),
     pages: (metaConn?.assets || []).map((a) => ({ id: a.pageId, name: a.pageName })),
+    stores: stores.filter((s) => s.status === "ACTIVE").map((s) => ({ slug: s.slug, label: s.displayName ? `${s.label} · ${s.displayName}` : s.label })),
+    canManage: canManageSettings(user.workspaceRole),
+    defaultLink: brand?.website && /^https:\/\//.test(brand.website) ? brand.website : "",
+    defaultCountry: user.country || (user.locale === "en" ? "US" : "BR"),
   };
 
   let strategy: { analysis?: string; hooks?: string[] } | null = null;

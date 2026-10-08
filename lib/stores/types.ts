@@ -1,4 +1,7 @@
-export type StoreProvider = "MERCADOLIVRE" | "NUVEMSHOP";
+export type StoreProvider = "MERCADOLIVRE" | "NUVEMSHOP" | "SHOPIFY";
+
+export type StoreSlug = "mercadolivre" | "nuvemshop" | "shopify";
+export const STORE_SLUGS: StoreSlug[] = ["mercadolivre", "nuvemshop", "shopify"];
 
 export interface StoreItem {
   id: string;
@@ -30,14 +33,15 @@ export interface LiveConnection {
 
 export interface StoreAdapter {
   provider: StoreProvider;
-  slug: "mercadolivre" | "nuvemshop";
+  slug: StoreSlug;
   label: string;
-  target: "MERCADOLIVRE_ITEM" | "NUVEMSHOP_PRODUCT";
+  target: "MERCADOLIVRE_ITEM" | "NUVEMSHOP_PRODUCT" | "SHOPIFY_PRODUCT";
   /** O token expira e precisa de refresh? */
   refreshable: boolean;
   getApp(): Promise<{ appId: string; secret: string } | null>;
-  buildAuthUrl(opts: { appId: string; redirectUri: string; state: string; codeChallenge: string }): string;
-  exchangeCode(opts: { appId: string; secret: string; redirectUri: string; code: string; codeVerifier: string }): Promise<StoreAccount>;
+  /** `shop`: domínio da loja (só Shopify, onde cada loja tem o próprio endereço). */
+  buildAuthUrl(opts: { appId: string; redirectUri: string; state: string; codeChallenge: string; shop?: string | null }): string;
+  exchangeCode(opts: { appId: string; secret: string; redirectUri: string; code: string; codeVerifier: string; shop?: string | null }): Promise<StoreAccount>;
   refresh?(opts: { appId: string; secret: string; refreshToken: string }): Promise<StoreTokens>;
   searchItems(conn: LiveConnection, q: string): Promise<StoreItem[]>;
   getItem(conn: LiveConnection, id: string): Promise<StoreItem | null>;

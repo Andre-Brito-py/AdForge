@@ -3,6 +3,9 @@ import { requireUser } from "@/lib/auth";
 import { getMetaApp, getMetaConnection } from "@/lib/meta/connection";
 import { PageHeader } from "@/components/app/ui-bits";
 import { MetaCard, type MetaCardState } from "./meta-card";
+import { StoresCard, type StoreCardState } from "./stores-card";
+import { listStoreConnections, storeAdapter, STORE_SLUGS } from "@/lib/stores";
+import { canManageSettings } from "@/lib/workspaces";
 
 export async function generateMetadata() {
   return { title: (await getTranslations("nav"))("integrations") };
@@ -11,15 +14,21 @@ export async function generateMetadata() {
 const MESSAGE_TONE: Record<string, "ok" | "warn" | "error"> = {
   connected: "ok", missing_scopes: "warn", no_pages: "warn",
   denied: "error", invalid_state: "error", exchange_failed: "error", not_configured: "error", rate_limited: "error",
+  managers_only: "error", invalid_shop: "error",
 };
 
 export default async function IntegrationsPage(props: PageProps<"/integrations">) {
   const user = await requireUser();
   const t = await getTranslations("integrations");
   const sp = await props.searchParams;
-  const [app, conn] = await Promise.all([getMetaApp(), getMetaConnection(user.workspaceId)]);
+  const [app, conn, storeConns, storeApps] = await Promise.all([
+    getMetaApp(),
+    getMetaConnection(user.workspaceId),
+    listStoreConnections(user.workspaceId),
+    Promise.all(STORE_SLUGS.map(async (slug) => [slug, !!(await storeAdapter(slug)!.getApp())] as const)),
+  ]);
 
-  const key = typeof sp.warning === "string" ? sp.warning : typeof sp.error === "string" ? sp.error : sp.connected === "meta" ? "connected" : null;
+  const key = typeof sp.warning === "string" ? sp.warning : typeof sp.error === "string" ? sp.error : typeof sp.connected === "string" ? "connected" : null;
   const message = key && MESSAGE_TONE[key] ? { tone: MESSAGE_TONE[key], text: t(`messages.${key}`) } : null;
 
   const meta: MetaCardState = {
@@ -34,12 +43,16 @@ export default async function IntegrationsPage(props: PageProps<"/integrations">
       : null,
   };
 
-  const soon = [
-    { name: "Mercado Livre", desc: t("stores.mercadolivre") },
-    { name: "Nuvemshop", desc: t("stores.nuvemshop") },
-    { name: "Shopify", desc: t("stores.shopify") },
-    { name: "TikTok", desc: t("stores.tiktok") },
-  ];
+  const stores: StoreCardState[] = STORE_SLUGS.map((slug) => {
+    const c = storeConns.find((s) => s.slug === slug);
+    return {
+      slug,
+      label: storeAdapter(slug)!.label,
+      available: storeApps.find(([s]) => s === slug)?.[1] ?? false,
+      connection: c ? { name: c.displayName, status: c.status } : null,
+    };
+  });
+  const soon = [{ name: "TikTok", desc: t("stores.tiktok") }];
 
   return (
     <>
@@ -54,6 +67,8 @@ export default async function IntegrationsPage(props: PageProps<"/integrations">
       )}
 
       <MetaCard state={meta} />
+
+      <StoresCard stores={stores} canManage={canManageSettings(user.workspaceRole)} />
 
       <h2 className="mb-3 mt-10 text-sm font-medium text-muted-foreground">{t("soon")}</h2>
       <div className="grid gap-3 sm:grid-cols-2">

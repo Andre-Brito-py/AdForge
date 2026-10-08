@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Copy, Download, Loader2, MessageCircle, RefreshCw, Send, Sparkles, Volume2, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import { objectiveLabel, platformLabel, styleLabel } from "@/lib/catalog-i18n";
 import { setMascotMood } from "@/components/mascot/mascot-events";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
-import { PublicationList, PublishDialog, type PublicationRow, type PublishingInfo } from "./publish-dialog";
+import { AdList, PublicationList, PublishDialog, type AdRow, type PublicationRow, type PublishingInfo } from "./publish-dialog";
 
 interface Creative {
   id: string; type: string; status: string; variantIndex: number; outputUrl: string | null; thumbnailUrl?: string | null; audioUrl: string | null;
@@ -61,6 +61,27 @@ export default function CreativeGalleryClient({
   const [publishFor, setPublishFor] = useState<{ visual: Creative; copy?: Creative } | null>(null);
   const [publications, setPublications] = useState<PublicationRow[]>(initialPublications);
   const publishingNow = publications.some((p) => p.status === "PENDING" || p.status === "PROCESSING");
+  const [ads, setAds] = useState<AdRow[]>([]);
+  const loadAds = useCallback(async () => {
+    const res = await fetch(`/api/ads?campaignId=${campaign.id}`, { cache: "no-store" }).catch(() => null);
+    if (res?.ok) setAds(await res.json());
+  }, [campaign.id]);
+  const adsRunning = ads.some((a) => a.status === "PENDING" || a.status === "PROCESSING");
+  useEffect(() => {
+    if (!publishing.connected) return;
+    let alive = true;
+    fetch(`/api/ads?campaignId=${campaign.id}`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (alive && data) setAds(data); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [campaign.id, publishing.connected]);
+  // Anúncio pago sendo criado na Meta (vídeo leva alguns minutos): acompanha até terminar.
+  useEffect(() => {
+    if (!adsRunning) return;
+    const t = setInterval(loadAds, 6000);
+    return () => clearInterval(t);
+  }, [adsRunning, loadAds]);
 
   // Acompanha publicações em andamento (vídeos no Instagram levam alguns minutos).
   useEffect(() => {
@@ -234,6 +255,7 @@ export default function CreativeGalleryClient({
               )}
 
               <PublicationList items={publications.filter((p) => p.creativeId === visual.id)} />
+              <AdList items={ads.filter((a) => a.creativeId === visual.id)} />
 
               <div className="flex flex-wrap gap-1.5 border-t border-border p-3">
                 {visual.status === "COMPLETED" && visual.outputUrl && (
@@ -273,6 +295,8 @@ export default function CreativeGalleryClient({
         onClose={() => setPublishFor(null)}
         creative={publishFor ? { id: publishFor.visual.id, type: publishFor.visual.type, aspectRatio: publishFor.visual.aspectRatio } : null}
         defaultCaption={captionText(publishFor?.copy)}
+        headline={publishFor?.copy?.headline || ""}
+        onAdCreated={loadAds}
         info={publishing}
         onPublished={(p) => setPublications((list) => [p, ...list])}
       />

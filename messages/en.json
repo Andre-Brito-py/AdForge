@@ -493,7 +493,66 @@
       "INSTAGRAM_STORY": "Instagram · Stories",
       "FACEBOOK_PAGE": "Facebook · Page",
       "MERCADOLIVRE_ITEM": "Mercado Livre",
-      "NUVEMSHOP_PRODUCT": "Nuvemshop"
+      "NUVEMSHOP_PRODUCT": "Nuvemshop",
+      "SHOPIFY_PRODUCT": "Shopify"
+    },
+    "tabs": {
+      "social": "Social",
+      "store": "Stores",
+      "ad": "Paid ad"
+    },
+    "store": {
+      "search": "Search listing or product",
+      "empty": "Nothing found.",
+      "photos": "{count, plural, =0 {no photos} one {# photo} other {# photos}}",
+      "asCover": "Use as main image (cover)",
+      "full": "This listing already has the maximum number of photos. Remove one in the store first.",
+      "submit": "Send to store",
+      "sent": "Image sent to \"{title}\"",
+      "error": "Couldn't send to the store",
+      "loadError": "Couldn't load the store's products",
+      "cancel": "Cancel",
+      "imagesOnly": "Stores take images. Generate an image variation to send.",
+      "noStores": "No store connected. Connect Mercado Livre, Nuvemshop or Shopify in Integrations."
+    },
+    "ad": {
+      "connectFirst": "Connect your Meta account in Integrations to create paid ads.",
+      "managersOnly": "Only the workspace owner or admins create paid ads (it involves budget).",
+      "loadError": "Couldn't load the ad accounts",
+      "noAccounts": "No ad account found in your Meta account. Create one in Ads Manager.",
+      "pausedNote": "The ad is created PAUSED in Meta Ads Manager. Review audience and placements and turn it on there. Spend is billed by Meta to your ad account.",
+      "account": "Ad account",
+      "inactive": "inactive",
+      "page": "Facebook Page",
+      "instagram": "Instagram",
+      "instagramNone": "Don't use",
+      "objective": "Objective",
+      "objectives": {
+        "OUTCOME_TRAFFIC": "Traffic (link clicks)",
+        "OUTCOME_AWARENESS": "Awareness (reach)",
+        "OUTCOME_ENGAGEMENT": "Engagement"
+      },
+      "budget": "Daily budget ({currency})",
+      "countries": "Countries (codes)",
+      "link": "Destination link",
+      "headline": "Headline",
+      "cta": "Button",
+      "ctas": {
+        "SHOP_NOW": "Shop now",
+        "BUY_NOW": "Buy now",
+        "ORDER_NOW": "Order now",
+        "LEARN_MORE": "Learn more",
+        "SIGN_UP": "Sign up",
+        "CONTACT_US": "Contact us"
+      },
+      "message": "Ad text",
+      "submit": "Create paused ad",
+      "started": "Creating the ad on Meta... follow it on the creative's card.",
+      "error": "Couldn't create the ad",
+      "cancel": "Cancel",
+      "listLabel": "Paid ad · {budget}/day",
+      "openManager": "Open in Ads Manager",
+      "creating": "creating..."
     }
   },
   "billing": {
@@ -673,7 +732,29 @@
       "exchange_failed": "Couldn't complete the Meta connection. Please try again in a moment.",
       "not_configured": "The Meta integration isn't available yet.",
       "rate_limited": "Too many attempts. Please wait a few minutes.",
-      "managers_only": "Only the workspace owner or admins can connect integrations."
+      "managers_only": "Only the workspace owner or admins can connect integrations.",
+      "invalid_shop": "Invalid Shopify store address. Use something like my-store.myshopify.com."
+    },
+    "storesCard": {
+      "title": "Online stores",
+      "subtitle": "Push generated images straight to your listings and products, as the cover or in the gallery.",
+      "connected": "Connected",
+      "expired": "Reconnect",
+      "notConnected": "Not connected",
+      "soon": "Coming soon",
+      "connect": "Connect",
+      "reconnect": "Reconnect",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Disconnect this store? Images already sent stay there.",
+      "disconnected": "Store disconnected",
+      "error": "Couldn't disconnect",
+      "managersOnly": "Only the owner or admins connect stores.",
+      "shopLabel": "Store address",
+      "desc": {
+        "mercadolivre": "Send images to your Mercado Livre listings.",
+        "nuvemshop": "Send images to your Nuvemshop store products.",
+        "shopify": "Send images to your Shopify store products."
+      }
     }
   },
   "cookies": {
@@ -790,7 +871,14 @@
       "cantChangeOwner": "The owner's role can't be changed.",
       "cantRemoveOwner": "The owner can't be removed from the workspace.",
       "memberNotFound": "Person not found in this workspace."
-    }
+    },
+    "storeNotConnected": "Store not connected. Connect it in Integrations.",
+    "storeExpired": "The store connection expired. Reconnect in Integrations.",
+    "storeUnknown": "Unknown store.",
+    "storeItemNotFound": "Listing or product not found in the store.",
+    "storeImagesOnly": "Stores only take images.",
+    "adsPermission": "Your Meta connection has no ads permission. Reconnect in Integrations and allow access to ad accounts.",
+    "adAccountNotFound": "Ad account not found."
   },
   "validation": {
     "emailInvalid": "Invalid email.",

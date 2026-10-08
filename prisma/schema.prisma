@@ -527,6 +527,8 @@ model MetaAd {
   currency           String
   countries          String // "BR,PT"
   link               String
+  // Textos e opções do anúncio: {instagramId, cta, headline, message}
+  optionsJson        String?
   status             String   @default("PENDING") // PENDING, PROCESSING, CREATED, FAILED
   externalCampaignId String?
   externalAdSetId    String?

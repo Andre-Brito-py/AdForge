@@ -493,7 +493,66 @@
       "INSTAGRAM_STORY": "Instagram · Stories",
       "FACEBOOK_PAGE": "Facebook · Página",
       "MERCADOLIVRE_ITEM": "Mercado Livre",
-      "NUVEMSHOP_PRODUCT": "Nuvemshop"
+      "NUVEMSHOP_PRODUCT": "Nuvemshop",
+      "SHOPIFY_PRODUCT": "Shopify"
+    },
+    "tabs": {
+      "social": "Redes sociais",
+      "store": "Lojas",
+      "ad": "Anúncio pago"
+    },
+    "store": {
+      "search": "Buscar anúncio ou produto",
+      "empty": "Nada encontrado.",
+      "photos": "{count, plural, =0 {sem fotos} one {# foto} other {# fotos}}",
+      "asCover": "Usar como imagem principal (capa)",
+      "full": "Este anúncio já tem o máximo de fotos permitido. Remova alguma na loja antes.",
+      "submit": "Enviar para a loja",
+      "sent": "Imagem enviada para \"{title}\"",
+      "error": "Não foi possível enviar para a loja",
+      "loadError": "Não foi possível carregar os produtos da loja",
+      "cancel": "Cancelar",
+      "imagesOnly": "As lojas recebem imagens. Gere uma variação em imagem para enviar.",
+      "noStores": "Nenhuma loja conectada. Conecte o Mercado Livre, a Nuvemshop ou a Shopify em Integrações."
+    },
+    "ad": {
+      "connectFirst": "Conecte a sua conta da Meta em Integrações para criar anúncios pagos.",
+      "managersOnly": "Só o dono ou os administradores do workspace criam anúncios pagos (envolve orçamento).",
+      "loadError": "Não foi possível carregar as contas de anúncio",
+      "noAccounts": "Nenhuma conta de anúncio encontrada na sua conta da Meta. Crie uma no Gerenciador de Anúncios.",
+      "pausedNote": "O anúncio é criado PAUSADO no Gerenciador de Anúncios da Meta. Revise público e posicionamentos e ative lá. Os gastos são cobrados pela Meta, na sua conta de anúncios.",
+      "account": "Conta de anúncios",
+      "inactive": "inativa",
+      "page": "Página do Facebook",
+      "instagram": "Instagram",
+      "instagramNone": "Não usar",
+      "objective": "Objetivo",
+      "objectives": {
+        "OUTCOME_TRAFFIC": "Tráfego (cliques no link)",
+        "OUTCOME_AWARENESS": "Reconhecimento (alcance)",
+        "OUTCOME_ENGAGEMENT": "Engajamento"
+      },
+      "budget": "Orçamento diário ({currency})",
+      "countries": "Países (siglas)",
+      "link": "Link de destino",
+      "headline": "Título",
+      "cta": "Botão",
+      "ctas": {
+        "SHOP_NOW": "Comprar agora",
+        "BUY_NOW": "Comprar",
+        "ORDER_NOW": "Pedir agora",
+        "LEARN_MORE": "Saiba mais",
+        "SIGN_UP": "Cadastre-se",
+        "CONTACT_US": "Fale conosco"
+      },
+      "message": "Texto do anúncio",
+      "submit": "Criar anúncio pausado",
+      "started": "Criando o anúncio na Meta... acompanhe no card do criativo.",
+      "error": "Não foi possível criar o anúncio",
+      "cancel": "Cancelar",
+      "listLabel": "Anúncio pago · {budget}/dia",
+      "openManager": "Abrir no Gerenciador",
+      "creating": "criando..."
     }
   },
   "billing": {
@@ -673,7 +732,29 @@
       "exchange_failed": "Não foi possível concluir a conexão com a Meta. Tente novamente em instantes.",
       "not_configured": "A integração com a Meta ainda não está disponível.",
       "rate_limited": "Muitas tentativas. Aguarde alguns minutos.",
-      "managers_only": "Só o dono ou os administradores do workspace podem conectar integrações."
+      "managers_only": "Só o dono ou os administradores do workspace podem conectar integrações.",
+      "invalid_shop": "Endereço da loja Shopify inválido. Use algo como minha-loja.myshopify.com."
+    },
+    "storesCard": {
+      "title": "Lojas virtuais",
+      "subtitle": "Coloque as imagens geradas direto nos seus anúncios e produtos, como capa ou na galeria.",
+      "connected": "Conectada",
+      "expired": "Reconectar",
+      "notConnected": "Desconectada",
+      "soon": "Em breve",
+      "connect": "Conectar",
+      "reconnect": "Reconectar",
+      "disconnect": "Desconectar",
+      "disconnectConfirm": "Desconectar esta loja? As imagens já enviadas continuam nela.",
+      "disconnected": "Loja desconectada",
+      "error": "Não foi possível desconectar",
+      "managersOnly": "Só o dono ou os administradores conectam lojas.",
+      "shopLabel": "Endereço da loja",
+      "desc": {
+        "mercadolivre": "Envie imagens para os seus anúncios do Mercado Livre.",
+        "nuvemshop": "Envie imagens para os produtos da sua loja Nuvemshop.",
+        "shopify": "Envie imagens para os produtos da sua loja Shopify."
+      }
     }
   },
   "cookies": {
@@ -790,7 +871,14 @@
       "cantChangeOwner": "O papel do dono não pode ser alterado.",
       "cantRemoveOwner": "O dono não pode ser removido do workspace.",
       "memberNotFound": "Pessoa não encontrada neste workspace."
-    }
+    },
+    "storeNotConnected": "Loja não conectada. Conecte em Integrações.",
+    "storeExpired": "A conexão com a loja expirou. Reconecte em Integrações.",
+    "storeUnknown": "Loja desconhecida.",
+    "storeItemNotFound": "Anúncio ou produto não encontrado na loja.",
+    "storeImagesOnly": "As lojas recebem só imagens.",
+    "adsPermission": "Sua conexão com a Meta não tem permissão para anúncios. Reconecte em Integrações e autorize o acesso às contas de anúncio.",
+    "adAccountNotFound": "Conta de anúncios não encontrada."
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",

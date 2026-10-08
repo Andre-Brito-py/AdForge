@@ -20,6 +20,9 @@ export const META_SCOPES = [
   "instagram_basic",
   "instagram_content_publish",
   "business_management",
+  // Anúncios pagos (criados sempre pausados): exigem o App Review dessas permissões.
+  "ads_management",
+  "ads_read",
 ];
 
 export class MetaApiError extends Error {
@@ -60,6 +63,9 @@ async function graph<T = Record<string, unknown>>(path: string, opts: { method?:
   }
   return data as T;
 }
+
+/** Acesso genérico à Graph API (usado pelos anúncios pagos em lib/meta/ads.ts). */
+export const metaGraph = graph;
 
 // ---------------- OAuth ----------------
 
