@@ -9,15 +9,21 @@ import { PageHeader } from "@/components/app/ui-bits";
 import { CheckoutButton } from "@/components/checkout-button";
 import { CurrencySwitcher } from "@/components/currency-switcher";
 import { CheckoutStatusToast } from "./status-toast";
+import { CouponBox } from "./coupon-box";
+import { applyCoupon, CouponError, type AppliedCoupon } from "@/lib/coupons";
+import { stripeMode } from "@/lib/stripe-sync";
 import { isCurrency, refundWindowDays, type Currency } from "@/lib/locale";
 
 export async function generateMetadata() {
   return { title: (await getTranslations("nav"))("billing") };
 }
 
-export default async function BillingPage() {
+export default async function BillingPage(props: PageProps<"/billing">) {
   const user = await requireUser();
   const t = await getTranslations("billing");
+  const tErrors = await getTranslations("errors");
+  const rawCoupon = (await props.searchParams).coupon;
+  const couponCode = typeof rawCoupon === "string" && rawCoupon.trim() ? rawCoupon.trim().slice(0, 40) : null;
   const format = await getFormatter();
   const [config, balance, payments] = await Promise.all([
     getAppConfig(),
@@ -36,6 +42,25 @@ export default async function BillingPage() {
   const money = (v: number, c: string) => format.number(v, { style: "currency", currency: c });
   const en = user.locale === "en";
 
+  // Cupom na URL: calcula o desconto de cada pacote (o checkout valida de novo antes de cobrar).
+  const stripeKey = config.secrets.stripeSecretKey;
+  const discounts = new Map<string, AppliedCoupon>();
+  let couponError: string | null = null;
+  if (couponCode) {
+    const errors: CouponError["key"][] = [];
+    for (const plan of plans) {
+      try {
+        discounts.set(plan.id, await applyCoupon(couponCode, plan, currency, priceOf(plan, currency), stripeKey ? stripeMode(stripeKey) : null));
+      } catch (error) {
+        if (!(error instanceof CouponError)) throw error;
+        errors.push(error.key);
+      }
+    }
+    // Vale para algum pacote: mostra o desconto neles; não vale para nenhum: explica o motivo.
+    if (discounts.size === 0) couponError = tErrors(`coupon.${errors[0] ?? "notFound"}`);
+  }
+  const appliedCode = discounts.size > 0 ? [...discounts.values()][0].code : null;
+
   return (
     <>
       <CheckoutStatusToast />
@@ -45,12 +70,16 @@ export default async function BillingPage() {
         actions={available.length > 1 ? <CurrencySwitcher value={currency} options={available} label={t("currency")} /> : undefined}
       />
 
+      {plans.length > 0 && <CouponBox applied={appliedCode} error={couponError} />}
+
       {plans.length === 0 ? (
         <div className="surface p-8 text-center text-muted-foreground">{t("noPlans")}</div>
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           {plans.map((plan) => {
-            const price = priceOf(plan, currency);
+            const fullPrice = priceOf(plan, currency);
+            const discount = discounts.get(plan.id);
+            const price = discount ? discount.finalPrice : fullPrice;
             const features = (en ? plan.features_en : plan.features_pt).filter((f) => f.trim());
             return (
               <div key={plan.id} className={`surface relative flex flex-col p-6 ${plan.isFeatured ? "border-brand ring-1 ring-brand" : ""}`}>
@@ -59,7 +88,12 @@ export default async function BillingPage() {
                 )}
                 <h3 className="text-lg font-semibold">{plan.name}</h3>
                 {(en ? plan.description_en || plan.description : plan.description) && <p className="mt-1 text-sm text-muted-foreground">{en ? plan.description_en || plan.description : plan.description}</p>}
-                <p className="mt-5 text-3xl font-semibold tracking-tight">{money(price, currency)}</p>
+                <p className="mt-5 flex flex-wrap items-baseline gap-x-2 text-3xl font-semibold tracking-tight">
+                  {money(price, currency)}
+                  {discount && <s className="text-base font-normal text-muted-foreground">{money(fullPrice, currency)}</s>}
+                </p>
+                {discount && <p className="mt-1 text-sm font-medium text-brand">{t("couponOff", { off: money(discount.discount, currency) })}</p>}
+                {appliedCode && !discount && <p className="mt-1 text-sm text-muted-foreground">{appliedCode}: {t("couponNotFor")}</p>}
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t("perCredit", { credits: format.number(plan.credits), price: money(price / plan.credits, currency) })}
                 </p>
@@ -69,7 +103,7 @@ export default async function BillingPage() {
                   ))}
                 </ul>
                 <div className="mt-6">
-                  <CheckoutButton planId={plan.id} label={t("buy", { name: plan.name })} featured={plan.isFeatured} currency={currency} />
+                  <CheckoutButton planId={plan.id} label={t("buy", { name: plan.name })} featured={plan.isFeatured} currency={currency} coupon={discount?.code ?? null} />
                 </div>
               </div>
             );

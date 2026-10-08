@@ -1,5 +1,6 @@
 import { getAppConfig } from "@/lib/config";
 import { toDataUri } from "@/lib/storage";
+import { isBillingMessage, reportProviderProblem } from "@/lib/admin-alerts";
 import { generateTextContent, isTransient } from "./gemini-client";
 
 /**
@@ -107,6 +108,11 @@ export async function generateJson<T>(opts: { prompt: string; images?: Img[]; te
       // Recusas de política/escopo vêm do parse e não devem trocar de provedor.
       if ((error as { keepProvider?: boolean })?.keepProvider) throw error;
       console.error(`[ai/llm] ${p.name} falhou`, error);
+      // Sem saldo/chave recusada: avisa o admin mesmo que o outro provedor salve esta chamada.
+      const message = error instanceof Error ? error.message : String(error);
+      if (isBillingMessage(message)) {
+        await reportProviderProblem(p.name === "gemini" ? "google" : "openai", message).catch(() => undefined);
+      }
       lastError = error;
     }
   }

@@ -55,21 +55,27 @@ Remova `ADMIN_EMAIL` e `ADMIN_PASSWORD`: o login de admin fixo no código foi el
 
 | Provedor | Uso | Obrigatório? |
 | --- | --- | --- |
-| Google Gemini | Estratégia, textos e imagens | Sim |
-| fal.ai | Vídeos (Wan image-to-video) | Para vídeos |
-| ElevenLabs | Locução dos vídeos | Opcional |
-| OpenAI | Reserva de texto e locução | Opcional |
+| Google Gemini ou OpenAI | Estratégia, textos e imagens (escolha no painel; o outro vira reserva) | Pelo menos um |
+| fal.ai | Vídeo Wan 2.6 e lip-sync final | Para vídeos com Wan e para o lip-sync |
+| Google Gemini (faturamento ativo) | Vídeo Veo 3.1 | Se escolher o Veo |
+| ElevenLabs (plano Creator ou superior, uso comercial) | Locução dos vídeos | Opcional |
 
-Os nomes dos modelos podem ser trocados no painel sem deploy. Antes de abrir para clientes, gere algumas campanhas reais e ajuste os prompts e os custos em créditos conforme a sua margem.
+Detalhes em [docs/AI_PROVIDERS.md](AI_PROVIDERS.md). Antes de abrir para clientes:
+
+1. **Deixe saldo em todos os provedores usados.** Quando um deles fica sem saldo, o painel mostra um alerta, os super admins recebem e-mail e as gerações que dependem dele ficam pausadas (o cliente não é cobrado).
+2. **Revise os créditos em Admin › IA e custos › Custo real e margem.** Com os valores padrão o vídeo dá prejuízo; use "Sugerir créditos para essa margem", salve e atualize os textos dos pacotes ("~X vídeos"). Ver [docs/COSTS.md](COSTS.md).
+3. Gere algumas campanhas reais (imagem e vídeo) e confira o custo nas faturas dos provedores.
 
 ## 5. Pagamentos
 
 - **Mercado Pago:** Access Token e assinatura secreta do webhook. URL: `https://SEU_DOMINIO/api/webhooks/mercadopago` (evento: Pagamentos).
-- **Stripe:** Secret key e signing secret. URL: `https://SEU_DOMINIO/api/webhooks/stripe` (eventos `checkout.session.completed` e `checkout.session.async_payment_succeeded`).
-- Faça uma compra de teste em cada gateway (modo sandbox) e confirme que os créditos entram uma única vez.
-- Reembolsos são feitos pelo painel do gateway. Depois, ajuste o saldo do cliente em **Admin › Usuários › Ajustar créditos**.
+- **Stripe:** Secret key e signing secret. URL: `https://SEU_DOMINIO/api/webhooks/stripe`. Eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded` e `charge.dispute.created`.
+- **Pacotes na Stripe:** ao salvar a chave (e sempre que salvar **Admin › Pacotes**), cada pacote vira um produto na Stripe com um preço por moeda. Editar o preço cria um preço novo e arquiva o antigo; ocultar ou remover um pacote arquiva o produto. Ao trocar a chave de teste pela de produção, tudo é recriado na conta de produção (ou use **Sincronizar agora**).
+- **Cupons:** em **Admin › Cupons** (veja [docs/COSTS.md](COSTS.md)). Com a Stripe configurada, cada cupom também é criado lá. Cupons criados com a chave de teste precisam ser recriados depois de trocar para a de produção.
+- **Estornos:** feitos no painel do gateway. O webhook retira os créditos correspondentes automaticamente (proporcional em estorno parcial). Se o cliente já gastou os créditos, você recebe um e-mail.
+- Faça uma compra de teste em cada gateway (modo sandbox), com e sem cupom, e um estorno de teste. Confirme que os créditos entram e saem uma única vez.
 
-## 6. Cron
+## 6. Cron e execução das gerações
 
 Configure uma chamada a cada 1–5 minutos para:
 
@@ -80,6 +86,8 @@ Authorization: Bearer <CRON_SECRET>
 
 Ela conclui vídeos de quem fechou a aba e limpa tokens e rate limits antigos. Na Vercel, o plano Hobby só permite cron diário; use o plano Pro, o GitHub Actions ou o cron-job.org.
 
+O `CRON_SECRET` também protege `POST /api/jobs/run`: cada variação de uma campanha é disparada numa execução separada, com o próprio limite de 300 s. Se a Vercel tiver **Deployment Protection** ligada no domínio de produção, essa chamada interna é bloqueada; nesse caso as gerações rodam na mesma execução (funciona, mas com menos folga de tempo).
+
 ## 7. Armazenamento (Supabase Storage)
 
 - Bucket **público para leitura**, com escrita apenas pelas chaves S3.
@@ -88,6 +96,7 @@ Ela conclui vídeos de quem fechou a aba e limpa tokens e rate limits antigos. N
 ## 8. Monitoramento
 
 - Uptime: aponte o UptimeRobot ou o Better Stack para `/api/health`.
+- Provedores de IA sem saldo: alerta no topo do painel admin e e-mail para os super admins (exige o Resend configurado).
 - Erros: recomendo adicionar o Sentry (`npx @sentry/wizard@latest -i nextjs`), que precisa da sua conta.
 
 ## 9. Jurídico
@@ -100,7 +109,7 @@ O código está pronto e testado contra uma Graph API simulada. Falta o lado da 
 
 ## 10.0 Vídeos longos (ffmpeg)
 
-Vídeos acima de 5 s e a locução embutida usam o ffmpeg do pacote `ffmpeg-static`, baixado no `npm install` (já liberado em `allowScripts` no `package.json`). Depois do primeiro deploy, gere um vídeo de 10 s e confira se ele sai com áudio. Se a hospedagem bloquear o binário, defina `FFMPEG_PATH` com o caminho de um ffmpeg disponível. Revise em **Admin › IA e custos** o preço do vídeo: ele vale **por cena de 5 s**.
+Vídeos acima de 5 s, o recorte para 1:1/4:5 e a locução embutida usam o ffmpeg do pacote `ffmpeg-static`, baixado no `npm install` (já liberado em `allowScripts` no `package.json`). Depois do primeiro deploy, gere um vídeo de 10 s e confira se ele sai com áudio. Se a hospedagem bloquear o binário, defina `FFMPEG_PATH` com o caminho de um ffmpeg disponível. O preço do vídeo em créditos vale **a cada 5 s**.
 
 ## 10.1 Login com Google (opcional)
 
@@ -123,6 +132,5 @@ A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie
 - Publicação em Mercado Livre, Nuvemshop, Shopify e TikTok (a estrutura de conexões já existe; cada uma precisa do app/credenciais da plataforma).
 - Criação de anúncios pagos na Meta (Marketing API, permissão `ads_management`).
 - Assinaturas recorrentes (hoje são pacotes avulsos).
-- Mesclar a locução dentro do arquivo de vídeo (hoje o MP3 é entregue separado, ao lado do vídeo).
-- Estorno automático de créditos quando um pagamento é reembolsado no gateway.
 - Convites para mais de um membro por workspace.
+- Monitoramento de erros (Sentry), que depende da sua conta.

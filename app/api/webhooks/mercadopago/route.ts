@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { getAppConfig } from "@/lib/config";
-import { recordPurchase } from "@/lib/payments";
+import { recordPurchase, recordRefund } from "@/lib/payments";
 import { verifyMercadoPagoSignature } from "@/lib/mercadopago-signature";
 
 export async function POST(request: Request) {
@@ -32,6 +32,19 @@ export async function POST(request: Request) {
   try {
     // Sempre buscamos o pagamento na API do MP: nunca confiamos no corpo da notificação.
     const payment = await new Payment(new MercadoPagoConfig({ accessToken: mercadoPagoAccessToken })).get({ id: paymentId });
+
+    // Estorno (total/parcial) feito no painel do MP ou chargeback: retira os créditos correspondentes.
+    const refunded = payment.transaction_amount_refunded || 0;
+    if (payment.status === "refunded" || payment.status === "charged_back" || refunded > 0) {
+      const total = payment.status === "approved" ? refunded : Math.max(refunded, payment.transaction_amount || 0);
+      const result = await recordRefund({
+        provider: "MERCADOPAGO",
+        externalId: String(payment.id),
+        refundedTotal: total,
+        reason: payment.status === "charged_back" ? "contestação/chargeback" : "estorno",
+      });
+      return NextResponse.json({ received: true, result });
+    }
     if (payment.status !== "approved") return NextResponse.json({ received: true, status: payment.status });
 
     const m = (payment.metadata || {}) as Record<string, unknown>;
@@ -53,6 +66,8 @@ export async function POST(request: Request) {
       credits,
       amount: payment.transaction_amount || 0,
       currency: payment.currency_id || "BRL",
+      couponCode: typeof m.coupon === "string" ? m.coupon : null,
+      discount: Number(m.discount || 0),
     });
     return NextResponse.json({ received: true, result });
   } catch (error) {

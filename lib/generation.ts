@@ -2,7 +2,7 @@ import { waitUntil } from "@vercel/functions";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { getAppConfig } from "./config";
-import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, resolveMedia, videoSegments, type MediaKind, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
+import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, resolveMedia, type MediaKind, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
 import { deletePrefix, fetchMedia, IMAGE_TYPES, isOwnStorageUrl, readOwnMedia, saveFile, type ImageMime } from "./storage";
 import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
@@ -16,6 +16,8 @@ import { directMotion } from "@/services/ai/motion";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
 import { hasImageProvider, hasVideoProvider, imageEngine, videoKeys } from "./ai-engine";
 import { buildImageRightsRecord } from "./image-rights";
+import { defaultProviderPrices, estimateVariationUsd, resolveProviderPrices } from "./provider-pricing";
+import { isBillingMessage, pausedProviders, providerOfCreative, reportIfBillingProblem, resolveAlert } from "./admin-alerts";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
 import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
@@ -23,7 +25,7 @@ import {
   buildVideoPrompt, cancelVideo, checkVideo, describeVideoError, isPermanentVideoError, submitVideo, type VideoKeys, type VideoRequest,
 } from "@/services/ai/video";
 import { generateNarration } from "@/services/ai/audio";
-import { sendCampaignReadyEmail } from "@/services/email";
+import { appUrl, sendCampaignReadyEmail } from "@/services/email";
 import { txDescription } from "./generation-text";
 import type { SessionUser } from "./auth";
 import type { z } from "zod";
@@ -52,6 +54,22 @@ export async function assertProviderAvailable(platform: PlatformKey, media: Medi
   }
   if (media === "VIDEO" && !hasVideoProvider(config, config.models.video)) {
     throw new HttpError(503, "errors.videoUnavailable", "VIDEO_NOT_CONFIGURED");
+  }
+
+  // Provedor recusando por falta de saldo há pouco: não cobra o cliente por uma geração que vai falhar.
+  const paused = await pausedProviders();
+  if (paused.size === 0) return;
+  const textUp = (secrets.geminiKey && !paused.has("google")) || (secrets.openAiKey && !paused.has("openai"));
+  if (!textUp) throw new HttpError(503, "errors.providerPaused", "PROVIDER_PAUSED");
+  if (media === "VIDEO") {
+    if (paused.has(videoModelCaps(config.models.video).provider === "veo" ? "google" : "fal")) {
+      throw new HttpError(503, "errors.providerPaused", "PROVIDER_PAUSED");
+    }
+  } else {
+    // Com a OpenAI escolhida, o Gemini (com chave) é reserva das imagens; o contrário não existe.
+    const openai = imageEngine(config, false).provider === "openai";
+    const up = openai ? !paused.has("openai") || (!!secrets.geminiKey && !paused.has("google")) : !paused.has("google");
+    if (!up) throw new HttpError(503, "errors.providerPaused", "PROVIDER_PAUSED");
   }
 }
 
@@ -154,7 +172,7 @@ export async function createCampaign(
             operation: `CAMPAIGN_${media}_${input.quality.toUpperCase()}`,
             provider: media === "VIDEO" ? (videoModelCaps(config.models.video).provider === "veo" ? "google-veo" : "fal.ai") : imageEngine(config, input.quality === "premium").provider,
             model: media === "VIDEO" ? config.models.video : imageEngine(config, input.quality === "premium").label,
-            estimatedCostUsd: input.variations * (media === "VIDEO" ? 0.25 * videoSegments(videoDuration) : 0.04),
+            estimatedCostUsd: input.variations * variationCostUsd(config, media, input.quality === "premium", videoDuration),
           },
         },
         tx
@@ -288,7 +306,11 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
           amount: cost,
           description: txDescription(user.locale, "variation", { media }),
           referenceId: campaign.id,
-          usage: { operation: `REGENERATE_${media}`, provider: base.provider, model: base.model, estimatedCostUsd: media === "VIDEO" ? 0.25 * videoSegments(campaign.videoDuration) : 0.04 },
+          usage: {
+            operation: `REGENERATE_${media}`,
+            ...(media === "VIDEO" ? videoEngine(config, quality === "premium") : { provider: imageEngine(config, quality === "premium").provider, model: imageEngine(config, quality === "premium").label }),
+            estimatedCostUsd: variationCostUsd(config, media, quality === "premium", campaign.videoDuration),
+          },
         },
         tx
       );
@@ -336,7 +358,34 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
 /** Executa jobs em segundo plano sem bloquear a resposta HTTP (Vercel waitUntil). */
 export function startJobs(jobIds: string[]) {
   if (jobIds.length === 0) return;
-  waitUntil(runJobs(jobIds).catch((e) => console.error("[generation] runJobs", e)));
+  waitUntil(dispatchJobs(jobIds).catch((e) => console.error("[generation] runJobs", e)));
+}
+
+/**
+ * Manda cada job para a própria execução (POST /api/jobs/run): uma campanha com 3 vídeos não divide mais
+ * o limite de tempo de uma requisição. Sem CRON_SECRET, ou se o disparo falhar, roda aqui mesmo.
+ */
+async function dispatchJobs(jobIds: string[]) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || process.env.VYSIFY_INLINE_JOBS === "1") return runJobs(jobIds);
+  const inline: string[] = [];
+  await Promise.all(
+    jobIds.map(async (jobId) => {
+      try {
+        const res = await fetch(`${appUrl()}/api/jobs/run`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (res.status !== 202) throw new Error(`status ${res.status}`);
+      } catch (error) {
+        console.warn(`[generation] disparo do job ${jobId} falhou; rodando nesta execução`, error);
+        inline.push(jobId);
+      }
+    })
+  );
+  if (inline.length) await runJobs(inline);
 }
 
 async function runJobs(jobIds: string[]) {
@@ -381,7 +430,7 @@ export async function runJob(jobId: string): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[generation] job ${jobId} tentativa ${job.attempts} falhou:`, message);
     // Recusa definitiva do provedor (ex.: sem créditos): falha já e devolve os créditos, sem gastar novas tentativas.
-    if (job.attempts < MAX_ATTEMPTS && !isPermanentVideoError(error)) {
+    if (job.attempts < MAX_ATTEMPTS && !isPermanentVideoError(error) && !isBillingMessage(message)) {
       await db.generationJob.update({ where: { id: jobId }, data: { status: "PENDING", error: message.slice(0, 500) } });
       return runJob(jobId);
     }
@@ -435,6 +484,8 @@ async function runImageJob(job: LoadedJob) {
     db.creative.update({ where: { id: creative.id }, data: { status: "COMPLETED", outputUrl: url, model: out.model } }),
     db.generationJob.update({ where: { id: job.id }, data: { status: "COMPLETED", completedAt: new Date() } }),
   ]);
+  // O provedor voltou a funcionar (ex.: saldo recarregado): encerra o alerta dele.
+  await resolveAlert(/^gpt|openai/i.test(out.model) ? "openai" : "google");
   await maybeFinalizeCampaign(campaign.id);
 }
 
@@ -456,6 +507,16 @@ async function videoSpecFor(job: LoadedJob) {
 function workDir(job: LoadedJob) {
   const c = job.creative.campaign;
   return `creatives/${c.workspaceId}/${c.id}/${job.creativeId}-parts/`;
+}
+
+/** Custo real estimado (US$) de uma variação, para o registro de uso (Admin › Visão geral). */
+function variationCostUsd(config: Awaited<ReturnType<typeof getAppConfig>>, media: MediaKind, premium: boolean, seconds: number | null | undefined) {
+  const prices = resolveProviderPrices(defaultProviderPrices(config.models), config.costs.usd);
+  return estimateVariationUsd(prices, {
+    media, premium, seconds,
+    videoModel: premium ? config.models.videoPremium : config.models.video,
+    lipsync: config.models.lipsyncEnabled !== false && !!config.secrets.wanKey,
+  });
 }
 
 /** Modelo de vídeo escolhido agora em Admin › IA e custos (e o provedor que aparece no criativo). */
@@ -570,6 +631,7 @@ async function submitVideoJob(job: LoadedJob) {
       }
     } catch (error) {
       console.warn("[generation] locução falhou (seguindo sem áudio)", error);
+      await reportIfBillingProblem(error, "elevenlabs");
     }
   }
 
@@ -585,7 +647,10 @@ async function submitVideoJob(job: LoadedJob) {
   const aspect = generationAspect(caps, creative.aspectRatio || "9:16");
 
   let startImage = campaign.product.originalImageUrl;
-  if (hasImageProvider(config)) {
+  if (creative.thumbnailUrl) {
+    // Nova tentativa (ex.: a execução anterior estourou o tempo): o quadro já aprovado é reaproveitado, sem pagar de novo.
+    startImage = creative.thumbnailUrl;
+  } else if (hasImageProvider(config)) {
     const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { primaryColor: true } });
     // Composição é a parte mais difícil: sempre o modelo de imagem mais forte do provedor escolhido.
     const engine = imageEngine(config, true);
@@ -608,7 +673,13 @@ async function submitVideoJob(job: LoadedJob) {
         speaking,
       }
     );
-    startImage = await saveFile(frame.buffer, `${workDir(job)}keyframe.${IMAGE_TYPES[frame.mimeType as ImageMime] || "png"}`, frame.mimeType);
+    // Fora da pasta de trechos (que é apagada no fim): o quadro também serve de capa (poster) do vídeo.
+    startImage = await saveFile(
+      frame.buffer,
+      `creatives/${campaign.workspaceId}/${campaign.id}/${creative.id}-keyframe.${IMAGE_TYPES[frame.mimeType as ImageMime] || "png"}`,
+      frame.mimeType
+    );
+    await db.creative.update({ where: { id: creative.id }, data: { thumbnailUrl: startImage } });
   }
 
   const layout = planVideo(campaign.videoDuration || VIDEO_SEGMENT_SECONDS, caps);
@@ -741,6 +812,7 @@ async function pollVideoJob(job: LoadedJob) {
     } catch (error) {
       // Lip-sync indisponível: entrega o vídeo montado (nunca perde o resultado por causa desta etapa).
       console.warn("[generation] lip-sync final indisponível, entregando sem ele", error);
+      await reportIfBillingProblem(error, "fal");
     }
   }
 
@@ -759,6 +831,8 @@ async function completeVideo(job: LoadedJob, progress: VideoProgress, buffer: Bu
   });
   if (completed.count === 1) {
     await db.creative.update({ where: { id: job.creativeId }, data: { status: "COMPLETED", outputUrl: url, duration } });
+    const provider = providerOfCreative(job.creative.provider);
+    if (provider) await resolveAlert(provider);
     await deletePrefix(workDir(job)).catch((e) => console.warn("[generation] limpeza dos trechos falhou", e));
   }
   await maybeFinalizeCampaign(campaign.id);
@@ -803,6 +877,8 @@ function toHttpAiError(error: unknown) {
 async function failJob(jobId: string, error: string) {
   const job = await loadJob(jobId);
   if (!job) return;
+  // Falta de saldo/chave no provedor: avisa os admins e pausa novas gerações que dependem dele.
+  await reportIfBillingProblem(error, providerOfCreative(job.creative.provider));
   const campaign = job.creative.campaign;
   const userId = campaign.userId || (await workspaceOwnerId(campaign.workspaceId));
 

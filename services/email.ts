@@ -130,6 +130,12 @@ export async function sendPurchaseReceipt(to: string, name: string, planName: st
   await send(to, c.receiptSubject(planName), html);
 }
 
+/** Aviso operacional para os admins (sempre em português, como o painel). `lines` são texto puro. */
+export async function sendAdminAlertEmail(to: string, subject: string, lines: string[]) {
+  const body = lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  await send(to, `[Vysify admin] ${subject}`, layout("pt", escapeHtml(subject), body, { label: "Abrir o painel admin", href: `${appUrl()}/admin` }));
+}
+
 export async function sendCampaignReadyEmail(to: string, campaignName: string, campaignId: string, failedCount: number, locale?: string | null) {
   const l = lang(locale), c = COPY[l];
   const body = `<p>${c.readyBody(escapeHtml(campaignName))}</p>${failedCount > 0 ? `<p>${c.readyFailed(failedCount)}</p>` : ""}`;

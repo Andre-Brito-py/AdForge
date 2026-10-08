@@ -80,6 +80,8 @@ export interface AiCosts {
   image: number;
   video: number;
   premiumMultiplier: number;
+  /** Ajustes do custo real dos provedores (ver lib/provider-pricing.ts). */
+  usd?: Partial<Record<string, number>>;
 }
 
 export const DEFAULT_COSTS: AiCosts = { image: 3, video: 10, premiumMultiplier: 2 };

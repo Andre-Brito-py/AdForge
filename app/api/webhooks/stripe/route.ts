@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getAppConfig } from "@/lib/config";
-import { recordPurchase } from "@/lib/payments";
+import { recordPurchase, recordRefund } from "@/lib/payments";
 
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
@@ -46,6 +46,26 @@ export async function POST(request: Request) {
         credits,
         amount: (session.amount_total || 0) / 100,
         currency: session.currency || "usd",
+        couponCode: m.coupon || null,
+        discount: (session.total_details?.amount_discount ?? 0) / 100 || Number(m.discount || 0),
+      });
+      return NextResponse.json({ received: true, result });
+    }
+
+    // Estorno feito no painel da Stripe (total ou parcial) ou contestação (chargeback): retira os créditos.
+    if (event.type === "charge.refunded" || event.type === "charge.dispute.created") {
+      const obj = event.data.object as Stripe.Charge | Stripe.Dispute;
+      const paymentIntent = typeof obj.payment_intent === "string" ? obj.payment_intent : obj.payment_intent?.id;
+      if (!paymentIntent) return NextResponse.json({ received: true, ignored: true });
+      const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent, limit: 1 });
+      const session = sessions.data[0];
+      if (!session) return NextResponse.json({ received: true, ignored: true });
+      const refundedTotal = event.type === "charge.refunded" ? (obj as Stripe.Charge).amount_refunded / 100 : (obj as Stripe.Dispute).amount / 100;
+      const result = await recordRefund({
+        provider: "STRIPE",
+        externalId: session.id,
+        refundedTotal,
+        reason: event.type === "charge.dispute.created" ? "contestação/chargeback" : "estorno",
       });
       return NextResponse.json({ received: true, result });
     }

@@ -135,6 +135,15 @@ export const planSchema = z.object({
   isHidden: z.boolean().optional().default(false),
   features_pt: z.array(z.string().max(120)).max(12).optional().default([]),
   features_en: z.array(z.string().max(120)).max(12).optional().default([]),
+  /** Espelho na Stripe (preenchido pelo servidor ao salvar; o admin não edita). */
+  stripe: z
+    .object({
+      mode: z.enum(["test", "live"]),
+      productId: z.string().max(100),
+      prices: z.partialRecord(z.enum(["brl", "usd", "eur"]), z.object({ id: z.string().max(100), amount: z.number() })).default({}),
+    })
+    .optional()
+    .nullable(),
 });
 
 export const plansSchema = z.array(planSchema).max(10);
@@ -144,6 +153,22 @@ export const costsSchema = z.object({
   image: z.number().int().min(1).max(1000),
   video: z.number().int().min(1).max(1000),
   premiumMultiplier: z.number().min(1).max(10).default(2),
+  /** Custo real estimado dos provedores (US$), quando o admin quer corrigir a tabela padrão. */
+  usd: z
+    .object({
+      videoPerSecond: z.number().min(0).max(10),
+      videoPremiumPerSecond: z.number().min(0).max(10),
+      lipsyncPerSecond: z.number().min(0).max(10),
+      image: z.number().min(0).max(10),
+      imagePremium: z.number().min(0).max(10),
+      keyframe: z.number().min(0).max(10),
+      voicePerVideo: z.number().min(0).max(10),
+      textPerVariation: z.number().min(0).max(10),
+      brlPerUsd: z.number().min(0.1).max(100),
+      eurPerUsd: z.number().min(0.1).max(10),
+    })
+    .partial()
+    .optional(),
 });
 
 const modelName = z.string().trim().min(1).max(100);

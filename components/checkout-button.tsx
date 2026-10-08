@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { buttonClass } from "@/components/app/ui-bits";
 
-export function CheckoutButton({ planId, label, featured, currency }: { planId: string; label: string; featured: boolean; currency: string }) {
+export function CheckoutButton({ planId, label, featured, currency, coupon }: { planId: string; label: string; featured: boolean; currency: string; coupon?: string | null }) {
   const t = useTranslations("billing");
   const [loading, setLoading] = useState(false);
 
@@ -16,7 +16,7 @@ export function CheckoutButton({ planId, label, featured, currency }: { planId: 
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, currency }),
+        body: JSON.stringify({ planId, currency, ...(coupon ? { coupon } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) throw new Error(data.error || t("checkoutError"));

@@ -508,7 +508,14 @@
       "pending": "Payment pending. Credits are added automatically once it's confirmed.",
       "canceled": "Payment canceled. You were not charged."
     },
-    "checkoutError": "Couldn't start checkout"
+    "checkoutError": "Couldn't start checkout",
+    "couponLabel": "Discount coupon",
+    "couponPlaceholder": "Enter the code",
+    "couponApply": "Apply",
+    "couponRemove": "Remove",
+    "couponApplied": "Coupon {code} applied",
+    "couponOff": "{off} off",
+    "couponNotFor": "not valid for this pack"
   },
   "credits": {
     "title": "Credits",
@@ -730,7 +737,16 @@
     "outOfScope": "{reason}",
     "imageBlocked": "We can't use this image: {reason}",
     "referenceMissing": "One of the reference images is no longer available. Please upload it again.",
-    "referencesNeedImageAi": "Reference images aren't available on this platform yet (the image model isn't configured)."
+    "referencesNeedImageAi": "Reference images aren't available on this platform yet (the image model isn't configured).",
+    "providerPaused": "One of the AI services we use is unavailable right now. You were not charged; please try again in a few minutes.",
+    "coupon": {
+      "notFound": "Invalid or inactive coupon.",
+      "expired": "This coupon has expired.",
+      "exhausted": "This coupon has reached its usage limit.",
+      "plan": "This coupon doesn't apply to this pack.",
+      "currency": "This coupon doesn't apply to this currency.",
+      "tooLow": "This coupon's discount exceeds what is allowed for this pack."
+    }
   },
   "validation": {
     "emailInvalid": "Invalid email.",

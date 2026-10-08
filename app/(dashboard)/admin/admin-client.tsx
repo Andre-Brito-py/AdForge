@@ -1,20 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BarChart3, ChevronDown, Copy, CreditCard, Download, Gift, ImageOff, KeyRound, Plug, Loader2, Package, Plus, Save, Search, Settings2, ShieldCheck, Trash2, Users } from "lucide-react";
+import {
+  AlertTriangle, BarChart3, ChevronDown, Copy, CreditCard, Download, ExternalLink, Gift, ImageOff, KeyRound, Plug, Loader2, Package, Plus,
+  RefreshCw, Save, Search, Settings2, ShieldCheck, TicketPercent, Trash2, Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { buttonClass } from "@/components/app/ui-bits";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { VIDEO_MODEL_PRESETS } from "@/lib/video-models";
+import {
+  defaultProviderPrices, estimateVariationUsd, resolveProviderPrices, worstRevenuePerCreditUsd,
+  type ProviderPriceOverrides, type ProviderPrices,
+} from "@/lib/provider-pricing";
 
 type SecretInfo = { configured: boolean; hint: string | null; source: "painel" | "env" | null };
 interface Plan {
   id: string; name: string; description?: string | null; description_en?: string | null; price_brl: number; price_usd: number; price_eur?: number | null;
   credits: number; isFeatured?: boolean; isFree?: boolean; isHidden?: boolean; features_pt: string[]; features_en: string[];
+  stripe?: { mode: "test" | "live"; productId: string; prices: Partial<Record<"brl" | "usd" | "eur", { id: string; amount: number }>> } | null;
 }
+interface StripeSync { configured: boolean; mode: "test" | "live" | null; synced: number; errors: string[] }
 interface ConfigResponse {
   secrets: Record<string, SecretInfo>;
-  costs: { image: number; video: number; premiumMultiplier: number };
+  stripeMode: "test" | "live" | null;
+  costs: { image: number; video: number; premiumMultiplier: number; usd?: ProviderPriceOverrides };
   models: Record<string, string | boolean>;
   defaultModels: Record<string, string | boolean>;
   plans: Plan[];
@@ -48,6 +58,7 @@ const TABS = [
   { id: "users", label: "Usuários", icon: Users },
   { id: "ai", label: "IA e custos", icon: KeyRound },
   { id: "plans", label: "Pacotes", icon: Package },
+  { id: "coupons", label: "Cupons", icon: TicketPercent },
   { id: "trial", label: "Teste grátis", icon: Gift },
   { id: "payments", label: "Pagamentos", icon: CreditCard },
   { id: "integrations", label: "Integrações", icon: Plug },
@@ -73,16 +84,72 @@ export function AdminClient({ baseUrl }: { baseUrl: string }) {
         ))}
       </nav>
       <div className="min-w-0 flex-1">
+        <ProviderAlerts />
         {tab === "overview" && <Overview />}
         {tab === "users" && <UsersTab />}
         {tab === "ai" && (config ? <AiTab config={config} onSaved={reload} /> : <Loading />)}
-        {tab === "plans" && (config ? <PlansTab initial={config.plans} onSaved={reload} /> : <Loading />)}
+        {tab === "plans" && (config ? <PlansTab key={JSON.stringify(config.plans)} initial={config.plans} stripeMode={config.stripeMode} onSaved={reload} /> : <Loading />)}
+        {tab === "coupons" && (config ? <CouponsTab plans={config.plans} /> : <Loading />)}
         {tab === "trial" && (config ? <TrialTab initial={config.freeTrial} onSaved={reload} /> : <Loading />)}
         {tab === "payments" && (config ? <PaymentsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
         {tab === "integrations" && (config ? <IntegrationsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
         {tab === "general" && (config ? <GeneralTab config={config} onSaved={reload} /> : <Loading />)}
         {tab === "imageRights" && <ImageRightsTab />}
       </div>
+    </div>
+  );
+}
+
+// ---------------- Alertas de provedor (aparecem em todas as abas) ----------------
+interface ProviderAlert { provider: string; label: string; message: string; failures: number; since: string; lastFailureAt: string; paused: boolean; billingUrl: string | null }
+
+function ProviderAlerts() {
+  const [alerts, setAlerts] = useState<ProviderAlert[]>([]);
+  const load = useCallback(() => api("/api/admin/alerts").then((d) => setAlerts(d.alerts)).catch(() => undefined), []);
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const resolve = async (provider: string) => {
+    try {
+      await api("/api/admin/alerts", "POST", { provider });
+      toast.success("Alerta encerrado: o provedor está liberado de novo");
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  if (alerts.length === 0) return null;
+  return (
+    <div className="mb-5 space-y-3" role="alert">
+      {alerts.map((a) => (
+        <div key={a.provider} className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
+          <div className="flex flex-wrap items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="font-semibold">{a.label}: sem saldo ou chave recusada</p>
+              <p className="text-muted-foreground">
+                {a.failures} falha(s) desde {formatDateTime(a.since)}.{" "}
+                {a.paused
+                  ? "Gerações que dependem dele estão pausadas (os clientes não são cobrados)."
+                  : "A pausa acabou: a próxima geração vai testar de novo."}
+              </p>
+              <p className="break-words font-mono text-xs text-muted-foreground">{a.message}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2 pl-8">
+            {a.billingUrl && (
+              <a href={a.billingUrl} target="_blank" rel="noreferrer" className={buttonClass("outline", "sm")}>
+                <ExternalLink className="h-3.5 w-3.5" /> Recarregar saldo
+              </a>
+            )}
+            <button onClick={() => resolve(a.provider)} className={buttonClass("brand", "sm")}>Já recarreguei</button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -304,6 +371,8 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
         </div>
       </section>
 
+      <MarginSection costs={costs} setCosts={setCosts} models={models} plans={config.plans} hasFal={!!config.secrets.wanKey?.configured} />
+
       <section className="surface space-y-4 p-5 sm:p-6">
         <div>
           <h3 className="font-semibold">Qual IA usar</h3>
@@ -381,6 +450,125 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
   );
 }
 
+// ---------------- Custo real e margem ----------------
+const PRICE_FIELDS: { key: keyof ProviderPrices; label: string; step: number }[] = [
+  { key: "videoPerSecond", label: "Vídeo padrão (US$/s)", step: 0.01 },
+  { key: "videoPremiumPerSecond", label: "Vídeo premium (US$/s)", step: 0.01 },
+  { key: "lipsyncPerSecond", label: "Lip-sync final (US$/s)", step: 0.005 },
+  { key: "image", label: "Imagem padrão (US$)", step: 0.005 },
+  { key: "imagePremium", label: "Imagem premium (US$)", step: 0.005 },
+  { key: "keyframe", label: "Quadro de abertura do vídeo (US$)", step: 0.005 },
+  { key: "voicePerVideo", label: "Locução de 20 s (US$)", step: 0.01 },
+  { key: "textPerVariation", label: "Textos/revisões por variação (US$)", step: 0.005 },
+  { key: "brlPerUsd", label: "Cotação R$ por US$", step: 0.05 },
+  { key: "eurPerUsd", label: "Cotação € por US$", step: 0.01 },
+];
+
+type Costs = ConfigResponse["costs"];
+
+function MarginSection({ costs, setCosts, models, plans, hasFal }: {
+  costs: Costs; setCosts: (c: Costs) => void; models: Record<string, string | boolean>; plans: Plan[]; hasFal: boolean;
+}) {
+  const [target, setTarget] = useState(60);
+  const m = Object.fromEntries(Object.entries(models).map(([k, v]) => [k, String(v)])) as Parameters<typeof defaultProviderPrices>[0];
+  const defaults = defaultProviderPrices(m);
+  const prices = resolveProviderPrices(defaults, costs.usd);
+  const revenue = worstRevenuePerCreditUsd(plans, prices);
+  const lipsync = models.lipsyncEnabled !== false && hasFal;
+  const est = (media: "IMAGE" | "VIDEO", premium: boolean, seconds?: number) =>
+    estimateVariationUsd(prices, { media, premium, seconds, videoModel: premium ? m.videoPremium : m.video, lipsync });
+
+  const rows = [
+    { label: "Imagem", credits: costs.image, cost: est("IMAGE", false) },
+    { label: "Imagem premium", credits: Math.ceil(costs.image * costs.premiumMultiplier), cost: est("IMAGE", true) },
+    { label: "Vídeo 10 s", credits: costs.video * 2, cost: est("VIDEO", false, 10) },
+    { label: "Vídeo 20 s", credits: costs.video * 4, cost: est("VIDEO", false, 20) },
+    { label: "Vídeo 20 s premium", credits: Math.ceil(costs.video * 4 * costs.premiumMultiplier), cost: est("VIDEO", true, 20) },
+  ];
+
+  const setPrice = (key: keyof ProviderPrices, raw: string) => {
+    const usd = { ...(costs.usd || {}) };
+    if (raw === "") delete usd[key];
+    else usd[key] = Number(raw);
+    setCosts({ ...costs, usd });
+  };
+
+  // Créditos que dão a margem alvo no pacote com o crédito mais barato (o pior caso).
+  const suggest = () => {
+    if (!revenue) return;
+    const need = (cost: number) => cost / (revenue.usd * (1 - target / 100));
+    const image = Math.max(1, Math.ceil(need(est("IMAGE", false))));
+    const video = Math.max(1, Math.ceil(need(est("VIDEO", false, 20)) / 4));
+    const ratio = Math.max(est("IMAGE", true) / est("IMAGE", false), est("VIDEO", true, 20) / est("VIDEO", false, 20));
+    const premiumMultiplier = Math.min(10, Math.max(1, Math.ceil(ratio * 2) / 2));
+    setCosts({ ...costs, image, video, premiumMultiplier });
+    toast.success(`Sugestão aplicada (margem de ${target}%): imagem ${image}, vídeo ${video} a cada 5 s, premium ×${premiumMultiplier}. Revise e salve; ajuste também os textos dos pacotes ("~X vídeos").`, { duration: 10_000 });
+  };
+
+  return (
+    <section className="surface space-y-5 p-5 sm:p-6">
+      <div>
+        <h3 className="font-semibold">Custo real e margem</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Estimativa do que cada geração custa nos provedores, comparada com o que o cliente paga no pacote de crédito mais barato
+          {revenue ? ` (${plans[revenue.plan]?.name}: US$ ${revenue.usd.toFixed(4)} por crédito)` : ""}. Os valores vêm de uma tabela padrão por modelo;
+          confira nas faturas dos provedores e corrija abaixo quando precisar. Vídeo conta os segundos realmente gerados (o Veo estende 8 + 7 + 7 s),
+          o quadro de abertura, a locução{lipsync ? " e o lip-sync final" : ""}.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b border-border text-left text-xs text-muted-foreground">
+            <tr>
+              <th className="py-2 pr-4 font-medium">Geração</th>
+              <th className="py-2 pr-4 font-medium">Créditos</th>
+              <th className="py-2 pr-4 font-medium">Receita mínima</th>
+              <th className="py-2 pr-4 font-medium">Custo estimado</th>
+              <th className="py-2 font-medium">Margem</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border tabular-nums">
+            {rows.map((r) => {
+              const rev = revenue ? r.credits * revenue.usd : 0;
+              const margin = rev > 0 ? (rev - r.cost) / rev : null;
+              const tone = margin === null ? "" : margin < 0 ? "text-destructive font-semibold" : margin < 0.3 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-emerald-700 dark:text-emerald-400";
+              return (
+                <tr key={r.label}>
+                  <td className="py-2 pr-4">{r.label}</td>
+                  <td className="py-2 pr-4">{r.credits}</td>
+                  <td className="py-2 pr-4">{revenue ? `US$ ${rev.toFixed(2)}` : "—"}</td>
+                  <td className="py-2 pr-4">US$ {r.cost.toFixed(2)}</td>
+                  <td className={`py-2 ${tone}`}>{margin === null ? "—" : `${Math.round(margin * 100)}%${margin < 0 ? " (prejuízo)" : ""}`}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-36 space-y-1.5">
+          <label className="label-base" htmlFor="m-target">Margem alvo (%)</label>
+          <input id="m-target" type="number" min={0} max={95} className="input-base tabular-nums" value={target} onChange={(e) => setTarget(Math.min(95, Math.max(0, Number(e.target.value))))} />
+        </div>
+        <button onClick={suggest} disabled={!revenue} className={buttonClass("outline")}>Sugerir créditos para essa margem</button>
+      </div>
+      <details className="rounded-xl border border-border p-4">
+        <summary className="cursor-pointer text-sm font-medium">Corrigir o custo dos provedores</summary>
+        <p className="mt-2 text-xs text-muted-foreground">Em branco = valor padrão do modelo escolhido (mostrado no campo).</p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          {PRICE_FIELDS.map((f) => (
+            <div key={f.key} className="space-y-1.5">
+              <label className="label-base" htmlFor={`usd-${f.key}`}>{f.label}</label>
+              <input id={`usd-${f.key}`} type="number" min={0} step={f.step} className="input-base tabular-nums"
+                placeholder={String(defaults[f.key])} value={costs.usd?.[f.key] ?? ""} onChange={(e) => setPrice(f.key, e.target.value)} />
+            </div>
+          ))}
+        </div>
+      </details>
+    </section>
+  );
+}
+
 function NumberField({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
     <div className="space-y-1.5">
@@ -391,17 +579,28 @@ function NumberField({ label, value, onChange, step = 1 }: { label: string; valu
 }
 
 // ---------------- Pacotes ----------------
-function PlansTab({ initial, onSaved }: { initial: Plan[]; onSaved: () => void }) {
+function stripeToast(result: StripeSync | null | undefined, okText: string) {
+  if (!result?.configured) return toast.success(`${okText}. Stripe não configurada: os pacotes serão criados nela quando a chave for salva em Pagamentos.`);
+  const where = result.mode === "live" ? "produção" : "teste";
+  if (result.errors.length) {
+    return toast.error(`${okText}, mas a Stripe (${where}) recusou: ${result.errors.join(" · ")}`, { duration: 12_000 });
+  }
+  toast.success(`${okText} e sincronizados com a Stripe (${where}): ${result.synced} pacote(s).`);
+}
+
+function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMode: "test" | "live" | null; onSaved: () => void }) {
   const [plans, setPlans] = useState<Plan[]>(initial);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const update = (i: number, patch: Partial<Plan>) => setPlans((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  const original = new Map(initial.map((p) => [p.id, p]));
 
   const save = async () => {
     setSaving(true);
     try {
       const clean = plans.map((p) => ({ ...p, features_pt: p.features_pt.filter((f) => f.trim()), features_en: p.features_en.filter((f) => f.trim()) }));
-      await api("/api/admin/config", "PUT", { plans: clean });
-      toast.success("Pacotes salvos");
+      const res = await api("/api/admin/config", "PUT", { plans: clean });
+      stripeToast(res.stripe, "Pacotes salvos");
       onSaved();
     } catch (e) {
       toast.error((e as Error).message);
@@ -410,12 +609,56 @@ function PlansTab({ initial, onSaved }: { initial: Plan[]; onSaved: () => void }
     }
   };
 
+  const syncNow = async () => {
+    setSyncing(true);
+    try {
+      stripeToast(await api("/api/admin/stripe/sync", "POST"), "Sincronização concluída");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  /** Situação do pacote na Stripe (compara com o que está salvo, não com o rascunho). */
+  const stripeBadge = (p: Plan) => {
+    if (!stripeMode) return null;
+    const saved = original.get(p.id);
+    const ok = saved?.stripe?.mode === stripeMode;
+    const dashboard = `https://dashboard.stripe.com/${stripeMode === "test" ? "test/" : ""}products/${saved?.stripe?.productId}`;
+    return ok ? (
+      <a href={dashboard} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+        Na Stripe ({stripeMode === "live" ? "produção" : "teste"}) <ExternalLink className="h-3 w-3" />
+      </a>
+    ) : (
+      <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+        {saved ? "Ainda não está na Stripe" : "Novo: vai para a Stripe ao salvar"}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-4">
+      <div className="surface flex flex-wrap items-center gap-3 p-4 text-sm">
+        <p className="min-w-0 flex-1 text-muted-foreground">
+          {stripeMode
+            ? <>Ao salvar, cada pacote vira um produto na Stripe ({stripeMode === "live" ? "produção" : "teste"}) com um preço por moeda. Mudar o preço cria um preço novo e arquiva o antigo; ocultar ou remover arquiva o produto. Quem já pagou não é afetado.</>
+            : <>Configure a Stripe em <strong>Pagamentos</strong> para os pacotes serem criados lá automaticamente. O Mercado Pago não precisa de cadastro de produto.</>}
+        </p>
+        {stripeMode && (
+          <button onClick={syncNow} disabled={syncing} className={buttonClass("outline", "sm")}>
+            {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Sincronizar agora
+          </button>
+        )}
+      </div>
       {plans.map((p, i) => (
         <div key={i} className={`surface space-y-4 p-5 ${p.isFeatured ? "border-brand" : ""}`}>
-          <div className="flex items-center justify-between">
-            <p className="font-semibold">{p.name || "Novo pacote"}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold">{p.name || "Novo pacote"}</p>
+              {stripeBadge(p)}
+            </div>
             <button onClick={() => setPlans(plans.filter((_, j) => j !== i))} className={buttonClass("ghost", "sm")}><Trash2 className="h-3.5 w-3.5" /> Remover</button>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -454,6 +697,176 @@ function PlansTab({ initial, onSaved }: { initial: Plan[]; onSaved: () => void }
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar pacotes
         </button>
       </div>
+    </div>
+  );
+}
+
+// ---------------- Cupons ----------------
+interface AdminCoupon {
+  id: string; code: string; percentOff: number | null; amountOff: number | null; currency: string | null; planIds: string[];
+  maxRedemptions: number | null; expiresAt: string | null; expired: boolean; active: boolean; createdAt: string; redemptions: number; totalDiscount: number; inStripe: boolean;
+}
+
+const EMPTY_COUPON = { code: "", kind: "percent" as "percent" | "amount", value: 10, currency: "BRL", planIds: [] as string[], maxRedemptions: "", expiresAt: "" };
+
+function CouponsTab({ plans }: { plans: Plan[] }) {
+  const [data, setData] = useState<{ stripeMode: "test" | "live" | null; coupons: AdminCoupon[] } | null>(null);
+  const [form, setForm] = useState(EMPTY_COUPON);
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(() => api("/api/admin/coupons").then(setData).catch((e) => toast.error(e.message)), []);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/coupons", "POST", {
+        code: form.code,
+        kind: form.kind,
+        ...(form.kind === "percent" ? { percentOff: Math.round(form.value) } : { amountOff: form.value, currency: form.currency }),
+        planIds: form.planIds,
+        maxRedemptions: form.maxRedemptions ? Number(form.maxRedemptions) : null,
+        // Vale até o fim do dia escolhido (horário de Brasília).
+        expiresAt: form.expiresAt ? `${form.expiresAt}T23:59:59-03:00` : null,
+      });
+      toast.success(data?.stripeMode ? "Cupom criado (também na Stripe)" : "Cupom criado");
+      setForm(EMPTY_COUPON);
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggle = async (c: AdminCoupon) => {
+    try {
+      await api(`/api/admin/coupons/${c.id}`, "PATCH", { active: !c.active });
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const remove = async (c: AdminCoupon) => {
+    if (!confirm(c.redemptions ? `O cupom ${c.code} já foi usado: ele será desativado (fica no histórico).` : `Apagar o cupom ${c.code}?`)) return;
+    try {
+      const res = await api(`/api/admin/coupons/${c.id}`, "DELETE");
+      toast.success(res.result === "deleted" ? "Cupom apagado" : "Cupom desativado");
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const discountLabel = (c: AdminCoupon) => (c.percentOff ? `${c.percentOff}%` : formatMoney(c.amountOff || 0, c.currency || "BRL"));
+  const planNames = (ids: string[]) => (ids.length ? ids.map((id) => plans.find((p) => p.id === id)?.name || id).join(", ") : "Todos");
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">Novo cupom</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            O cliente digita o código em Comprar créditos. Vale no Mercado Pago e na Stripe{data?.stripeMode ? " (onde também é criado como cupom e código promocional)" : ""}.
+            Depois de criado, desconto, validade e limite não mudam: para alterar, desative e crie outro código.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <label className="label-base" htmlFor="c-code">Código</label>
+            <input id="c-code" className="input-base font-mono uppercase" maxLength={40} placeholder="BEMVINDO10" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "") })} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="label-base" htmlFor="c-kind">Tipo de desconto</label>
+            <select id="c-kind" className="input-base" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as "percent" | "amount" })}>
+              <option value="percent">Porcentagem</option>
+              <option value="amount">Valor fixo</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <label className="label-base" htmlFor="c-value">{form.kind === "percent" ? "Desconto (%)" : "Desconto"}</label>
+              <input id="c-value" type="number" min={form.kind === "percent" ? 1 : 0.01} max={form.kind === "percent" ? 95 : undefined} step={form.kind === "percent" ? 1 : 0.01}
+                className="input-base tabular-nums" value={form.value} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} />
+            </div>
+            {form.kind === "amount" && (
+              <div className="w-24 space-y-1.5">
+                <label className="label-base" htmlFor="c-cur">Moeda</label>
+                <select id="c-cur" className="input-base" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                  <option>BRL</option><option>USD</option><option>EUR</option>
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <label className="label-base" htmlFor="c-max">Limite de usos (opcional)</label>
+            <input id="c-max" type="number" min={1} className="input-base tabular-nums" placeholder="Sem limite" value={form.maxRedemptions} onChange={(e) => setForm({ ...form, maxRedemptions: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="label-base" htmlFor="c-exp">Válido até (opcional)</label>
+            <input id="c-exp" type="date" className="input-base" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+          </div>
+        </div>
+        <fieldset className="space-y-2">
+          <legend className="label-base">Pacotes em que vale (nenhum marcado = todos)</legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            {plans.map((p) => (
+              <label key={p.id} className="flex items-center gap-2">
+                <input type="checkbox" checked={form.planIds.includes(p.id)}
+                  onChange={(e) => setForm({ ...form, planIds: e.target.checked ? [...form.planIds, p.id] : form.planIds.filter((x) => x !== p.id) })} />
+                {p.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <button onClick={create} disabled={saving || form.code.length < 3 || !(form.value > 0)} className={buttonClass("brand")}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Criar cupom
+        </button>
+      </section>
+
+      <section className="surface overflow-x-auto">
+        <h3 className="border-b border-border px-5 py-3 font-semibold">Cupons</h3>
+        {!data ? <Loading /> : data.coupons.length === 0 ? <p className="p-5 text-sm text-muted-foreground">Nenhum cupom ainda.</p> : (
+          <table className="w-full text-sm">
+            <thead className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="px-5 py-2 font-medium">Código</th>
+                <th className="px-5 py-2 font-medium">Desconto</th>
+                <th className="px-5 py-2 font-medium">Pacotes</th>
+                <th className="px-5 py-2 font-medium">Usos</th>
+                <th className="px-5 py-2 font-medium">Validade</th>
+                <th className="px-5 py-2 font-medium">Ativo</th>
+                <th className="px-5 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {data.coupons.map((c) => {
+                const expired = c.expired;
+                return (
+                  <tr key={c.id} className={c.active && !expired ? "" : "text-muted-foreground"}>
+                    <td className="px-5 py-3">
+                      <span className="font-mono font-medium">{c.code}</span>
+                      {data.stripeMode && (
+                        <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${c.inStripe ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
+                          {c.inStripe ? "Stripe" : "só no Vysify"}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 tabular-nums">{discountLabel(c)}</td>
+                    <td className="px-5 py-3">{planNames(c.planIds)}</td>
+                    <td className="px-5 py-3 tabular-nums">{c.redemptions}{c.maxRedemptions ? ` / ${c.maxRedemptions}` : ""}</td>
+                    <td className="whitespace-nowrap px-5 py-3">{c.expiresAt ? `${formatDateTime(c.expiresAt)}${expired ? " (expirado)" : ""}` : "Sem prazo"}</td>
+                    <td className="px-5 py-3"><Switch checked={c.active} onChange={() => toggle(c)} /></td>
+                    <td className="px-5 py-3 text-right">
+                      <button onClick={() => remove(c)} className={buttonClass("ghost", "sm")} aria-label={`Apagar ${c.code}`}><Trash2 className="h-3.5 w-3.5" /></button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }
@@ -942,8 +1355,10 @@ function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onS
   const save = async () => {
     setSaving(true);
     try {
-      await api("/api/admin/config", "PUT", { secrets: draft.payload() });
-      toast.success("Chaves de pagamento salvas");
+      const res = await api("/api/admin/config", "PUT", { secrets: draft.payload() });
+      // Chave da Stripe nova: os pacotes já são criados nela.
+      if (res.stripe?.configured) stripeToast(res.stripe, "Chaves de pagamento salvas");
+      else toast.success("Chaves de pagamento salvas");
       draft.reset();
       onSaved();
     } catch (e) {
@@ -959,14 +1374,14 @@ function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onS
         <h3 className="font-semibold">Mercado Pago (BRL: Pix, cartão, boleto)</h3>
         <SecretField label="Access Token" field="mercadoPagoAccessToken" info={config.secrets.mercadoPagoAccessToken} value={draft.secrets.mercadoPagoAccessToken} onChange={draft.change} />
         <SecretField label="Assinatura secreta do webhook" field="mercadoPagoWebhookSecret" info={config.secrets.mercadoPagoWebhookSecret} value={draft.secrets.mercadoPagoWebhookSecret} onChange={draft.change}
-          help="Em Suas integrações › Webhooks. Sem ela, notificações falsas não são bloqueadas pela assinatura." />
+          help="Em Suas integrações › Webhooks (evento: Pagamentos). Sem ela, notificações falsas não são bloqueadas pela assinatura. Estornos e contestações feitos no Mercado Pago retiram os créditos automaticamente." />
         <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/mercadopago</p>
       </section>
       <section className="surface space-y-4 p-5 sm:p-6">
         <h3 className="font-semibold">Stripe (USD/EUR e cartão internacional)</h3>
         <SecretField label="Secret key" field="stripeSecretKey" info={config.secrets.stripeSecretKey} value={draft.secrets.stripeSecretKey} onChange={draft.change} />
         <SecretField label="Webhook signing secret (whsec_...)" field="stripeWebhookSecret" info={config.secrets.stripeWebhookSecret} value={draft.secrets.stripeWebhookSecret} onChange={draft.change}
-          help="Eventos: checkout.session.completed e checkout.session.async_payment_succeeded." />
+          help="Eventos: checkout.session.completed, checkout.session.async_payment_succeeded, charge.refunded e charge.dispute.created (os dois últimos retiram os créditos de um pagamento estornado)." />
         <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/stripe</p>
       </section>
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>

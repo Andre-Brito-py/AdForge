@@ -508,7 +508,14 @@
       "pending": "Pagamento pendente. Assim que for confirmado, os créditos entram automaticamente.",
       "canceled": "Pagamento cancelado. Nenhuma cobrança foi feita."
     },
-    "checkoutError": "Não foi possível iniciar o pagamento"
+    "checkoutError": "Não foi possível iniciar o pagamento",
+    "couponLabel": "Cupom de desconto",
+    "couponPlaceholder": "Digite o código",
+    "couponApply": "Aplicar",
+    "couponRemove": "Remover",
+    "couponApplied": "Cupom {code} aplicado",
+    "couponOff": "{off} de desconto",
+    "couponNotFor": "não vale para este pacote"
   },
   "credits": {
     "title": "Créditos",
@@ -730,7 +737,16 @@
     "outOfScope": "{reason}",
     "imageBlocked": "Não podemos usar esta imagem: {reason}",
     "referenceMissing": "Uma das imagens de referência não está mais disponível. Envie-a novamente.",
-    "referencesNeedImageAi": "Imagens de referência ainda não estão disponíveis nesta plataforma (falta configurar o modelo de imagem)."
+    "referencesNeedImageAi": "Imagens de referência ainda não estão disponíveis nesta plataforma (falta configurar o modelo de imagem).",
+    "providerPaused": "Um dos serviços de IA que usamos está fora do ar no momento. Nada foi cobrado; tente de novo em alguns minutos.",
+    "coupon": {
+      "notFound": "Cupom inválido ou desativado.",
+      "expired": "Este cupom expirou.",
+      "exhausted": "Este cupom já atingiu o limite de usos.",
+      "plan": "Este cupom não vale para este pacote.",
+      "currency": "Este cupom não vale para esta moeda.",
+      "tooLow": "O desconto deste cupom é maior que o valor permitido para este pacote."
+    }
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",

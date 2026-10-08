@@ -328,7 +328,13 @@ model Payment {
   credits     Int
   amount      Float
   currency    String
-  status      String   @default("APPROVED")
+  status      String   @default("APPROVED") // APPROVED, PARTIALLY_REFUNDED, REFUNDED
+  // Cupom usado (código) e o desconto dado, na moeda do pagamento
+  couponCode  String?
+  discount    Float    @default(0)
+  // Estorno no gateway: quanto já foi devolvido e quantos créditos já foram retirados (idempotência)
+  refundedAmount  Float @default(0)
+  refundedCredits Int   @default(0)
   createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -336,6 +342,35 @@ model Payment {
   // Garante idempotência: o mesmo pagamento nunca credita duas vezes
   @@unique([provider, externalId])
   @@index([createdAt])
+}
+
+// Cupom de desconto criado no Admin (espelhado na Stripe como cupom + código promocional).
+model Coupon {
+  id                    String    @id @default(uuid())
+  code                  String    @unique // sempre em maiúsculas
+  percentOff            Int? // 1-100
+  amountOff             Float? // desconto fixo, na moeda `currency`
+  currency              String? // BRL, USD ou EUR (só para desconto fixo)
+  planIdsJson           String? // pacotes em que vale (vazio = todos)
+  maxRedemptions        Int?
+  expiresAt             DateTime?
+  active                Boolean   @default(true)
+  stripeCouponId        String?
+  stripePromotionCodeId String?
+  stripeMode            String? // test | live (a chave da Stripe usada na criação)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// Provedor de IA recusando por saldo/chave: avisa o admin e pausa o que depende dele por alguns minutos.
+model ProviderAlert {
+  provider      String    @id // google, fal, openai, elevenlabs
+  message       String
+  failures      Int       @default(1)
+  lastFailureAt DateTime  @default(now())
+  notifiedAt    DateTime?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
 }
 
 model UsageRecord {

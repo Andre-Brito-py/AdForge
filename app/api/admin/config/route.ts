@@ -7,6 +7,8 @@ import { encryptSecret, maskSecret, decryptSecret } from "@/lib/crypto";
 import { DEFAULT_MODELS, getAppConfig, invalidateConfigCache, SECRET_FIELDS } from "@/lib/config";
 import { costsSchema, modelsSchema, plansSchema } from "@/lib/validation";
 import { settingsSchema } from "@/lib/settings";
+import { syncStripePlans } from "@/lib/stripe-admin";
+import { stripeMode } from "@/lib/stripe-sync";
 
 // Nunca devolvemos os segredos: só se estão configurados e os 4 últimos caracteres.
 export const GET = handler(async () => {
@@ -27,6 +29,8 @@ export const GET = handler(async () => {
     models: config.models,
     defaultModels: DEFAULT_MODELS,
     plans: config.plans.filter((p) => !p.isFree),
+    // Conta da Stripe da chave atual (os pacotes mostram se estão sincronizados com ela).
+    stripeMode: config.secrets.stripeSecretKey ? stripeMode(config.secrets.stripeSecretKey) : null,
     freeTrial: {
       enabled: config.freeTrial.enabled,
       credits: config.freeTrial.credits,
@@ -91,7 +95,21 @@ export const PUT = handler(async (request: Request) => {
     data.settingsJson = JSON.stringify(clean);
   }
 
+  // O espelho na Stripe é do servidor: o que vier do formulário é trocado pelo que já estava salvo.
+  const before = body.plans || body.secrets?.stripeSecretKey ? await getAppConfig() : null;
+  if (body.plans && before) {
+    const saved = new Map(before.plans.map((p) => [p.id, p.stripe]));
+    body.plans = body.plans.map((p) => ({ ...p, stripe: saved.get(p.id) ?? null }));
+    data.plansJson = JSON.stringify(body.plans);
+  }
+
   await db.systemConfig.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
   invalidateConfigCache();
-  return NextResponse.json({ success: true });
+
+  // Pacotes salvos (ou chave da Stripe nova): cria/atualiza produtos e preços na Stripe.
+  let stripe: Awaited<ReturnType<typeof syncStripePlans>> | null = null;
+  if (before && (body.plans || body.secrets?.stripeSecretKey)) {
+    stripe = await syncStripePlans(before.plans);
+  }
+  return NextResponse.json({ success: true, stripe });
 });
