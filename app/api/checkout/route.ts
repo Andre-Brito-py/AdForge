@@ -3,13 +3,15 @@ import Stripe from "stripe";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { z } from "zod";
 import { enforceRateLimit, handler, HttpError, parseBody } from "@/lib/api";
-import { requireApiUser } from "@/lib/auth";
+import { requireApiManager } from "@/lib/auth";
 import { getAppConfig, purchasablePlans } from "@/lib/config";
 import { appUrl } from "@/services/email";
 import { refundWindowDays } from "@/lib/locale";
 import { applyCoupon, CouponError, type AppliedCoupon } from "@/lib/coupons";
 import { stripeMode, stripePriceFor } from "@/lib/stripe-sync";
 import { assertCurrentTerms } from "@/lib/terms";
+import { db } from "@/lib/db";
+import { activeSubscription, getOrCreateCustomer } from "@/lib/subscriptions";
 
 const bodySchema = z.object({
   planId: z.string().min(1).max(60),
@@ -18,7 +20,8 @@ const bodySchema = z.object({
 });
 
 export const POST = handler(async (request: Request) => {
-  const user = await requireApiUser();
+  // Comprar créditos/assinatura: dono ou admin do workspace.
+  const user = await requireApiManager();
   assertCurrentTerms(user);
   await enforceRateLimit(request, "checkout", 10, 15 * 60, user.id);
   const { planId, currency, coupon: couponCode } = await parseBody(request, bodySchema);
@@ -48,6 +51,58 @@ export const POST = handler(async (request: Request) => {
     userId: user.id, workspaceId: user.workspaceId, planId: plan.id, planName: plan.name, credits: String(plan.credits),
     ...(coupon ? { coupon: coupon.code, discount: String(coupon.discount) } : {}),
   };
+
+  // Assinatura mensal: só pela Stripe (cobrança recorrente no cartão), com o cliente da Stripe do workspace.
+  if (plan.interval === "month") {
+    if (!stripeKey || !mode) throw new HttpError(503, "errors.subscriptionsUnavailable", "SUBSCRIPTIONS_UNAVAILABLE");
+    if (await activeSubscription(user.workspaceId)) throw new HttpError(409, "errors.alreadySubscribed", "ALREADY_SUBSCRIBED");
+    const priceId = stripePriceFor(plan, currency, mode);
+    // Cupom em assinatura só vale para a 1ª mensalidade, e isso exige o cupom espelhado na Stripe.
+    if (coupon && !(priceId && coupon.stripePromotionCodeId)) throw new HttpError(400, "errors.coupon.subscription", "COUPON_INVALID");
+    const stripe = new Stripe(stripeKey);
+    const workspace = await db.workspace.findUniqueOrThrow({ where: { id: user.workspaceId }, select: { id: true, stripeCustomerId: true } });
+    const customer = await getOrCreateCustomer(stripe, workspace, user);
+    const automaticTax = config.settings.stripeAutomaticTax;
+    const en = user.locale === "en";
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer,
+      customer_update: { name: "auto", address: "auto" },
+      locale: "auto",
+      line_items: [
+        priceId
+          ? { price: priceId, quantity: 1 }
+          : {
+              price_data: {
+                currency: currency.toLowerCase(),
+                product_data: { name: en ? `Vysify · ${plan.name} (monthly)` : `Vysify · ${plan.name} (mensal)` },
+                unit_amount: Math.round(price * 100),
+                recurring: { interval: "month" },
+                ...(automaticTax ? { tax_behavior: "exclusive" as const } : {}),
+              },
+              quantity: 1,
+            },
+      ],
+      ...(coupon?.stripePromotionCodeId ? { discounts: [{ promotion_code: coupon.stripePromotionCodeId }] } : {}),
+      automatic_tax: { enabled: automaticTax },
+      billing_address_collection: automaticTax ? "required" : "auto",
+      tax_id_collection: { enabled: true },
+      custom_text: {
+        submit: {
+          message: en
+            ? `${plan.credits} credits are added every month after payment and never expire. Cancel anytime in Billing.`
+            : `${plan.credits} créditos entram todo mês após o pagamento e não expiram. Cancele quando quiser em Comprar créditos.`,
+        },
+      },
+      subscription_data: { metadata },
+      metadata,
+      client_reference_id: user.id,
+      success_url: `${base}/billing?status=success`,
+      cancel_url: `${base}/billing?status=canceled`,
+    });
+    if (!session.url) throw new HttpError(502, "errors.checkoutFailed");
+    return NextResponse.json({ url: session.url });
+  }
 
   // Em reais: o gateway escolhido em Admin › Pagamentos (o outro entra se o escolhido não tiver chave).
   // O MP não tem cupom próprio: o desconto vai no preço.

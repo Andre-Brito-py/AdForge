@@ -17,6 +17,10 @@ export interface PurchaseInput {
   currency: string;
   couponCode?: string | null;
   discount?: number;
+  /** Quem pagou (nome, CPF/CNPJ, país), para a nota fiscal. */
+  customer?: { name?: string | null; taxId?: string | null; country?: string | null } | null;
+  /** Fatura mensal de uma assinatura (id local da Subscription). */
+  subscriptionId?: string | null;
 }
 
 /**
@@ -43,6 +47,10 @@ export async function recordPurchase(input: PurchaseInput): Promise<"credited" |
           currency: input.currency.toUpperCase(),
           couponCode: input.couponCode || null,
           discount: input.discount && input.discount > 0 ? input.discount : 0,
+          customerName: input.customer?.name?.slice(0, 200) || null,
+          customerTaxId: input.customer?.taxId?.replace(/[^\dA-Za-z]/g, "").slice(0, 30) || null,
+          customerCountry: input.customer?.country?.slice(0, 2) || null,
+          subscriptionId: input.subscriptionId || null,
         },
       });
       await grantCredits(

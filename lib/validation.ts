@@ -130,6 +130,8 @@ export const planSchema = z.object({
   price_usd: z.number().nonnegative().max(1_000_000).default(0),
   price_eur: z.number().nonnegative().max(1_000_000).optional().nullable(),
   credits: z.number().int().positive().max(1_000_000),
+  /** "once" = pacote avulso; "month" = assinatura mensal (os créditos entram a cada mês pago, só pela Stripe). */
+  interval: z.enum(["once", "month"]).optional().default("once"),
   isFeatured: z.boolean().optional().default(false),
   isFree: z.boolean().optional().default(false),
   isHidden: z.boolean().optional().default(false),
@@ -140,7 +142,7 @@ export const planSchema = z.object({
     .object({
       mode: z.enum(["test", "live"]),
       productId: z.string().max(100),
-      prices: z.partialRecord(z.enum(["brl", "usd", "eur"]), z.object({ id: z.string().max(100), amount: z.number() })).default({}),
+      prices: z.partialRecord(z.enum(["brl", "usd", "eur"]), z.object({ id: z.string().max(100), amount: z.number(), monthly: z.boolean().optional() })).default({}),
     })
     .optional()
     .nullable(),

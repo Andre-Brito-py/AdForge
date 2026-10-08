@@ -40,7 +40,9 @@
     "closeMenu": "Fechar menu",
     "mainNav": "Navegação principal",
     "theme": "Alternar tema claro/escuro",
-    "creditsUnit": "{count, plural, one {crédito} other {créditos}}"
+    "creditsUnit": "{count, plural, one {crédito} other {créditos}}",
+    "team": "Equipe",
+    "workspace": "Workspace"
   },
   "verifyBanner": {
     "text": "Confirme seu e-mail para liberar a geração de campanhas.",
@@ -527,7 +529,21 @@
     "couponRemove": "Remover",
     "couponApplied": "Cupom {code} aplicado",
     "couponOff": "{off} de desconto",
-    "couponNotFor": "não vale para este pacote"
+    "couponNotFor": "não vale para este pacote",
+    "perMonth": "/mês",
+    "creditsPerMonth": "{credits} créditos por mês · os que sobrarem continuam no saldo",
+    "subscribe": "Assinar {name}",
+    "currentPlan": "Seu plano atual",
+    "couponOffFirst": "{off} de desconto na 1ª mensalidade",
+    "monthlyTitle": "Assinaturas mensais",
+    "monthlyText": "Créditos todo mês, cobrados no cartão pela Stripe. Troque de plano ou cancele quando quiser.",
+    "packsTitle": "Pacotes avulsos",
+    "yourSubscription": "Sua assinatura",
+    "subRenews": "Renova em {date} com mais {credits} créditos.",
+    "subEnds": "Cancelada: vale até {date} e não renova.",
+    "subPastDue": "Pagamento pendente: atualize o cartão para continuar recebendo créditos.",
+    "manageSubscription": "Gerenciar assinatura",
+    "membersCantBuy": "Só o dono e os administradores deste workspace podem comprar créditos ou assinar. Os créditos comprados ficam disponíveis para toda a equipe."
   },
   "credits": {
     "title": "Créditos",
@@ -656,7 +672,8 @@
       "invalid_state": "A sessão de conexão expirou. Tente conectar novamente.",
       "exchange_failed": "Não foi possível concluir a conexão com a Meta. Tente novamente em instantes.",
       "not_configured": "A integração com a Meta ainda não está disponível.",
-      "rate_limited": "Muitas tentativas. Aguarde alguns minutos."
+      "rate_limited": "Muitas tentativas. Aguarde alguns minutos.",
+      "managers_only": "Só o dono ou os administradores do workspace podem conectar integrações."
     }
   },
   "cookies": {
@@ -757,9 +774,23 @@
       "exhausted": "Este cupom já atingiu o limite de usos.",
       "plan": "Este cupom não vale para este pacote.",
       "currency": "Este cupom não vale para esta moeda.",
-      "tooLow": "O desconto deste cupom é maior que o valor permitido para este pacote."
+      "tooLow": "O desconto deste cupom é maior que o valor permitido para este pacote.",
+      "subscription": "Este cupom não vale para assinaturas."
     },
-    "termsRequired": "Aceite os Termos de Uso atualizados para continuar."
+    "termsRequired": "Aceite os Termos de Uso atualizados para continuar.",
+    "subscriptionsUnavailable": "As assinaturas ainda não estão disponíveis.",
+    "alreadySubscribed": "Este workspace já tem uma assinatura. Para trocar de plano, use \"Gerenciar assinatura\".",
+    "noSubscription": "Nenhuma assinatura encontrada.",
+    "team": {
+      "managersOnly": "Só o dono ou os administradores do workspace podem fazer isso.",
+      "alreadyMember": "Essa pessoa já faz parte do workspace.",
+      "limit": "O workspace chegou ao limite de {max} pessoas.",
+      "inviteInvalid": "Convite inválido ou vencido.",
+      "inviteOtherEmail": "Este convite é para {email}. Entre com essa conta para aceitar.",
+      "cantChangeOwner": "O papel do dono não pode ser alterado.",
+      "cantRemoveOwner": "O dono não pode ser removido do workspace.",
+      "memberNotFound": "Pessoa não encontrada neste workspace."
+    }
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",
@@ -778,5 +809,58 @@
     "videoDuration": "Escolha uma duração válida para o vídeo.",
     "imageRights": "Confirme que você tem autorização para usar a imagem das pessoas nas fotos de referência.",
     "tooManyReferences": "Envie no máximo 3 imagens de referência."
+  },
+  "team": {
+    "title": "Equipe",
+    "subtitle": "Convide pessoas para criar anúncios com você. Todos usam os mesmos produtos, campanhas e créditos.",
+    "workspace": "Nome do workspace",
+    "rename": "Renomear",
+    "renamed": "Nome atualizado",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "sharedCredits": "Os créditos, o Brand Kit e as integrações são do workspace e compartilhados por toda a equipe.",
+    "inviteTitle": "Convidar pessoa",
+    "inviteText": "{used} de {max} lugares usados (contando convites pendentes).",
+    "email": "E-mail",
+    "role": "Papel",
+    "invite": "Enviar convite",
+    "invited": "Convite enviado para {email}",
+    "verifyFirst": "Confirme o seu e-mail antes de convidar pessoas.",
+    "rolesHelp": "Membro: cria produtos e campanhas e publica. Administrador: também compra créditos, convida pessoas, edita o Brand Kit e as integrações. Só o dono muda papéis.",
+    "members": "Pessoas",
+    "you": "você",
+    "since": "desde {date}",
+    "pending": "Convite pendente · vale até {date}",
+    "resend": "Reenviar",
+    "resent": "Convite reenviado",
+    "cancelInvite": "Cancelar convite",
+    "inviteCanceled": "Convite cancelado",
+    "roleChanged": "Papel atualizado",
+    "remove": "Remover",
+    "removeConfirm": "Remover {name} do workspace? A pessoa perde o acesso na hora.",
+    "removed": "Pessoa removida",
+    "leave": "Sair",
+    "leaveConfirm": "Sair deste workspace? Você volta para o seu próprio workspace.",
+    "left": "Você saiu do workspace",
+    "roles": {
+      "OWNER": "Dono",
+      "ADMIN": "Administrador",
+      "MEMBER": "Membro"
+    },
+    "invitePage": {
+      "title": "Convite para {workspace}",
+      "text": "{inviter} convidou você para criar anúncios no workspace {workspace} do Vysify.",
+      "useEmail": "Entre ou crie a sua conta com o e-mail {email} para aceitar.",
+      "createAccount": "Criar conta",
+      "signIn": "Entrar",
+      "accept": "Aceitar convite",
+      "accepted": "Agora você faz parte de {workspace}",
+      "error": "Não foi possível aceitar o convite",
+      "otherEmail": "Este convite é para {email}, mas você entrou como {current}.",
+      "switchAccount": "Entrar com outra conta",
+      "invalidTitle": "Convite inválido",
+      "invalidText": "Este convite já foi usado, foi cancelado ou venceu. Peça um novo para quem convidou você.",
+      "goDashboard": "Ir para o painel"
+    }
   }
 }

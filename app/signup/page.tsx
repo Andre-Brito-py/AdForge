@@ -10,7 +10,10 @@ export async function generateMetadata() {
   return { title: (await getLocale()) === "en" ? "Create account" : "Criar conta" };
 }
 
-export default async function SignupPage() {
+export default async function SignupPage(props: PageProps<"/signup">) {
+  // Vindo de um convite: o e-mail convidado já vem preenchido.
+  const rawEmail = (await props.searchParams).email;
+  const initialEmail = typeof rawEmail === "string" && rawEmail.length <= 200 ? rawEmail : "";
   const { signupCredits, googleLogin, signupsEnabled, settings } = await getAppConfig();
   if (!signupsEnabled) {
     // Cadastros fechados em Admin › Configurações gerais.
@@ -25,5 +28,5 @@ export default async function SignupPage() {
       </AuthShell>
     );
   }
-  return <SignupForm googleEnabled={googleLogin.active} signupCredits={signupCredits} termsVersion={TERMS_VERSION} />;
+  return <SignupForm googleEnabled={googleLogin.active} signupCredits={signupCredits} termsVersion={TERMS_VERSION} initialEmail={initialEmail} />;
 }

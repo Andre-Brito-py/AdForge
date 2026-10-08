@@ -14,7 +14,7 @@ import { buttonClass } from "@/components/app/ui-bits";
 
 interface Plan {
   id: string; name: string; description?: string | null; description_en?: string | null; price_brl: number; price_usd: number; price_eur?: number | null; credits: number;
-  isFeatured?: boolean; features_pt: string[]; features_en: string[];
+  interval?: "once" | "month"; isFeatured?: boolean; features_pt: string[]; features_en: string[];
 }
 
 const COPY = {
@@ -294,7 +294,10 @@ export default function LandingPageClient({
                       {p.isFeatured && <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">{t.popular}</span>}
                       <h3 className="text-lg font-semibold">{p.name}</h3>
                       {(isPt ? p.description : p.description_en || p.description) && <p className="mt-1 text-sm text-muted-foreground">{isPt ? p.description : p.description_en || p.description}</p>}
-                      <p className="mt-5 text-4xl font-semibold tracking-tight">{money(price)}</p>
+                      <p className="mt-5 text-4xl font-semibold tracking-tight">
+                        {money(price)}
+                        {p.interval === "month" && <span className="text-base font-normal text-muted-foreground">{isPt ? "/mês" : "/mo"}</span>}
+                      </p>
                       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><Coins className="h-4 w-4" /> {p.credits.toLocaleString(isPt ? "pt-BR" : "en-US")} {t.credits}</p>
                       <ul className="mt-6 flex-1 space-y-2.5 text-sm">
                         {features.map((f) => <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>)}

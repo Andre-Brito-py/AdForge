@@ -50,7 +50,7 @@ function fakeStripe() {
 }
 
 const plan = (over: Partial<Plan> = {}): Plan => ({
-  id: "starter", name: "Starter", description: null, description_en: null, price_brl: 49, price_usd: 10, price_eur: null, credits: 200,
+  id: "starter", name: "Starter", description: null, description_en: null, price_brl: 49, price_usd: 10, price_eur: null, credits: 200, interval: "once",
   isFeatured: false, isFree: false, isHidden: false, features_pt: [], features_en: [], ...over,
 });
 

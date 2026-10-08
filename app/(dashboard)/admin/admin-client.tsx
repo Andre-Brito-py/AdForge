@@ -18,7 +18,7 @@ import {
 type SecretInfo = { configured: boolean; hint: string | null; source: "painel" | "env" | null };
 interface Plan {
   id: string; name: string; description?: string | null; description_en?: string | null; price_brl: number; price_usd: number; price_eur?: number | null;
-  credits: number; isFeatured?: boolean; isFree?: boolean; isHidden?: boolean; features_pt: string[]; features_en: string[];
+  credits: number; interval?: "once" | "month"; isFeatured?: boolean; isFree?: boolean; isHidden?: boolean; features_pt: string[]; features_en: string[];
   stripe?: { mode: "test" | "live"; productId: string; prices: Partial<Record<"brl" | "usd" | "eur", { id: string; amount: number }>> } | null;
 }
 interface StripeSync { configured: boolean; mode: "test" | "live" | null; synced: number; errors: string[] }
@@ -603,6 +603,7 @@ function stripeToast(result: StripeSync | null | undefined, okText: string) {
 }
 
 function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMode: "test" | "live" | null; onSaved: () => void }) {
+  const tr = useTr();
   const [plans, setPlans] = useState<Plan[]>(initial);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -678,7 +679,14 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
           <div className="grid gap-3 sm:grid-cols-3">
             <TextField label="ID (não mude após vender)" value={p.id} onChange={(v) => update(i, { id: v })} />
             <TextField label="Nome" value={p.name} onChange={(v) => update(i, { name: v })} />
-            <NumberField label="Créditos" value={p.credits} onChange={(v) => update(i, { credits: v })} />
+            <div className="space-y-1.5">
+              <label className="label-base">{tr("Tipo", "Type")}</label>
+              <select className="input-base" value={p.interval || "once"} onChange={(e) => update(i, { interval: e.target.value as "once" | "month" })}>
+                <option value="once">{tr("Pacote avulso", "One-off pack")}</option>
+                <option value="month">{tr("Assinatura mensal (Stripe)", "Monthly subscription (Stripe)")}</option>
+              </select>
+            </div>
+            <NumberField label={p.interval === "month" ? tr("Créditos por mês", "Credits per month") : tr("Créditos", "Credits")} value={p.credits} onChange={(v) => update(i, { credits: v })} />
             <NumberField label="Preço R$" value={p.price_brl} step={0.01} onChange={(v) => update(i, { price_brl: v })} />
             <NumberField label="Preço US$" value={p.price_usd} step={0.01} onChange={(v) => update(i, { price_usd: v })} />
             <NumberField label="Preço € (opcional)" value={p.price_eur || 0} step={0.01} onChange={(v) => update(i, { price_eur: v || null })} />
@@ -704,7 +712,7 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
         </div>
       ))}
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => setPlans([...plans, { id: `pack_${Date.now().toString(36)}`, name: "", price_brl: 0, price_usd: 0, credits: 100, features_pt: [], features_en: [] }])} className={buttonClass("outline")}>
+        <button onClick={() => setPlans([...plans, { id: `pack_${Date.now().toString(36)}`, name: "", price_brl: 0, price_usd: 0, credits: 100, interval: "once", features_pt: [], features_en: [] }])} className={buttonClass("outline")}>
           <Plus className="h-4 w-4" /> Adicionar pacote
         </button>
         <button onClick={save} disabled={saving} className={buttonClass("brand")}>

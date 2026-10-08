@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { getAppConfig } from "./config";
+import { resolveWorkspace } from "./workspaces";
 
 /**
  * Cria usuário + workspace + saldo inicial numa única transação,
@@ -51,11 +52,8 @@ export async function createUserWithWorkspace(data: {
   });
 }
 
+/** Workspace em uso pela pessoa (o escolhido no menu, ou o mais antigo). */
 export async function getWorkspaceIdForUser(userId: string): Promise<string | null> {
-  const member = await db.workspaceMember.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-    select: { workspaceId: true },
-  });
-  return member?.workspaceId ?? null;
+  const user = await db.user.findUnique({ where: { id: userId }, select: { activeWorkspaceId: true } });
+  return (await resolveWorkspace(userId, user?.activeWorkspaceId))?.workspaceId ?? null;
 }

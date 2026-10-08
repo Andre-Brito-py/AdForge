@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import {
-  LayoutDashboard, Package, Megaphone, Palette, Plug, Coins, CreditCard, Settings, Shield, LogOut, Menu, X, Plus,
+  LayoutDashboard, Package, Megaphone, Palette, Plug, Coins, CreditCard, Settings, Shield, LogOut, Menu, X, Plus, Users,
 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -18,6 +18,7 @@ const NAV = [
   { href: "/products", key: "products", icon: Package },
   { href: "/campaigns", key: "campaigns", icon: Megaphone },
   { href: "/brand", key: "brand", icon: Palette },
+  { href: "/team", key: "team", icon: Users },
   { href: "/integrations", key: "integrations", icon: Plug },
   { href: "/credits", key: "credits", icon: Coins },
   { href: "/billing", key: "billing", icon: CreditCard },
@@ -29,6 +30,33 @@ export interface ShellUser {
   email: string;
   isAdmin: boolean;
   emailVerified: boolean;
+  /** Workspaces da pessoa (o seletor só aparece com mais de um) e o que está em uso. */
+  workspaces?: { id: string; name: string }[];
+  workspaceId?: string;
+}
+
+function WorkspaceSwitcher({ user }: { user: ShellUser }) {
+  const t = useTranslations("nav");
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  if (!user.workspaces || user.workspaces.length < 2) return null;
+  const change = async (id: string) => {
+    setBusy(true);
+    const res = await fetch("/api/workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ switchTo: id }) });
+    setBusy(false);
+    if (res.ok) {
+      router.push("/dashboard");
+      router.refresh();
+    }
+  };
+  return (
+    <div className="space-y-1 px-1">
+      <label htmlFor="ws-switch" className="text-xs font-medium text-muted-foreground">{t("workspace")}</label>
+      <select id="ws-switch" disabled={busy} value={user.workspaceId} onChange={(e) => change(e.target.value)} className="input-base h-9 text-sm">
+        {user.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+      </select>
+    </div>
+  );
 }
 
 function NavLinks({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () => void }) {
@@ -75,6 +103,8 @@ function SidebarContent({ user, balance, onNavigate }: { user: ShellUser; balanc
       >
         <Plus className="h-4 w-4" /> {t("newCampaign")}
       </Link>
+
+      <WorkspaceSwitcher user={user} />
 
       <NavLinks isAdmin={user.isAdmin} onNavigate={onNavigate} />
 

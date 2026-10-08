@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { handler, HttpError, parseBody } from "@/lib/api";
-import { requireApiUser } from "@/lib/auth";
+import { requireApiManager, requireApiUser } from "@/lib/auth";
 import { brandKitSchema } from "@/lib/validation";
 import { isOwnStorageUrl } from "@/lib/storage";
 
@@ -12,7 +12,7 @@ export const GET = handler(async () => {
 });
 
 export const PUT = handler(async (request: Request) => {
-  const user = await requireApiUser();
+  const user = await requireApiManager();
   const data = await parseBody(request, brandKitSchema);
   if (data.logoUrl && !isOwnStorageUrl(data.logoUrl)) throw new HttpError(400, "errors.invalidLogo");
 

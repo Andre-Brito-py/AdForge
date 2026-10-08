@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { countryFromHeaders, currencyForCountry, isCurrency, isLocale, pickLocale } from "./lib/locale";
 
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password", "/reset-password"];
-const APP_PREFIXES = ["/dashboard", "/campaigns", "/products", "/billing", "/credits", "/brand", "/settings", "/admin", "/onboarding", "/integrations"];
+const APP_PREFIXES = ["/dashboard", "/campaigns", "/products", "/billing", "/credits", "/brand", "/settings", "/admin", "/onboarding", "/integrations", "/team"];
 
 /**
  * Redirecionamentos rápidos baseados no JWT. A autorização "de verdade" acontece no
@@ -62,6 +62,7 @@ export const config = {
     "/brand/:path*",
     "/settings/:path*",
     "/integrations/:path*",
+    "/team/:path*",
     "/admin/:path*",
     "/onboarding",
     "/login",

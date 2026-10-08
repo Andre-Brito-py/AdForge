@@ -11,7 +11,8 @@ import { db } from "./db";
 import { getAppConfig } from "./config";
 import { verifyPasswordConstantTime } from "./password";
 import { rateLimit } from "./rate-limit";
-import { createUserWithWorkspace, getWorkspaceIdForUser } from "./users";
+import { createUserWithWorkspace } from "./users";
+import { canManageSettings, resolveWorkspace } from "./workspaces";
 import { HttpError } from "./api";
 import { sendWelcomeEmail } from "@/services/email";
 import { consumePreAccept, recordTermsAcceptance } from "./terms";
@@ -195,17 +196,17 @@ async function loadSessionUser() {
       id: true, email: true, name: true, image: true, role: true,
       emailVerified: true, onboardingCompleted: true, twoFactorEnabled: true,
       sessionVersion: true, passwordHash: true, notifyOnComplete: true, marketingOptIn: true,
-      locale: true, country: true, termsVersion: true,
+      locale: true, country: true, termsVersion: true, activeWorkspaceId: true,
     },
   });
   // Sessão de um usuário apagado ou invalidada por troca de senha.
   if (!user || user.sessionVersion !== (session.user.sv ?? 0)) return null;
 
-  const workspaceId = await getWorkspaceIdForUser(user.id);
-  if (!workspaceId) return null;
+  const workspace = await resolveWorkspace(user.id, user.activeWorkspaceId);
+  if (!workspace) return null;
 
   const { passwordHash, ...rest } = user;
-  return { ...rest, hasPassword: !!passwordHash, workspaceId, isAdmin: user.role === "SUPERADMIN" };
+  return { ...rest, hasPassword: !!passwordHash, workspaceId: workspace.workspaceId, workspaceRole: workspace.role, isAdmin: user.role === "SUPERADMIN" };
 }
 
 /** Usuário da requisição atual (deduplicado por request). */
@@ -230,6 +231,13 @@ export async function requireApiUser(opts: { verified?: boolean } = {}) {
   if (opts.verified && !user.emailVerified) {
     throw new HttpError(403, "errors.emailNotVerified", "EMAIL_NOT_VERIFIED");
   }
+  return user;
+}
+
+/** Dono ou admin do workspace (compras, Brand Kit, integrações, equipe). */
+export async function requireApiManager(opts: { verified?: boolean } = {}) {
+  const user = await requireApiUser(opts);
+  if (!canManageSettings(user.workspaceRole)) throw new HttpError(403, "errors.team.managersOnly", "MANAGERS_ONLY");
   return user;
 }
 

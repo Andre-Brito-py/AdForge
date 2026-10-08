@@ -40,7 +40,9 @@
     "closeMenu": "Close menu",
     "mainNav": "Main navigation",
     "theme": "Toggle light/dark theme",
-    "creditsUnit": "{count, plural, one {credit} other {credits}}"
+    "creditsUnit": "{count, plural, one {credit} other {credits}}",
+    "team": "Team",
+    "workspace": "Workspace"
   },
   "verifyBanner": {
     "text": "Confirm your email to start generating campaigns.",
@@ -527,7 +529,21 @@
     "couponRemove": "Remove",
     "couponApplied": "Coupon {code} applied",
     "couponOff": "{off} off",
-    "couponNotFor": "not valid for this pack"
+    "couponNotFor": "not valid for this pack",
+    "perMonth": "/mo",
+    "creditsPerMonth": "{credits} credits per month · unused credits stay in your balance",
+    "subscribe": "Subscribe to {name}",
+    "currentPlan": "Your current plan",
+    "couponOffFirst": "{off} off the first month",
+    "monthlyTitle": "Monthly subscriptions",
+    "monthlyText": "Credits every month, charged to your card by Stripe. Change plans or cancel anytime.",
+    "packsTitle": "One-off packs",
+    "yourSubscription": "Your subscription",
+    "subRenews": "Renews on {date} with {credits} more credits.",
+    "subEnds": "Canceled: active until {date} and won't renew.",
+    "subPastDue": "Payment pending: update your card to keep receiving credits.",
+    "manageSubscription": "Manage subscription",
+    "membersCantBuy": "Only the owner and admins of this workspace can buy credits or subscribe. Purchased credits are available to the whole team."
   },
   "credits": {
     "title": "Credits",
@@ -656,7 +672,8 @@
       "invalid_state": "The connection session expired. Please try connecting again.",
       "exchange_failed": "Couldn't complete the Meta connection. Please try again in a moment.",
       "not_configured": "The Meta integration isn't available yet.",
-      "rate_limited": "Too many attempts. Please wait a few minutes."
+      "rate_limited": "Too many attempts. Please wait a few minutes.",
+      "managers_only": "Only the workspace owner or admins can connect integrations."
     }
   },
   "cookies": {
@@ -757,9 +774,23 @@
       "exhausted": "This coupon has reached its usage limit.",
       "plan": "This coupon doesn't apply to this pack.",
       "currency": "This coupon doesn't apply to this currency.",
-      "tooLow": "This coupon's discount exceeds what is allowed for this pack."
+      "tooLow": "This coupon's discount exceeds what is allowed for this pack.",
+      "subscription": "This coupon doesn't apply to subscriptions."
     },
-    "termsRequired": "Please accept the updated Terms of Service to continue."
+    "termsRequired": "Please accept the updated Terms of Service to continue.",
+    "subscriptionsUnavailable": "Subscriptions aren't available yet.",
+    "alreadySubscribed": "This workspace already has a subscription. To change plans, use \"Manage subscription\".",
+    "noSubscription": "No subscription found.",
+    "team": {
+      "managersOnly": "Only the workspace owner or admins can do this.",
+      "alreadyMember": "This person is already part of the workspace.",
+      "limit": "The workspace has reached its limit of {max} people.",
+      "inviteInvalid": "Invalid or expired invitation.",
+      "inviteOtherEmail": "This invitation is for {email}. Sign in with that account to accept.",
+      "cantChangeOwner": "The owner's role can't be changed.",
+      "cantRemoveOwner": "The owner can't be removed from the workspace.",
+      "memberNotFound": "Person not found in this workspace."
+    }
   },
   "validation": {
     "emailInvalid": "Invalid email.",
@@ -778,5 +809,58 @@
     "videoDuration": "Choose a valid video length.",
     "imageRights": "Confirm you're authorized to use the image of the people in the reference photos.",
     "tooManyReferences": "Upload at most 3 reference images."
+  },
+  "team": {
+    "title": "Team",
+    "subtitle": "Invite people to create ads with you. Everyone shares the same products, campaigns and credits.",
+    "workspace": "Workspace name",
+    "rename": "Rename",
+    "renamed": "Name updated",
+    "save": "Save",
+    "cancel": "Cancel",
+    "sharedCredits": "Credits, Brand Kit and integrations belong to the workspace and are shared by the whole team.",
+    "inviteTitle": "Invite someone",
+    "inviteText": "{used} of {max} seats used (including pending invitations).",
+    "email": "Email",
+    "role": "Role",
+    "invite": "Send invitation",
+    "invited": "Invitation sent to {email}",
+    "verifyFirst": "Confirm your email before inviting people.",
+    "rolesHelp": "Member: creates products and campaigns and publishes. Admin: can also buy credits, invite people, edit the Brand Kit and integrations. Only the owner changes roles.",
+    "members": "People",
+    "you": "you",
+    "since": "since {date}",
+    "pending": "Pending invitation · valid until {date}",
+    "resend": "Resend",
+    "resent": "Invitation resent",
+    "cancelInvite": "Cancel invitation",
+    "inviteCanceled": "Invitation canceled",
+    "roleChanged": "Role updated",
+    "remove": "Remove",
+    "removeConfirm": "Remove {name} from the workspace? They lose access immediately.",
+    "removed": "Person removed",
+    "leave": "Leave",
+    "leaveConfirm": "Leave this workspace? You'll go back to your own workspace.",
+    "left": "You left the workspace",
+    "roles": {
+      "OWNER": "Owner",
+      "ADMIN": "Admin",
+      "MEMBER": "Member"
+    },
+    "invitePage": {
+      "title": "Invitation to {workspace}",
+      "text": "{inviter} invited you to create ads in the {workspace} workspace on Vysify.",
+      "useEmail": "Sign in or create your account with {email} to accept.",
+      "createAccount": "Create account",
+      "signIn": "Sign in",
+      "accept": "Accept invitation",
+      "accepted": "You're now part of {workspace}",
+      "error": "Couldn't accept the invitation",
+      "otherEmail": "This invitation is for {email}, but you're signed in as {current}.",
+      "switchAccount": "Sign in with another account",
+      "invalidTitle": "Invalid invitation",
+      "invalidText": "This invitation was already used, canceled or expired. Ask whoever invited you for a new one.",
+      "goDashboard": "Go to dashboard"
+    }
   }
 }

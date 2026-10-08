@@ -21,6 +21,8 @@ export const settingsSchema = z.object({
   stripeAutomaticTax: z.boolean().optional(),
   // Quem cobra em reais: a Stripe (cartão, Pix e boleto, conforme o painel da Stripe) ou o Mercado Pago.
   brlGateway: z.enum(["stripe", "mercadopago"]).optional(),
+  // Máximo de pessoas por workspace (o dono conta).
+  maxMembers: z.number().int().min(1).max(200).optional(),
   metaLoginConfigId: z.union([z.literal(""), z.string().trim().regex(/^\d{5,30}$/, "O ID da configuração tem apenas números")]).optional(),
   metaGraphVersion: z.union([z.literal(""), z.string().trim().regex(/^v\d{1,3}\.\d$/, "Use o formato v23.0")]).optional(),
   elevenLabsVoiceId: text(60),
@@ -37,6 +39,7 @@ export interface Settings {
   trackers: { gaId: string | null; metaPixelId: string | null };
   stripeAutomaticTax: boolean;
   brlGateway: "stripe" | "mercadopago";
+  maxMembers: number;
   meta: { loginConfigId: string | null; graphVersion: string };
   /** Voz padrão/feminina e voz masculina (escolhida quando quem apresenta é um homem). */
   elevenLabsVoiceId: string;
@@ -67,6 +70,7 @@ export function resolveSettings(s: StoredSettings): Settings {
     },
     stripeAutomaticTax: s.stripeAutomaticTax ?? process.env.STRIPE_AUTOMATIC_TAX === "true",
     brlGateway: s.brlGateway ?? (process.env.BRL_GATEWAY === "mercadopago" ? "mercadopago" : "stripe"),
+    maxMembers: s.maxMembers ?? 5,
     meta: {
       loginConfigId: pick(s.metaLoginConfigId, "META_LOGIN_CONFIG_ID") || null,
       graphVersion: pick(s.metaGraphVersion, "META_GRAPH_VERSION", "v23.0"),

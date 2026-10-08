@@ -88,12 +88,14 @@ async function syncPlan(stripe: Stripe, mode: StripeMode, plan: Plan): Promise<P
   const toArchive: string[] = [];
   for (const [cur, field] of CURRENCIES) {
     const amount = Number(plan[field] || 0);
+    const monthly = plan.interval === "month";
     const current = fresh ? undefined : same?.prices?.[cur];
     if (amount <= 0) {
       if (current) toArchive.push(current.id);
       continue;
     }
-    if (current && current.amount === amount) {
+    // Preço da Stripe é imutável: mudou o valor ou o tipo (avulso/mensal), cria outro.
+    if (current && current.amount === amount && !!current.monthly === monthly) {
       prices[cur] = current;
       continue;
     }
@@ -103,10 +105,11 @@ async function syncPlan(stripe: Stripe, mode: StripeMode, plan: Plan): Promise<P
       unit_amount: Math.round(amount * 100),
       // "exclusive": com o Stripe Tax ligado, o imposto é somado no checkout; desligado, não muda nada.
       tax_behavior: "exclusive",
+      ...(monthly ? { recurring: { interval: "month" as const } } : {}),
       metadata: { planId: plan.id },
     });
     if (current) toArchive.push(current.id);
-    prices[cur] = { id: price.id, amount };
+    prices[cur] = { id: price.id, amount, ...(monthly ? { monthly: true } : {}) };
   }
 
   // Preço padrão do produto (informativo no painel da Stripe). Precisa trocar ANTES de arquivar o antigo:
@@ -135,5 +138,5 @@ export function stripePriceFor(plan: Plan, currency: "BRL" | "USD" | "EUR", mode
   const entry = plan.stripe.prices?.[currency.toLowerCase() as "brl" | "usd" | "eur"];
   const expected = currency === "BRL" ? plan.price_brl : currency === "EUR" ? plan.price_eur ?? 0 : plan.price_usd;
   // Se o preço no Admin mudou e a sincronização falhou, não cobra um valor desatualizado.
-  return entry && entry.amount === expected ? entry.id : null;
+  return entry && entry.amount === expected && !!entry.monthly === (plan.interval === "month") ? entry.id : null;
 }

@@ -9,10 +9,10 @@ import { useTranslations } from "next-intl";
 import { AuthShell, Divider, GoogleButton } from "@/components/auth/auth-shell";
 import { buttonClass } from "@/components/app/ui-bits";
 
-export function SignupForm({ googleEnabled, signupCredits, termsVersion }: { googleEnabled: boolean; signupCredits: number; termsVersion: string }) {
+export function SignupForm({ googleEnabled, signupCredits, termsVersion, initialEmail = "" }: { googleEnabled: boolean; signupCredits: number; termsVersion: string; initialEmail?: string }) {
   const t = useTranslations("auth");
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: initialEmail, password: "" });
   const [accept, setAccept] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

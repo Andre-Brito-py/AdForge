@@ -130,6 +130,17 @@ export async function sendPurchaseReceipt(to: string, name: string, planName: st
   await send(to, c.receiptSubject(planName), html);
 }
 
+/** Convite para participar de um workspace (o link vale 7 dias). */
+export async function sendInviteEmail(to: string, inviter: string, workspaceName: string, token: string, locale?: string | null) {
+  const l = lang(locale);
+  const link = `${appUrl()}/invite/${encodeURIComponent(token)}`;
+  const who = escapeHtml(inviter), ws = escapeHtml(workspaceName);
+  const html = l === "en"
+    ? layout(l, `Join ${ws} on Vysify`, `<p><strong>${who}</strong> invited you to create ads together in the <strong>${ws}</strong> workspace on Vysify. The invitation is valid for 7 days.</p>`, { label: "Accept invitation", href: link })
+    : layout(l, `Participe de ${ws} no Vysify`, `<p><strong>${who}</strong> convidou você para criar anúncios em conjunto no workspace <strong>${ws}</strong> do Vysify. O convite vale por 7 dias.</p>`, { label: "Aceitar convite", href: link });
+  await send(to, l === "en" ? `${inviter} invited you to Vysify` : `${inviter} convidou você para o Vysify`, html, link);
+}
+
 /** Aviso operacional para os admins (sempre em português, como o painel). `lines` são texto puro. */
 export async function sendAdminAlertEmail(to: string, subject: string, lines: string[]) {
   const body = lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");

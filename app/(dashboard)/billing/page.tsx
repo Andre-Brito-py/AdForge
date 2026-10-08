@@ -12,6 +12,9 @@ import { CheckoutStatusToast } from "./status-toast";
 import { CouponBox } from "./coupon-box";
 import { applyCoupon, CouponError, type AppliedCoupon } from "@/lib/coupons";
 import { stripeMode } from "@/lib/stripe-sync";
+import { activeSubscription } from "@/lib/subscriptions";
+import { canManageBilling } from "@/lib/workspaces";
+import { PortalButton } from "./portal-button";
 import { isCurrency, refundWindowDays, type Currency } from "@/lib/locale";
 
 export async function generateMetadata() {
@@ -61,6 +64,54 @@ export default async function BillingPage(props: PageProps<"/billing">) {
   }
   const appliedCode = discounts.size > 0 ? [...discounts.values()][0].code : null;
 
+  // Compras são do dono/admins; assinatura só uma por workspace (gerenciada no portal da Stripe).
+  const manager = canManageBilling(user.workspaceRole);
+  const subscription = await activeSubscription(user.workspaceId);
+  const monthly = plans.filter((p) => p.interval === "month");
+  const packs = plans.filter((p) => p.interval !== "month");
+
+  const renderPlan = (plan: (typeof plans)[number]) => {
+    const isMonthly = plan.interval === "month";
+    const fullPrice = priceOf(plan, currency);
+    const discount = discounts.get(plan.id);
+    const price = discount ? discount.finalPrice : fullPrice;
+    const features = (en ? plan.features_en : plan.features_pt).filter((f) => f.trim());
+    const current = isMonthly && subscription?.planId === plan.id;
+    return (
+      <div key={plan.id} className={`surface relative flex flex-col p-6 ${plan.isFeatured ? "border-brand ring-1 ring-brand" : ""}`}>
+        {plan.isFeatured && (
+          <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">{t("popular")}</span>
+        )}
+        <h3 className="text-lg font-semibold">{plan.name}</h3>
+        {(en ? plan.description_en || plan.description : plan.description) && <p className="mt-1 text-sm text-muted-foreground">{en ? plan.description_en || plan.description : plan.description}</p>}
+        <p className="mt-5 flex flex-wrap items-baseline gap-x-2 text-3xl font-semibold tracking-tight">
+          {money(price, currency)}
+          {isMonthly && <span className="text-base font-normal text-muted-foreground">{t("perMonth")}</span>}
+          {discount && <s className="text-base font-normal text-muted-foreground">{money(fullPrice, currency)}</s>}
+        </p>
+        {discount && <p className="mt-1 text-sm font-medium text-brand">{t(isMonthly ? "couponOffFirst" : "couponOff", { off: money(discount.discount, currency) })}</p>}
+        {appliedCode && !discount && <p className="mt-1 text-sm text-muted-foreground">{appliedCode}: {t("couponNotFor")}</p>}
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isMonthly
+            ? t("creditsPerMonth", { credits: format.number(plan.credits) })
+            : t("perCredit", { credits: format.number(plan.credits), price: money(price / plan.credits, currency) })}
+        </p>
+        <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+          {features.map((f) => (
+            <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>
+          ))}
+        </ul>
+        <div className="mt-6">
+          {current ? (
+            <p className="rounded-xl bg-muted px-3 py-2.5 text-center text-sm font-medium">{t("currentPlan")}</p>
+          ) : manager && !(isMonthly && subscription) ? (
+            <CheckoutButton planId={plan.id} label={t(isMonthly ? "subscribe" : "buy", { name: plan.name })} featured={plan.isFeatured} currency={currency} coupon={discount?.code ?? null} />
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <CheckoutStatusToast />
@@ -70,44 +121,46 @@ export default async function BillingPage(props: PageProps<"/billing">) {
         actions={available.length > 1 ? <CurrencySwitcher value={currency} options={available} label={t("currency")} /> : undefined}
       />
 
-      {plans.length > 0 && <CouponBox applied={appliedCode} error={couponError} />}
+      {!manager && (
+        <p className="mb-6 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">{t("membersCantBuy")}</p>
+      )}
+
+      {subscription && (
+        <section className="surface mb-6 flex flex-wrap items-center gap-4 p-5">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">{t("yourSubscription")}</p>
+            <p className="mt-1 text-lg font-semibold">{subscription.planName} · {money(subscription.amount, subscription.currency)}{t("perMonth")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {subscription.status === "past_due" || subscription.status === "unpaid"
+                ? t("subPastDue")
+                : subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd
+                  ? t("subEnds", { date: format.dateTime(subscription.currentPeriodEnd, { dateStyle: "long" }) })
+                  : subscription.currentPeriodEnd
+                    ? t("subRenews", { date: format.dateTime(subscription.currentPeriodEnd, { dateStyle: "long" }), credits: format.number(subscription.creditsPerPeriod) })
+                    : null}
+            </p>
+          </div>
+          {manager && <PortalButton label={t("manageSubscription")} />}
+        </section>
+      )}
+
+      {plans.length > 0 && manager && <CouponBox applied={appliedCode} error={couponError} />}
+
+      {monthly.length > 0 && (
+        <section className="mb-10">
+          <h2 className="mb-1 text-lg font-semibold tracking-tight">{t("monthlyTitle")}</h2>
+          <p className="mb-4 text-sm text-muted-foreground">{t("monthlyText")}</p>
+          <div className="grid gap-4 md:grid-cols-3">{monthly.map(renderPlan)}</div>
+        </section>
+      )}
+
+      {monthly.length > 0 && packs.length > 0 && <h2 className="mb-4 text-lg font-semibold tracking-tight">{t("packsTitle")}</h2>}
 
       {plans.length === 0 ? (
         <div className="surface p-8 text-center text-muted-foreground">{t("noPlans")}</div>
-      ) : (
+      ) : packs.length > 0 && (
         <div className="grid gap-4 md:grid-cols-3">
-          {plans.map((plan) => {
-            const fullPrice = priceOf(plan, currency);
-            const discount = discounts.get(plan.id);
-            const price = discount ? discount.finalPrice : fullPrice;
-            const features = (en ? plan.features_en : plan.features_pt).filter((f) => f.trim());
-            return (
-              <div key={plan.id} className={`surface relative flex flex-col p-6 ${plan.isFeatured ? "border-brand ring-1 ring-brand" : ""}`}>
-                {plan.isFeatured && (
-                  <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-brand-foreground">{t("popular")}</span>
-                )}
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
-                {(en ? plan.description_en || plan.description : plan.description) && <p className="mt-1 text-sm text-muted-foreground">{en ? plan.description_en || plan.description : plan.description}</p>}
-                <p className="mt-5 flex flex-wrap items-baseline gap-x-2 text-3xl font-semibold tracking-tight">
-                  {money(price, currency)}
-                  {discount && <s className="text-base font-normal text-muted-foreground">{money(fullPrice, currency)}</s>}
-                </p>
-                {discount && <p className="mt-1 text-sm font-medium text-brand">{t("couponOff", { off: money(discount.discount, currency) })}</p>}
-                {appliedCode && !discount && <p className="mt-1 text-sm text-muted-foreground">{appliedCode}: {t("couponNotFor")}</p>}
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t("perCredit", { credits: format.number(plan.credits), price: money(price / plan.credits, currency) })}
-                </p>
-                <ul className="mt-6 flex-1 space-y-2.5 text-sm">
-                  {features.map((f) => (
-                    <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>
-                  ))}
-                </ul>
-                <div className="mt-6">
-                  <CheckoutButton planId={plan.id} label={t("buy", { name: plan.name })} featured={plan.isFeatured} currency={currency} coupon={discount?.code ?? null} />
-                </div>
-              </div>
-            );
-          })}
+          {packs.map(renderPlan)}
         </div>
       )}
 

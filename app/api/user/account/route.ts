@@ -56,6 +56,15 @@ export const DELETE = handler(async (request: Request) => {
     include: { workspace: { include: { _count: { select: { members: true } } } } },
   });
   const soloWorkspaces = memberships.filter((m) => m.workspace._count.members === 1).map((m) => m.workspaceId);
+  // Workspaces com outras pessoas continuam: se quem sai era o dono, o membro mais antigo (admins primeiro) assume.
+  const handOver = memberships.filter((m) => m.workspace._count.members > 1 && m.role === "OWNER").map((m) => m.workspaceId);
+  for (const ws of handOver) {
+    const next = await db.workspaceMember.findFirst({
+      where: { workspaceId: ws, userId: { not: user.id } },
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }], // "ADMIN" < "MEMBER"
+    });
+    if (next) await db.workspaceMember.update({ where: { id: next.id }, data: { role: "OWNER" } });
+  }
 
   // Revoga o acesso da Vysify às contas da Meta antes de apagar os tokens.
   for (const ws of soloWorkspaces) {

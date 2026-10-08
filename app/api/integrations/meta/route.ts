@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { enforceRateLimit, handler, HttpError } from "@/lib/api";
-import { requireApiUser } from "@/lib/auth";
+import { requireApiManager } from "@/lib/auth";
 import { fetchAssets, MetaApiError, revokePermissions } from "@/lib/meta/graph";
 import { getMetaConnection, markConnectionExpired } from "@/lib/meta/connection";
 
 // Atualiza a lista de Páginas/contas do Instagram (ex.: o cliente criou uma Página nova).
 export const POST = handler(async (request: Request) => {
-  const user = await requireApiUser();
+  const user = await requireApiManager();
   await enforceRateLimit(request, "meta-refresh", 20, 15 * 60, user.id);
   const conn = await getMetaConnection(user.workspaceId);
   if (!conn?.token) throw new HttpError(404, "errors.metaNoConnection");
@@ -26,7 +26,7 @@ export const POST = handler(async (request: Request) => {
 
 // Desconecta: revoga as permissões na Meta e apaga o token.
 export const DELETE = handler(async () => {
-  const user = await requireApiUser();
+  const user = await requireApiManager();
   const conn = await getMetaConnection(user.workspaceId);
   if (!conn) return NextResponse.json({ success: true });
   if (conn.token) await revokePermissions(conn.token);
