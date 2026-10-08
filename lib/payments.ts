@@ -4,6 +4,7 @@ import { grantCredits } from "@/services/credits";
 import { sendPurchaseReceipt } from "@/services/email";
 import { formatMoney } from "./format";
 import { notifyAdmins } from "./admin-alerts";
+import { cancelInvoiceForPayment, queueInvoice } from "./fiscal";
 
 export interface PurchaseInput {
   provider: "STRIPE" | "MERCADOPAGO";
@@ -33,9 +34,10 @@ export async function recordPurchase(input: PurchaseInput): Promise<"credited" |
   const user = await db.user.findUnique({ where: { id: input.userId } });
   const en = user?.locale === "en";
 
+  let payment: { id: string; currency: string } | null = null;
   try {
     await db.$transaction(async (tx) => {
-      await tx.payment.create({
+      payment = await tx.payment.create({
         data: {
           provider: input.provider,
           externalId: input.externalId,
@@ -69,6 +71,9 @@ export async function recordPurchase(input: PurchaseInput): Promise<"credited" |
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return "duplicate";
     throw error;
   }
+
+  // Nota fiscal (só em reais e com a emissão ligada em Admin › Fiscal): entra na fila do cron.
+  if (payment) await queueInvoice(payment).catch((e) => console.error("[fiscal] fila", e));
 
   if (user) {
     await sendPurchaseReceipt(user.email, user.name || "", input.planName, input.credits, formatMoney(input.amount, input.currency.toUpperCase(), user.locale), user.locale).catch(console.error);
@@ -132,6 +137,9 @@ export async function recordRefund(input: { provider: PurchaseInput["provider"];
     });
     return { removed, shortfall: payment.userId ? Math.max(0, toRemove - removed) : 0 };
   });
+
+  // Estorno total: a nota fiscal (se houver) é cancelada.
+  if (full) await cancelInvoiceForPayment(payment.id).catch((e) => console.error("[fiscal] cancelamento", e));
 
   if (result.shortfall > 0) {
     const owner = payment.userId ? await db.user.findUnique({ where: { id: payment.userId }, select: { email: true } }) : null;

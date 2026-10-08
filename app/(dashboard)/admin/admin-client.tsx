@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle, BarChart3, ChevronDown, Copy, CreditCard, Download, ExternalLink, Gift, ImageOff, KeyRound, Plug, Loader2, Package, Plus,
-  ArrowDown, ArrowUp, RefreshCw, Save, Search, Settings2, ShieldCheck, Sparkles, TicketPercent, Trash2, Users,
+  ArrowDown, ArrowUp, FileText, RefreshCw, Save, Search, Settings2, ShieldCheck, Sparkles, TicketPercent, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocale } from "next-intl";
@@ -39,6 +39,8 @@ interface ConfigResponse {
     trackers: { gaId: string | null; metaPixelId: string | null };
     stripeAutomaticTax: boolean;
     brlGateway: "stripe" | "mercadopago";
+    maxMembers: number;
+    fiscal: { enabled: boolean; companyId: string | null; cityServiceCode: string | null; description: string };
     meta: { loginConfigId: string | null; graphVersion: string };
     elevenLabsVoiceId: string;
     elevenLabsVoiceIdMale: string;
@@ -46,7 +48,7 @@ interface ConfigResponse {
 }
 type SettingKey =
   | "companyName" | "companyCnpj" | "companyAddress" | "supportEmail" | "privacyEmail" | "euRepresentative" | "ukRepresentative"
-  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "brlGateway" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId" | "elevenLabsVoiceIdMale";
+  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "brlGateway" | "maxMembers" | "fiscalEnabled" | "nfeioCompanyId" | "fiscalCityServiceCode" | "fiscalDescription" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId" | "elevenLabsVoiceIdMale";
 
 /** Texto do painel no idioma do admin (o painel acompanha o idioma escolhido em Configurações). */
 function useTr() {
@@ -70,6 +72,7 @@ const TABS = [
   { id: "showcase", label: "Vitrine da landing", icon: Sparkles },
   { id: "trial", label: "Teste grátis", icon: Gift },
   { id: "payments", label: "Pagamentos", icon: CreditCard },
+  { id: "fiscal", label: "Fiscal", icon: FileText },
   { id: "integrations", label: "Integrações", icon: Plug },
   { id: "general", label: "Configurações gerais", icon: Settings2 },
   { id: "imageRights", label: "Autorizações de imagem", icon: ShieldCheck },
@@ -100,6 +103,7 @@ export function AdminClient({ baseUrl }: { baseUrl: string }) {
         {tab === "plans" && (config ? <PlansTab key={JSON.stringify(config.plans)} initial={config.plans} stripeMode={config.stripeMode} onSaved={reload} /> : <Loading />)}
         {tab === "coupons" && (config ? <CouponsTab plans={config.plans} /> : <Loading />)}
         {tab === "showcase" && <ShowcaseTab />}
+        {tab === "fiscal" && (config ? <FiscalTab config={config} onSaved={reload} /> : <Loading />)}
         {tab === "trial" && (config ? <TrialTab initial={config.freeTrial} onSaved={reload} /> : <Loading />)}
         {tab === "payments" && (config ? <PaymentsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
         {tab === "integrations" && (config ? <IntegrationsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
@@ -1530,6 +1534,149 @@ function ShowcaseTab() {
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar vitrine", "Save showcase")}
       </button>
+    </div>
+  );
+}
+
+// ---------------- Fiscal ----------------
+interface FiscalData {
+  year: number;
+  months: { month: string; currency: string; count: number; gross: number; discounts: number; refunds: number; net: number }[];
+  invoices: { id: string; status: string; number: string | null; error: string | null; createdAt: string; payment: { amount: number; currency: string; customerName: string | null } | null }[];
+}
+
+function FiscalTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => void }) {
+  const tr = useTr();
+  const draft = useSecretDraft();
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [data, setData] = useState<FiscalData | null>(null);
+  const f = config.effectiveSettings.fiscal;
+  const [form, setForm] = useState({ enabled: f.enabled, companyId: f.companyId || "", cityServiceCode: f.cityServiceCode || "", description: f.description });
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(() => api(`/api/admin/fiscal?year=${year}`).then(setData).catch((e) => toast.error(e.message)), [year]);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/config", "PUT", {
+        secrets: draft.payload(),
+        settings: { ...config.settings, fiscalEnabled: form.enabled, nfeioCompanyId: form.companyId, fiscalCityServiceCode: form.cityServiceCode, fiscalDescription: form.description },
+      });
+      toast.success(tr("Configuração fiscal salva", "Tax settings saved"));
+      draft.reset();
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const retry = async (id: string) => {
+    try {
+      await api(`/api/admin/fiscal/${id}`, "POST");
+      toast.success(tr("Nota de volta na fila", "Invoice queued again"));
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const ready = form.enabled && config.secrets.nfeioApiKey?.configured && form.companyId && form.cityServiceCode;
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-2 p-5 sm:p-6">
+        <h3 className="font-semibold">{tr("Vendas e notas fiscais", "Sales and invoices")}</h3>
+        <p className="text-sm text-muted-foreground">
+          {tr(
+            "Sem CNPJ: use o relatório mensal abaixo para declarar a renda (carnê-leão) ou entregar ao contador. Com CNPJ: cadastre a empresa na NFE.io, preencha os dados abaixo e ligue a emissão — cada venda em reais gera a NFS-e automaticamente, e o estorno total cancela a nota.",
+            "Without a CNPJ: use the monthly report below for your income declaration (carnê-leão) or your accountant. With a CNPJ: register the company at NFE.io, fill in the data below and turn issuing on — each BRL sale issues the NFS-e automatically, and a full refund cancels it."
+          )}
+        </p>
+      </section>
+
+      <section className="surface overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
+          <h3 className="mr-auto font-semibold">{tr("Vendas por mês", "Sales by month")}</h3>
+          <select aria-label={tr("Ano", "Year")} className="input-base h-9 w-28" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <a href={`/api/admin/fiscal?year=${year}&format=csv`} className={buttonClass("outline", "sm")}><Download className="h-3.5 w-3.5" /> {tr("Planilha do ano (CSV)", "Year spreadsheet (CSV)")}</a>
+        </div>
+        {!data ? <Loading /> : data.months.length === 0 ? <p className="p-5 text-sm text-muted-foreground">{tr("Nenhuma venda neste ano.", "No sales this year.")}</p> : (
+          <table className="w-full text-sm">
+            <thead className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="px-5 py-2 font-medium">{tr("Mês", "Month")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Vendas", "Sales")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Recebido", "Received")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Estornado", "Refunded")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Líquido", "Net")}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border tabular-nums">
+              {data.months.map((m) => (
+                <tr key={m.month + m.currency}>
+                  <td className="px-5 py-2">{m.month}</td>
+                  <td className="px-5 py-2">{m.count}</td>
+                  <td className="px-5 py-2">{formatMoney(m.gross, m.currency)}</td>
+                  <td className="px-5 py-2">{formatMoney(m.refunds, m.currency)}</td>
+                  <td className="px-5 py-2 font-medium">{formatMoney(m.net, m.currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="px-5 py-3 text-xs text-muted-foreground">{tr("Valores pagos pelos clientes, antes das taxas dos gateways. Confira as taxas nos extratos da Stripe e do Mercado Pago.", "Amounts paid by customers, before gateway fees. Check fees in the Stripe and Mercado Pago statements.")}</p>
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-semibold">{tr("Emissão automática de NFS-e (NFE.io)", "Automatic NFS-e issuing (NFE.io)")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{tr("Precisa de CNPJ e de inscrição municipal. O código do serviço e a alíquota dependem da sua cidade e do regime tributário: confirme com o contador.", "Requires a CNPJ and municipal registration. The service code and rate depend on your city and tax regime: confirm with your accountant.")}</p>
+          </div>
+          <Switch checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} />
+        </div>
+        <SecretField label={tr("Chave da API da NFE.io", "NFE.io API key")} field="nfeioApiKey" info={config.secrets.nfeioApiKey} value={draft.secrets.nfeioApiKey} onChange={draft.change} help="app.nfe.io › Conta › Chaves de acesso" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField label={tr("ID da empresa na NFE.io", "Company ID at NFE.io")} value={form.companyId} onChange={(v) => setForm({ ...form, companyId: v })} />
+          <TextField label={tr("Código do serviço na prefeitura", "City service code")} value={form.cityServiceCode} onChange={(v) => setForm({ ...form, cityServiceCode: v })} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="label-base">{tr("Descrição do serviço na nota", "Service description on the invoice")}</label>
+          <textarea className="input-base min-h-20 py-2" maxLength={500} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </div>
+        {form.enabled && !ready && <p className="text-sm text-warning">{tr("Falta a chave, o ID da empresa ou o código do serviço: nada será emitido até completar.", "Missing the key, company ID or service code: nothing will be issued until complete.")}</p>}
+        <button onClick={save} disabled={saving} className={buttonClass("brand")}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
+        </button>
+      </section>
+
+      {data && data.invoices.length > 0 && (
+        <section className="surface overflow-x-auto">
+          <h3 className="border-b border-border px-5 py-3 font-semibold">{tr("Notas fiscais", "Invoices")}</h3>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-border">
+              {data.invoices.map((i) => (
+                <tr key={i.id}>
+                  <td className="whitespace-nowrap px-5 py-3">{formatDateTime(i.createdAt)}</td>
+                  <td className="px-5 py-3">{i.payment?.customerName || "—"}</td>
+                  <td className="px-5 py-3 tabular-nums">{i.payment ? formatMoney(i.payment.amount, i.payment.currency) : "—"}</td>
+                  <td className="px-5 py-3">
+                    {i.status === "ISSUED" ? <a href={`/api/admin/fiscal/${i.id}`} target="_blank" rel="noreferrer" className="text-brand hover:underline">Nº {i.number || "—"} (PDF)</a>
+                      : i.status === "FAILED" ? <span className="text-destructive" title={i.error || ""}>{tr("Falhou", "Failed")}</span>
+                      : i.status === "CANCELED" ? tr("Cancelada", "Canceled") : tr("Na fila", "Queued")}
+                  </td>
+                  <td className="px-5 py-3 text-right">{i.status === "FAILED" && <button onClick={() => retry(i.id)} className={buttonClass("ghost", "sm")}>{tr("Tentar de novo", "Retry")}</button>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 }

@@ -68,6 +68,12 @@ export async function POST(request: Request) {
       currency: payment.currency_id || "BRL",
       couponCode: typeof m.coupon === "string" ? m.coupon : null,
       discount: Number(m.discount || 0),
+      // Quem pagou (para a nota fiscal).
+      customer: {
+        name: [payment.payer?.first_name, payment.payer?.last_name].filter(Boolean).join(" ") || null,
+        taxId: payment.payer?.identification?.number || null,
+        country: "BR",
+      },
     });
     return NextResponse.json({ received: true, result });
   } catch (error) {

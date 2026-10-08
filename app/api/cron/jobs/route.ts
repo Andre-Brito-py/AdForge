@@ -3,6 +3,7 @@ import { advanceAllPending } from "@/lib/generation";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { advancePendingPublications } from "@/lib/publishing";
 import { advancePendingAds } from "@/lib/meta/ads";
+import { processInvoices } from "@/lib/fiscal";
 import { purgeOldRateLimits } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { imageRightsCutoff } from "@/lib/image-rights";
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
   const advanced = await advanceAllPending();
   const publications = await advancePendingPublications();
   const ads = await advancePendingAds();
+  const invoices = await processInvoices();
   await purgeOldRateLimits();
   await db.authToken.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
   // Fim do prazo de guarda das declarações de autorização de imagem (LGPD art. 16: não guardar além do necessário).
@@ -27,5 +29,5 @@ export async function GET(request: Request) {
   // Provas de aceite dos Termos: guardadas 5 anos depois que a conta deixa de existir (contas ativas mantêm todas).
   await db.$executeRaw`DELETE FROM "ConsentRecord" c WHERE c."createdAt" < ${consentCutoff()} AND NOT EXISTS (SELECT 1 FROM "User" u WHERE u.id = c."userId")`;
 
-  return NextResponse.json({ ok: true, advanced, publications, ads });
+  return NextResponse.json({ ok: true, advanced, publications, ads, invoices });
 }
