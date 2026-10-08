@@ -49,8 +49,11 @@ export const POST = handler(async (request: Request) => {
     ...(coupon ? { coupon: coupon.code, discount: String(coupon.discount) } : {}),
   };
 
-  // Mercado Pago para BRL (Pix, boleto, cartão nacional). O MP não tem cupom próprio: o desconto vai no preço.
-  if (currency === "BRL" && config.secrets.mercadoPagoAccessToken) {
+  // Em reais: o gateway escolhido em Admin › Pagamentos (o outro entra se o escolhido não tiver chave).
+  // O MP não tem cupom próprio: o desconto vai no preço.
+  const useMercadoPago =
+    currency === "BRL" && !!config.secrets.mercadoPagoAccessToken && (config.settings.brlGateway === "mercadopago" || !stripeKey);
+  if (useMercadoPago && config.secrets.mercadoPagoAccessToken) {
     const client = new MercadoPagoConfig({ accessToken: config.secrets.mercadoPagoAccessToken });
     const preference = await new Preference(client).create({
       body: {

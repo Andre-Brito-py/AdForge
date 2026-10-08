@@ -19,6 +19,8 @@ export const settingsSchema = z.object({
   gaId: z.union([z.literal(""), z.string().trim().regex(/^G-[A-Z0-9]{4,20}$/, "Use o formato G-XXXXXXX")]).optional(),
   metaPixelId: z.union([z.literal(""), z.string().trim().regex(/^\d{5,20}$/, "O ID do Pixel tem apenas números")]).optional(),
   stripeAutomaticTax: z.boolean().optional(),
+  // Quem cobra em reais: a Stripe (cartão, Pix e boleto, conforme o painel da Stripe) ou o Mercado Pago.
+  brlGateway: z.enum(["stripe", "mercadopago"]).optional(),
   metaLoginConfigId: z.union([z.literal(""), z.string().trim().regex(/^\d{5,30}$/, "O ID da configuração tem apenas números")]).optional(),
   metaGraphVersion: z.union([z.literal(""), z.string().trim().regex(/^v\d{1,3}\.\d$/, "Use o formato v23.0")]).optional(),
   elevenLabsVoiceId: text(60),
@@ -34,6 +36,7 @@ export interface Settings {
   emailFrom: string;
   trackers: { gaId: string | null; metaPixelId: string | null };
   stripeAutomaticTax: boolean;
+  brlGateway: "stripe" | "mercadopago";
   meta: { loginConfigId: string | null; graphVersion: string };
   /** Voz padrão/feminina e voz masculina (escolhida quando quem apresenta é um homem). */
   elevenLabsVoiceId: string;
@@ -63,6 +66,7 @@ export function resolveSettings(s: StoredSettings): Settings {
       metaPixelId: pick(s.metaPixelId, "NEXT_PUBLIC_META_PIXEL_ID") || null,
     },
     stripeAutomaticTax: s.stripeAutomaticTax ?? process.env.STRIPE_AUTOMATIC_TAX === "true",
+    brlGateway: s.brlGateway ?? (process.env.BRL_GATEWAY === "mercadopago" ? "mercadopago" : "stripe"),
     meta: {
       loginConfigId: pick(s.metaLoginConfigId, "META_LOGIN_CONFIG_ID") || null,
       graphVersion: pick(s.metaGraphVersion, "META_GRAPH_VERSION", "v23.0"),

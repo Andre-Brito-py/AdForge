@@ -6,6 +6,7 @@ import {
   RefreshCw, Save, Search, Settings2, ShieldCheck, TicketPercent, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useLocale } from "next-intl";
 import { buttonClass } from "@/components/app/ui-bits";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { VIDEO_MODEL_PRESETS } from "@/lib/video-models";
@@ -37,6 +38,7 @@ interface ConfigResponse {
     emailFrom: string;
     trackers: { gaId: string | null; metaPixelId: string | null };
     stripeAutomaticTax: boolean;
+    brlGateway: "stripe" | "mercadopago";
     meta: { loginConfigId: string | null; graphVersion: string };
     elevenLabsVoiceId: string;
     elevenLabsVoiceIdMale: string;
@@ -44,7 +46,13 @@ interface ConfigResponse {
 }
 type SettingKey =
   | "companyName" | "companyCnpj" | "companyAddress" | "supportEmail" | "privacyEmail" | "euRepresentative" | "ukRepresentative"
-  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId" | "elevenLabsVoiceIdMale";
+  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "brlGateway" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId" | "elevenLabsVoiceIdMale";
+
+/** Texto do painel no idioma do admin (o painel acompanha o idioma escolhido em Configurações). */
+function useTr() {
+  const en = useLocale() === "en";
+  return useCallback((pt: string, english: string) => (en ? english : pt), [en]);
+}
 
 async function api(url: string, method = "GET", body?: unknown) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -1352,19 +1360,37 @@ function ImageRightsTab() {
 }
 
 // ---------------- Pagamentos ----------------
+interface StripeStatus {
+  configured: boolean; ok?: boolean; mode?: "test" | "live"; error?: string;
+  account?: { name: string; country: string | null; currency: string | null; chargesEnabled: boolean; payoutsEnabled: boolean };
+  webhook?: { url: string; exists: boolean; enabled: boolean; missingEvents: string[]; secretSaved: boolean };
+}
+
 function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onSaved: () => void; baseUrl: string }) {
+  const tr = useTr();
   const draft = useSecretDraft();
   const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<StripeStatus | null>(null);
+  const [hooking, setHooking] = useState(false);
+  const [gateway, setGateway] = useState<"stripe" | "mercadopago">(config.effectiveSettings.brlGateway);
+  const [showMp, setShowMp] = useState(gateway === "mercadopago" || !!config.secrets.mercadoPagoAccessToken?.configured);
+
+  const loadStatus = useCallback(() => api("/api/admin/stripe").then(setStatus).catch(() => setStatus(null)), []);
+  useEffect(() => { loadStatus(); }, [loadStatus]);
 
   const save = async () => {
     setSaving(true);
     try {
-      const res = await api("/api/admin/config", "PUT", { secrets: draft.payload() });
-      // Chave da Stripe nova: os pacotes já são criados nela.
-      if (res.stripe?.configured) stripeToast(res.stripe, "Chaves de pagamento salvas");
-      else toast.success("Chaves de pagamento salvas");
+      const res = await api("/api/admin/config", "PUT", {
+        secrets: draft.payload(),
+        // As configurações gerais são salvas inteiras: junta a escolha do gateway com o que já existe.
+        settings: { ...config.settings, brlGateway: gateway },
+      });
+      if (res.stripe?.configured) stripeToast(res.stripe, tr("Pagamentos salvos", "Payments saved"));
+      else toast.success(tr("Pagamentos salvos", "Payments saved"));
       draft.reset();
       onSaved();
+      loadStatus();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -1372,24 +1398,127 @@ function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onS
     }
   };
 
+  const createWebhook = async () => {
+    setHooking(true);
+    try {
+      await api("/api/admin/stripe", "POST", { action: "webhook" });
+      toast.success(tr("Webhook criado na Stripe e segredo salvo", "Webhook created in Stripe and secret saved"));
+      onSaved();
+      loadStatus();
+    } catch (e) {
+      toast.error((e as Error).message, { duration: 12_000 });
+    } finally {
+      setHooking(false);
+    }
+  };
+
+  const dash = status?.mode === "test" ? "https://dashboard.stripe.com/test" : "https://dashboard.stripe.com";
+
   return (
     <div className="space-y-5">
       <section className="surface space-y-4 p-5 sm:p-6">
-        <h3 className="font-semibold">Mercado Pago (BRL: Pix, cartão, boleto)</h3>
-        <SecretField label="Access Token" field="mercadoPagoAccessToken" info={config.secrets.mercadoPagoAccessToken} value={draft.secrets.mercadoPagoAccessToken} onChange={draft.change} />
-        <SecretField label="Assinatura secreta do webhook" field="mercadoPagoWebhookSecret" info={config.secrets.mercadoPagoWebhookSecret} value={draft.secrets.mercadoPagoWebhookSecret} onChange={draft.change}
-          help="Em Suas integrações › Webhooks (evento: Pagamentos). Sem ela, notificações falsas não são bloqueadas pela assinatura. Estornos e contestações feitos no Mercado Pago retiram os créditos automaticamente." />
-        <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/mercadopago</p>
+        <div>
+          <h3 className="font-semibold">{tr("Stripe (gateway principal)", "Stripe (main gateway)")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {tr(
+              "Cole só a Secret key (Desenvolvedores › Chaves de API). Depois, um clique cria o webhook na Stripe e salva o segredo sozinho. Comece com a chave de teste (sk_test_…) e troque pela de produção (sk_live_…) quando for lançar.",
+              "Paste only the Secret key (Developers › API keys). Then one click creates the webhook in Stripe and saves its secret. Start with the test key (sk_test_…) and switch to the live key (sk_live_…) at launch."
+            )}
+          </p>
+        </div>
+        <SecretField label="Secret key (sk_…)" field="stripeSecretKey" info={config.secrets.stripeSecretKey} value={draft.secrets.stripeSecretKey} onChange={draft.change} />
+
+        {status?.configured && (
+          <div className="space-y-3 rounded-xl border border-border p-4 text-sm">
+            {status.ok && status.account ? (
+              <>
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{status.account.name}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${status.mode === "live" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
+                    {status.mode === "live" ? tr("Produção", "Live") : tr("Teste", "Test")}
+                  </span>
+                  <span className="text-muted-foreground">{status.account.country} · {status.account.currency?.toUpperCase()}</span>
+                </p>
+                <p className={status.account.chargesEnabled ? "text-muted-foreground" : "text-destructive"}>
+                  {status.account.chargesEnabled
+                    ? tr("A conta já pode receber pagamentos.", "The account can accept payments.")
+                    : tr("A conta ainda não pode cobrar: termine o cadastro da empresa no painel da Stripe.", "The account can't charge yet: finish the business onboarding in the Stripe dashboard.")}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                  {status.webhook?.exists && status.webhook.enabled && status.webhook.missingEvents.length === 0 && status.webhook.secretSaved ? (
+                    <span className="text-emerald-700 dark:text-emerald-400">{tr("Webhook ativo", "Webhook active")}: <span className="font-mono text-xs">{status.webhook.url}</span></span>
+                  ) : (
+                    <span className="text-amber-700 dark:text-amber-400">
+                      {!status.webhook?.exists
+                        ? tr("Webhook ainda não criado.", "Webhook not created yet.")
+                        : !status.webhook.secretSaved
+                          ? tr("Webhook existe, mas o segredo não está salvo aqui.", "Webhook exists, but its secret isn't saved here.")
+                          : tr(`Faltam eventos: ${status.webhook.missingEvents.join(", ")}`, `Missing events: ${status.webhook.missingEvents.join(", ")}`)}
+                    </span>
+                  )}
+                  <button onClick={createWebhook} disabled={hooking} className={`${buttonClass("outline", "sm")} ml-auto`}>
+                    {hooking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    {status.webhook?.exists ? tr("Recriar webhook", "Recreate webhook") : tr("Criar webhook automaticamente", "Create webhook automatically")}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {tr("Pix, boleto, Google Pay e Apple Pay aparecem no checkout quando ativados em ", "Pix, boleto, Google Pay and Apple Pay show up at checkout when enabled in ")}
+                  <a className="underline" href={`${dash}/settings/payment_methods`} target="_blank" rel="noreferrer">{tr("Stripe › Formas de pagamento", "Stripe › Payment methods")}</a>.
+                </p>
+              </>
+            ) : (
+              <p className="text-destructive">{tr("A Stripe recusou a chave", "Stripe rejected the key")}: {status.error}</p>
+            )}
+          </div>
+        )}
+
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted-foreground">{tr("Configurar o webhook manualmente", "Set up the webhook manually")}</summary>
+          <div className="mt-3 space-y-3">
+            <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/stripe</p>
+            <SecretField label="Webhook signing secret (whsec_…)" field="stripeWebhookSecret" info={config.secrets.stripeWebhookSecret} value={draft.secrets.stripeWebhookSecret} onChange={draft.change}
+              help={tr(
+                "Eventos: checkout.session.completed, checkout.session.async_payment_succeeded, charge.refunded, charge.dispute.created, invoice.paid, customer.subscription.updated e customer.subscription.deleted.",
+                "Events: checkout.session.completed, checkout.session.async_payment_succeeded, charge.refunded, charge.dispute.created, invoice.paid, customer.subscription.updated and customer.subscription.deleted."
+              )} />
+          </div>
+        </details>
       </section>
-      <section className="surface space-y-4 p-5 sm:p-6">
-        <h3 className="font-semibold">Stripe (USD/EUR e cartão internacional)</h3>
-        <SecretField label="Secret key" field="stripeSecretKey" info={config.secrets.stripeSecretKey} value={draft.secrets.stripeSecretKey} onChange={draft.change} />
-        <SecretField label="Webhook signing secret (whsec_...)" field="stripeWebhookSecret" info={config.secrets.stripeWebhookSecret} value={draft.secrets.stripeWebhookSecret} onChange={draft.change}
-          help="Eventos: checkout.session.completed, checkout.session.async_payment_succeeded, charge.refunded e charge.dispute.created (os dois últimos retiram os créditos de um pagamento estornado)." />
-        <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/stripe</p>
+
+      <section className="surface space-y-3 p-5 sm:p-6">
+        <h3 className="font-semibold">{tr("Pagamentos em reais", "Payments in BRL")}</h3>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {([
+            ["stripe", tr("Stripe", "Stripe"), tr("Cartão, Pix e boleto pela Stripe (conforme o painel dela). Assinaturas também.", "Card, Pix and boleto through Stripe (per its dashboard). Subscriptions too.")],
+            ["mercadopago", "Mercado Pago", tr("Pix, cartão e boleto pelo Mercado Pago. Só pacotes avulsos.", "Pix, card and boleto through Mercado Pago. One-off packs only.")],
+          ] as const).map(([value, label, text]) => (
+            <label key={value} className={`cursor-pointer rounded-xl border p-4 text-sm ${gateway === value ? "border-brand ring-1 ring-brand" : "border-border"}`}>
+              <input type="radio" name="brl-gateway" className="sr-only" checked={gateway === value} onChange={() => { setGateway(value); if (value === "mercadopago") setShowMp(true); }} />
+              <span className="block font-medium">{label}</span>
+              <span className="mt-1 block text-muted-foreground">{text}</span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">{tr("Dólar e euro são sempre cobrados pela Stripe.", "USD and EUR are always charged through Stripe.")}</p>
       </section>
+
+      {showMp ? (
+        <section className="surface space-y-4 p-5 sm:p-6">
+          <h3 className="font-semibold">Mercado Pago</h3>
+          <SecretField label="Access Token" field="mercadoPagoAccessToken" info={config.secrets.mercadoPagoAccessToken} value={draft.secrets.mercadoPagoAccessToken} onChange={draft.change} />
+          <SecretField label={tr("Assinatura secreta do webhook", "Webhook secret signature")} field="mercadoPagoWebhookSecret" info={config.secrets.mercadoPagoWebhookSecret} value={draft.secrets.mercadoPagoWebhookSecret} onChange={draft.change}
+            help={tr(
+              "Em Suas integrações › Webhooks (evento: Pagamentos). Estornos e contestações feitos no Mercado Pago retiram os créditos automaticamente.",
+              "In Your integrations › Webhooks (event: Payments). Refunds and chargebacks made in Mercado Pago remove the credits automatically."
+            )} />
+          <p className="rounded-xl bg-muted p-3 font-mono text-xs">{baseUrl}/api/webhooks/mercadopago</p>
+        </section>
+      ) : (
+        <button onClick={() => setShowMp(true)} className={buttonClass("ghost", "sm")}>{tr("Usar também o Mercado Pago", "Also use Mercado Pago")}</button>
+      )}
+
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
       </button>
     </div>
   );
