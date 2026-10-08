@@ -70,6 +70,8 @@ const variantSchema = z.object({
   keyframe: z.string().max(1200).optional(),
   // Quem aparece apresentando (define a voz da locução: masculina/feminina).
   presenter: z.enum(["female", "male", "none"]).optional(),
+  // Hashtags para a legenda (normalizadas em normalizeHashtags).
+  hashtags: z.array(z.string().max(60)).max(30).optional(),
 });
 
 const strategySchema = z.object({
@@ -85,7 +87,7 @@ const strategySchema = z.object({
   variants: z.array(variantSchema).optional().default([]),
 });
 
-export type StrategyVariant = z.infer<typeof variantSchema> & { voiceover: string; scenes: string[] };
+export type StrategyVariant = z.infer<typeof variantSchema> & { voiceover: string; scenes: string[]; hashtags: string[] };
 export type CampaignStrategy = {
   /** Idioma efetivamente usado (o escolhido ou o detectado). */
   language: AdLanguage;
@@ -202,6 +204,7 @@ For each variation:
 - "headline": short, punchy headline (max 60 characters).
 - "copy": ad copy/caption suited to the platform, with line breaks and at most 2 emojis.
 - "cta": short call to action.
+- "hashtags": ${HASHTAG_COUNT[input.platform]} hashtags for the caption, in the ad language and market: mix 1-2 broad tags with niche/product tags${input.brand?.brandName ? " and one branded tag" : ""}. Relevant to the product only (no generic spam like #fyp alone, no banned or misleading tags). Write them with the # sign, no spaces inside a tag.
 - "visualConcept": in ENGLISH, the art direction to ${isVideo ? `animate the product photo into a ${seconds}-second video (camera movement, setting, light; no on-screen text)` : "create an advertising photo of the SAME product shown in the image (setting, lighting, composition, props; no text, no invented logos)"}, consistent with the requested visual style.${videoFields}
 BRAND KIT (when present in USER_DATA)
 - "brand": use the brand name naturally in the copy${isVideo ? " and say it once in the voiceover" : ""}.
@@ -214,7 +217,7 @@ USER_DATA
 ${userData}
 
 Reply ONLY with JSON in this format:
-{"violation": false, "outOfScope": false, ${lang.outputField}, ${productSizeField}"analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "visualConcept": "..."${isVideo ? `, "voiceover": "...", "keyframe": "...", "presenter": "female|male|none", "scenes": ["..."]` : ""}}]}
+{"violation": false, "outOfScope": false, ${lang.outputField}, ${productSizeField}"analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "hashtags": ["#..."], "visualConcept": "..."${isVideo ? `, "voiceover": "...", "keyframe": "...", "presenter": "female|male|none", "scenes": ["..."]` : ""}}]}
 If the request is not an ad, reply: {"outOfScope": true, "scopeReason": "one friendly sentence in ${reasonLanguage} saying what was asked and that Vysify only creates ads"}
 If the request breaks the content rules, reply: {"violation": true, "violationReason": "short reason in ${reasonLanguage}"}`;
 }
@@ -241,9 +244,39 @@ export function parseStrategy(raw: string, input: StrategyInput): CampaignStrate
   // Garante exatamente N variações (repete as existentes se a IA devolver menos) e N cenas por vídeo.
   const variants = Array.from({ length: input.variations }, (_, i) => {
     const v = parsed.data.variants[i % parsed.data.variants.length];
-    return { ...v, voiceover: (v.voiceover || v.copy).trim(), scenes: normalizeScenes(v.scenes, v.visualConcept, sceneCount) };
+    return {
+      ...v,
+      voiceover: (v.voiceover || v.copy).trim(),
+      scenes: normalizeScenes(v.scenes, v.visualConcept, sceneCount),
+      hashtags: normalizeHashtags(v.hashtags, HASHTAG_LIMIT[input.platform]),
+    };
   });
   return { language, productSize: parsed.data.productSize?.trim() || null, analysis: parsed.data.analysis, hooks: parsed.data.hooks, variants };
+}
+
+/** Quantas hashtags pedir e o máximo aceito, por formato (Instagram usa mais; Facebook quase nenhuma). */
+const HASHTAG_COUNT: Record<PlatformKey, string> = {
+  INSTAGRAM_FEED: "5 to 8",
+  FACEBOOK_ADS: "2 to 3",
+  STORIES: "3 to 5",
+  REELS_TIKTOK: "3 to 6",
+};
+const HASHTAG_LIMIT: Record<PlatformKey, number> = { INSTAGRAM_FEED: 10, FACEBOOK_ADS: 4, STORIES: 6, REELS_TIKTOK: 8 };
+
+/** "#Tag" sem espaços nem pontuação, sem repetidas, no máximo `max`. */
+export function normalizeHashtags(tags: string[] | undefined, max: number): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of tags || []) {
+    const body = raw.trim().replace(/^#+/, "").replace(/[\s.,;:!?¿¡"']+/g, "");
+    if (body.length < 2 || body.length > 50 || !/^[\p{L}\p{N}_]+$/u.test(body)) continue;
+    const key = body.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(`#${body}`);
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 /** Exatamente `count` cenas: completa as que faltarem continuando a última. */

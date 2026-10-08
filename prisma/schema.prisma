@@ -34,6 +34,8 @@ model User {
   // Versão dos Termos/Privacidade aceita por último (ver lib/terms.ts e ConsentRecord)
   termsVersion        String?
   termsAcceptedAt     DateTime?
+  // Workspace em uso (quem participa de mais de um, por convite, escolhe no menu)
+  activeWorkspaceId   String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -60,12 +62,17 @@ model AuthToken {
 }
 
 model Workspace {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(uuid())
+  name             String
+  // Cliente na Stripe (assinaturas e portal de cobrança)
+  stripeCustomerId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   members       WorkspaceMember[]
+  invites       WorkspaceInvite[]
+  subscriptions Subscription[]
+  metaAds       MetaAd[]
   products      Product[]
   campaigns     Campaign[]
   creditBalance CreditBalance?
@@ -100,26 +107,26 @@ model Connection {
 }
 
 model Publication {
-  id            String   @id @default(uuid())
-  workspaceId   String
-  creativeId    String
-  connectionId  String?
-  provider      String // META, MERCADOLIVRE, NUVEMSHOP
+  id           String   @id @default(uuid())
+  workspaceId  String
+  creativeId   String
+  connectionId String?
+  provider     String // META, MERCADOLIVRE, NUVEMSHOP
   // INSTAGRAM_FEED, INSTAGRAM_REELS, INSTAGRAM_STORY, FACEBOOK_PAGE, MERCADOLIVRE_ITEM, NUVEMSHOP_PRODUCT
-  target        String
-  accountId     String // conta do Instagram, Página, anúncio do ML ou produto da Nuvemshop
-  accountName   String?
-  caption       String?
-  optionsJson   String? // ex.: {"asCover": true} para lojas
-  status        String   @default("PENDING") // PENDING, PROCESSING, PUBLISHED, FAILED
-  containerId   String? // container do Instagram (vídeos são processados de forma assíncrona)
-  externalId    String? // id do post publicado
-  permalink     String?
-  error         String?
-  attempts      Int      @default(0)
-  createdById   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  target       String
+  accountId    String // conta do Instagram, Página, anúncio do ML ou produto da Nuvemshop
+  accountName  String?
+  caption      String?
+  optionsJson  String? // ex.: {"asCover": true} para lojas
+  status       String   @default("PENDING") // PENDING, PROCESSING, PUBLISHED, FAILED
+  containerId  String? // container do Instagram (vídeos são processados de forma assíncrona)
+  externalId   String? // id do post publicado
+  permalink    String?
+  error        String?
+  attempts     Int      @default(0)
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creative   Creative    @relation(fields: [creativeId], references: [id], onDelete: Cascade)
@@ -177,40 +184,40 @@ model Product {
 }
 
 model Campaign {
-  id             String   @id @default(uuid())
-  workspaceId    String
-  productId      String
-  userId         String?
-  name           String
-  objective      String
-  tone           String
-  targetAudience String?
-  offer          String?
-  platform       String?
-  format         String?
-  style          String?
-  quality        String   @default("standard")
+  id                     String    @id @default(uuid())
+  workspaceId            String
+  productId              String
+  userId                 String?
+  name                   String
+  objective              String
+  tone                   String
+  targetAudience         String?
+  offer                  String?
+  platform               String?
+  format                 String?
+  style                  String?
+  quality                String    @default("standard")
   // Idioma dos textos do anúncio (pode ser diferente do idioma da interface)
-  language       String   @default("pt-BR")
+  language               String    @default("pt-BR")
   // Pedido livre do cliente ("o que você quer no anúncio"); a IA detecta o idioma e o escopo por ele
-  briefing       String?
+  briefing               String?
   // Duração de cada vídeo em segundos (múltiplos de 5; cada trecho começa no último quadro do anterior)
-  videoDuration  Int      @default(5)
+  videoDuration          Int       @default(5)
   // Aplica o logo do Brand Kit no canto dos criativos (imagens e vídeos)
-  applyLogo      Boolean  @default(false)
+  applyLogo              Boolean   @default(false)
   // IMAGE ou VIDEO escolhido pelo cliente (null em campanhas antigas = padrão do formato)
-  mediaType      String?
+  mediaType              String?
   // Imagens de referência enviadas pelo cliente (JSON: lista de URLs). A foto do produto é a "imagem 1".
-  referencesJson String?
+  referencesJson         String?
   // Quando o cliente declarou ter autorização de uso de imagem das pessoas nas referências (prova, LGPD/CC art. 20)
   imageRightsConfirmedAt DateTime?
-  variations     Int      @default(3)
-  strategyJson   String?
-  creditsCharged Int      @default(0)
-  notifiedAt     DateTime?
-  status         String // GENERATING, COMPLETED, PARTIAL, FAILED
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  variations             Int       @default(3)
+  strategyJson           String?
+  creditsCharged         Int       @default(0)
+  notifiedAt             DateTime?
+  status                 String // GENERATING, COMPLETED, PARTIAL, FAILED
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -231,6 +238,8 @@ model Creative {
   headline     String?
   text         String?
   cta          String?
+  // Hashtags da legenda, separadas por espaço (ex.: "#skincare #promo")
+  hashtags     String?
   outputUrl    String?
   audioUrl     String?
   thumbnailUrl String?
@@ -339,24 +348,30 @@ model CreditTransaction {
 }
 
 model Payment {
-  id          String   @id @default(uuid())
-  provider    String // STRIPE, MERCADOPAGO
-  externalId  String // id da sessão (Stripe) ou do pagamento (MP)
+  id              String   @id @default(uuid())
+  provider        String // STRIPE, MERCADOPAGO
+  externalId      String // id da sessão (Stripe) ou do pagamento (MP)
   // Opcional: registros de pagamento são mantidos (obrigação fiscal) mesmo se a conta for excluída
-  userId      String?
-  workspaceId String
-  planId      String?
-  credits     Int
-  amount      Float
-  currency    String
-  status      String   @default("APPROVED") // APPROVED, PARTIALLY_REFUNDED, REFUNDED
+  userId          String?
+  workspaceId     String
+  planId          String?
+  credits         Int
+  amount          Float
+  currency        String
+  status          String   @default("APPROVED") // APPROVED, PARTIALLY_REFUNDED, REFUNDED
   // Cupom usado (código) e o desconto dado, na moeda do pagamento
-  couponCode  String?
-  discount    Float    @default(0)
+  couponCode      String?
+  discount        Float    @default(0)
   // Estorno no gateway: quanto já foi devolvido e quantos créditos já foram retirados (idempotência)
-  refundedAmount  Float @default(0)
-  refundedCredits Int   @default(0)
-  createdAt   DateTime @default(now())
+  refundedAmount  Float    @default(0)
+  refundedCredits Int      @default(0)
+  // Quem pagou (para a nota fiscal): nome, CPF/CNPJ e país informados no checkout
+  customerName    String?
+  customerTaxId   String?
+  customerCountry String?
+  // Pagamento de uma assinatura (fatura mensal)
+  subscriptionId  String?
+  createdAt       DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -425,6 +440,10 @@ model SystemConfig {
   elevenLabsKey            String?
   stripeSecretKey          String?
   stripeWebhookSecret      String?
+  shopifyClientId          String?
+  shopifyClientSecret      String?
+  // Emissor de NFS-e (NFE.io): chave da API
+  nfeioApiKey              String?
   mercadoPagoAccessToken   String?
   mercadoPagoWebhookSecret String?
   metaAppId                String?
@@ -442,7 +461,7 @@ model SystemConfig {
   settingsJson             String?
   // Desligado = ninguém consegue criar conta nova (e-mail ou Google)
   signupsEnabled           Boolean  @default(true)
-  aiCostsJson             String?
+  aiCostsJson              String?
   plansJson                String?
   modelsJson               String?
   // Ofertas de teste grátis: tudo desligado até o super admin ativar
@@ -450,4 +469,89 @@ model SystemConfig {
   freePlanVisible          Boolean  @default(false) // mostra o card "Grátis" na landing
   signupCredits            Int      @default(30)
   updatedAt                DateTime @updatedAt
+}
+
+// Convite para participar de um workspace (o link vale 7 dias; guardamos só o hash do token).
+model WorkspaceInvite {
+  id          String    @id @default(uuid())
+  workspaceId String
+  email       String
+  role        String    @default("MEMBER") // ADMIN, MEMBER
+  tokenHash   String    @unique
+  invitedById String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([email])
+}
+
+// Assinatura mensal na Stripe: a cada fatura paga, o workspace recebe os créditos do plano.
+model Subscription {
+  id                   String    @id @default(uuid())
+  workspaceId          String
+  userId               String?
+  stripeSubscriptionId String    @unique
+  stripeCustomerId     String
+  planId               String
+  planName             String
+  creditsPerPeriod     Int
+  status               String // active, trialing, past_due, canceled, incomplete, unpaid
+  currency             String
+  amount               Float
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+// Anúncio pago criado na Meta (Marketing API) a partir de um criativo. Sempre nasce PAUSADO.
+model MetaAd {
+  id                 String   @id @default(uuid())
+  workspaceId        String
+  creativeId         String
+  adAccountId        String // act_...
+  pageId             String
+  name               String
+  objective          String // OUTCOME_TRAFFIC, OUTCOME_SALES, OUTCOME_AWARENESS, OUTCOME_ENGAGEMENT
+  dailyBudget        Int // em centavos da moeda da conta
+  currency           String
+  countries          String // "BR,PT"
+  link               String
+  status             String   @default("PENDING") // PENDING, PROCESSING, CREATED, FAILED
+  externalCampaignId String?
+  externalAdSetId    String?
+  externalAdId       String?
+  error              String?
+  createdById        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}
+
+// Nota fiscal de serviço (NFS-e) de um pagamento. Só é emitida com o emissor configurado no Admin.
+model FiscalInvoice {
+  id         String   @id @default(uuid())
+  paymentId  String   @unique
+  provider   String // NFEIO
+  status     String   @default("PENDING") // PENDING, PROCESSING, ISSUED, FAILED, CANCELED
+  externalId String?
+  number     String?
+  pdfUrl     String?
+  error      String?
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, updatedAt])
 }

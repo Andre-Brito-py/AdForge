@@ -230,6 +230,7 @@ export async function createCampaign(
             headline: variant.headline,
             text: variant.copy,
             cta: variant.cta,
+            hashtags: variant.hashtags.join(" ") || null,
             status: "COMPLETED",
           },
         });
@@ -321,7 +322,7 @@ export async function regenerateCreative(user: SessionUser, campaignId: string, 
         await tx.creative.create({
           data: {
             campaignId, type: "COPY", variantIndex: nextIndex, provider: baseCopy.provider, model: baseCopy.model,
-            headline: baseCopy.headline, text: baseCopy.text, cta: baseCopy.cta, status: "COMPLETED",
+            headline: baseCopy.headline, text: baseCopy.text, cta: baseCopy.cta, hashtags: baseCopy.hashtags, status: "COMPLETED",
           },
         });
       }

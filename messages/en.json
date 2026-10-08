@@ -460,7 +460,10 @@
       "generate": "Generate",
       "regenStarted": "New variation is being generated. It will show up here shortly.",
       "regenError": "Couldn't generate the new version",
-      "narration": "Separate voiceover (MP3)"
+      "narration": "Separate voiceover (MP3)",
+      "copyHashtags": "Copy hashtags only",
+      "copyCaption": "Copy caption",
+      "copyCaptionHint": "Ad copy + hashtags, ready to paste into Instagram or TikTok"
     }
   },
   "publish": {

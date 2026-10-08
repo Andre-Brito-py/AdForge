@@ -460,7 +460,10 @@
       "generate": "Gerar",
       "regenStarted": "Nova variação em geração. Ela aparece aqui em instantes.",
       "regenError": "Não foi possível gerar a nova versão",
-      "narration": "Locução separada (MP3)"
+      "narration": "Locução separada (MP3)",
+      "copyHashtags": "Copiar só as hashtags",
+      "copyCaption": "Copiar legenda",
+      "copyCaptionHint": "Texto do anúncio + hashtags, pronto para colar no Instagram ou no TikTok"
     }
   },
   "publish": {

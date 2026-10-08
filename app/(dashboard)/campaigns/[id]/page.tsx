@@ -16,7 +16,7 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
       product: { select: { id: true, name: true, originalImageUrl: true } },
       creatives: {
         orderBy: [{ variantIndex: "asc" }, { createdAt: "asc" }],
-        select: { id: true, type: true, status: true, variantIndex: true, outputUrl: true, thumbnailUrl: true, audioUrl: true, headline: true, text: true, cta: true, aspectRatio: true, creditsUsed: true },
+        select: { id: true, type: true, status: true, variantIndex: true, outputUrl: true, thumbnailUrl: true, audioUrl: true, headline: true, text: true, cta: true, hashtags: true, aspectRatio: true, creditsUsed: true },
       },
     },
   });

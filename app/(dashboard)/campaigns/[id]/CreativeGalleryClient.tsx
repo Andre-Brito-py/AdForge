@@ -15,7 +15,7 @@ import { PublicationList, PublishDialog, type PublicationRow, type PublishingInf
 
 interface Creative {
   id: string; type: string; status: string; variantIndex: number; outputUrl: string | null; thumbnailUrl?: string | null; audioUrl: string | null;
-  headline: string | null; text: string | null; cta: string | null; aspectRatio: string | null; creditsUsed: number;
+  headline: string | null; text: string | null; cta: string | null; hashtags?: string | null; aspectRatio: string | null; creditsUsed: number;
 }
 interface Campaign {
   id: string; name: string; status: string; createdAt: string; objective: string; platform: string | null; style: string | null; quality: string; language: string;
@@ -27,7 +27,13 @@ const RATIO_CLASS: Record<string, string> = { "1:1": "aspect-square", "4:5": "as
 
 function copyText(c: Creative | undefined) {
   if (!c) return "";
-  return [c.headline, c.text, c.cta].filter(Boolean).join("\n\n");
+  return [c.headline, c.text, c.cta, c.hashtags].filter(Boolean).join("\n\n");
+}
+
+/** Legenda pronta para postar: texto + hashtags (o título fica de fora, já que vai na imagem/vídeo). */
+function captionText(c: Creative | undefined) {
+  if (!c) return "";
+  return [c.text, c.hashtags].filter(Boolean).join("\n\n");
 }
 
 export default function CreativeGalleryClient({
@@ -219,6 +225,11 @@ export default function CreativeGalleryClient({
                   {c.headline && <p className="font-semibold leading-snug">{c.headline}</p>}
                   {c.text && <p className="whitespace-pre-line text-sm text-muted-foreground">{c.text}</p>}
                   {c.cta && <p className="text-xs font-medium uppercase tracking-wide text-brand">{c.cta}</p>}
+                  {c.hashtags && (
+                    <button onClick={() => copy(c.hashtags!)} title={t("copyHashtags")} className="block text-left text-sm text-brand/90 hover:underline">
+                      {c.hashtags}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -236,8 +247,8 @@ export default function CreativeGalleryClient({
                   </button>
                 )}
                 {c && (
-                  <button onClick={() => copy(copyText(c))} className={buttonClass("outline", "sm")}>
-                    <Copy className="h-3.5 w-3.5" /> {t("copyText")}
+                  <button onClick={() => copy(captionText(c))} className={buttonClass("outline", "sm")} title={t("copyCaptionHint")}>
+                    <Copy className="h-3.5 w-3.5" /> {t("copyCaption")}
                   </button>
                 )}
                 {c && (
@@ -261,7 +272,7 @@ export default function CreativeGalleryClient({
         open={!!publishFor}
         onClose={() => setPublishFor(null)}
         creative={publishFor ? { id: publishFor.visual.id, type: publishFor.visual.type, aspectRatio: publishFor.visual.aspectRatio } : null}
-        defaultCaption={copyText(publishFor?.copy)}
+        defaultCaption={captionText(publishFor?.copy)}
         info={publishing}
         onPublished={(p) => setPublications((list) => [p, ...list])}
       />
