@@ -33,6 +33,8 @@ export function defaultVideoPerSecond(model: string, premium: boolean): number {
   if (/^veo-3\.1-lite/i.test(model)) return premium ? 0.08 : 0.05;
   if (/^veo-3\.1-fast/i.test(model)) return 0.15;
   if (/^veo-/i.test(model)) return 0.4;
+  if (/kling-video\/v3/i.test(model)) return 0.224;
+  if (/kling-video\//i.test(model)) return 0.07;
   if (/wan\/v2\.(6|[7-9])|wan-2\.(6|[7-9])|wan\/v3|wan-3/i.test(model)) return premium ? 0.15 : 0.1;
   return premium ? 0.08 : 0.05; // Wan 2.1/2.2
 }

@@ -20,6 +20,8 @@ export interface VideoModelCaps {
    * Com extensão, o vídeo longo é 8 s + extensões, sem recomeçar de um quadro parado (o produto não muda na emenda).
    */
   extensionSeconds?: number;
+  /** Família do modelo na fal.ai (o corpo do pedido muda entre elas). */
+  family?: "wan" | "kling";
 }
 
 export function videoModelCaps(model: string): VideoModelCaps {
@@ -32,6 +34,12 @@ export function videoModelCaps(model: string): VideoModelCaps {
       ...(extensible ? { extensionSeconds: 7 } : {}),
     };
   }
+  // Kling (fal.ai): física e mãos muito boas. v3: 3 a 15 s por pedido; v2.x: 5 ou 10 s. O formato segue a imagem inicial.
+  // A locução da Vysify entra na montagem e o lip-sync final cuida da boca (o áudio do próprio Kling fica desligado).
+  if (/kling-video\//i.test(model)) {
+    const v3 = /kling-video\/v3/i.test(model);
+    return { provider: "fal", family: "kling", durations: v3 ? [5, 10, 15] : [5, 10], lipSyncAudio: false, resolution: { standard: "1080p", premium: "1080p" }, aspectFromImage: true };
+  }
   // Wan 2.6 (e versões seguintes da mesma família): até 15 s por pedido, áudio com lip-sync.
   if (/wan\/v2\.(6|[7-9])|wan-2\.(6|[7-9])|wan\/v3|wan-3/i.test(model)) {
     return { provider: "fal", durations: [5, 10, 15], lipSyncAudio: true, resolution: { standard: "720p", premium: "1080p" }, aspectFromImage: true };
@@ -43,6 +51,8 @@ export function videoModelCaps(model: string): VideoModelCaps {
 /** Modelos de vídeo prontos para escolher no Admin (o campo continua livre para versões novas). */
 export const VIDEO_MODEL_PRESETS = [
   { id: "wan/v2.6/image-to-video", label: "Wan 2.6 (fal.ai) — mais barato, lip-sync nativo" },
+  { id: "fal-ai/kling-video/v2.6/pro/image-to-video", label: "Kling 2.6 Pro (fal.ai) — ótima física, bom preço" },
+  { id: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0 Pro (fal.ai) — máxima qualidade do Kling" },
   { id: "veo-3.1-lite-generate-preview", label: "Google Veo 3.1 Lite — econômico" },
   { id: "veo-3.1-fast-generate-preview", label: "Google Veo 3.1 Fast — equilíbrio qualidade/custo" },
   { id: "veo-3.1-generate-preview", label: "Google Veo 3.1 — máxima qualidade" },

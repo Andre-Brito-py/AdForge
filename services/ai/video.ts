@@ -95,11 +95,21 @@ export async function submitVideo(opts: {
   }
   if (!opts.keys.fal) throw new VideoGenerationError("Chave da fal.ai não configurada");
   if (!opts.imageUrl) throw new VideoGenerationError("Imagem inicial ausente");
-  const body = caps.lipSyncAudio
+  const seconds = String(opts.seconds && caps.durations.includes(opts.seconds) ? opts.seconds : caps.durations[0]);
+  const body = caps.family === "kling"
+    ? {
+        prompt: opts.prompt.slice(0, 2500),
+        start_image_url: opts.imageUrl,
+        duration: seconds,
+        negative_prompt: NEGATIVE_PROMPT,
+        // A locução da Vysify entra na montagem (e o lip-sync final acerta a boca): sem áudio do próprio Kling.
+        generate_audio: false,
+      }
+    : caps.lipSyncAudio
     ? {
         prompt: opts.prompt.slice(0, 1500),
         image_url: opts.imageUrl,
-        duration: String(opts.seconds && caps.durations.includes(opts.seconds) ? opts.seconds : caps.durations[0]),
+        duration: seconds,
         resolution: opts.premium ? caps.resolution.premium : caps.resolution.standard,
         ...(opts.audioUrl ? { audio_url: opts.audioUrl } : {}),
         negative_prompt: NEGATIVE_PROMPT,
