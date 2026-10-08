@@ -14,7 +14,7 @@ import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { PublicationList, PublishDialog, type PublicationRow, type PublishingInfo } from "./publish-dialog";
 
 interface Creative {
-  id: string; type: string; status: string; variantIndex: number; outputUrl: string | null; audioUrl: string | null;
+  id: string; type: string; status: string; variantIndex: number; outputUrl: string | null; thumbnailUrl?: string | null; audioUrl: string | null;
   headline: string | null; text: string | null; cta: string | null; aspectRatio: string | null; creditsUsed: number;
 }
 interface Campaign {
@@ -187,7 +187,8 @@ export default function CreativeGalleryClient({
               <div className={`relative ${ratio} max-h-[520px] w-full bg-muted`}>
                 {visual.status === "COMPLETED" && visual.outputUrl ? (
                   visual.type === "VIDEO" ? (
-                    <video src={visual.outputUrl} controls playsInline preload="metadata" className="h-full w-full object-cover" />
+                    // Capa = o quadro de abertura aprovado: aparece na hora e o vídeo só é baixado ao dar play.
+                    <video src={visual.outputUrl} poster={visual.thumbnailUrl || undefined} controls playsInline preload={visual.thumbnailUrl ? "none" : "metadata"} className="h-full w-full object-cover" />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={visual.outputUrl} alt={c?.headline || `#${i + 1}`} className="h-full w-full object-cover" />

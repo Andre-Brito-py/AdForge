@@ -16,6 +16,7 @@ import { directMotion } from "@/services/ai/motion";
 import { applyLogoToImage, loadLogoPng } from "./brand-assets";
 import { hasImageProvider, hasVideoProvider, imageEngine, videoKeys } from "./ai-engine";
 import { buildImageRightsRecord } from "./image-rights";
+import { assertCurrentTerms } from "./terms";
 import { defaultProviderPrices, estimateVariationUsd, resolveProviderPrices } from "./provider-pricing";
 import { isBillingMessage, pausedProviders, providerOfCreative, reportIfBillingProblem, resolveAlert } from "./admin-alerts";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
@@ -91,6 +92,7 @@ export async function createCampaign(
   input: z.infer<typeof campaignSchema>,
   fingerprint: { ipAddress: string | null; userAgent: string | null } = { ipAddress: null, userAgent: null }
 ) {
+  assertCurrentTerms(user);
   const product = await db.product.findFirst({ where: { id: input.productId, workspaceId: user.workspaceId } });
   if (!product) throw new HttpError(404, "errors.productNotFound");
 
@@ -265,6 +267,7 @@ export async function createCampaign(
 
 /** Gera mais uma variação visual para uma campanha existente. */
 export async function regenerateCreative(user: SessionUser, campaignId: string, baseCreativeId: string | null, instructions: string | null) {
+  assertCurrentTerms(user);
   const campaign = await db.campaign.findFirst({
     where: { id: campaignId, workspaceId: user.workspaceId },
     include: { creatives: true },

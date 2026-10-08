@@ -217,6 +217,15 @@
       "connection": "Erro de conexão.",
       "errorHelp": "Entre na sua conta e use o botão “Reenviar link” no aviso do topo da página.",
       "signIn": "Entrar"
+    },
+    "acceptTerms": {
+      "title": "Antes de continuar",
+      "subtitle": "Para usar o Vysify, leia e aceite os Termos de Uso e a Política de Privacidade.",
+      "titleUpdated": "Atualizamos nossos termos",
+      "subtitleUpdated": "Os Termos de Uso e a Política de Privacidade foram atualizados em {date}. Leia e aceite para continuar.",
+      "submit": "Aceitar e continuar",
+      "signOut": "Sair da conta",
+      "error": "Não foi possível registrar o aceite. Tente de novo."
     }
   },
   "onboarding": {
@@ -746,7 +755,8 @@
       "plan": "Este cupom não vale para este pacote.",
       "currency": "Este cupom não vale para esta moeda.",
       "tooLow": "O desconto deste cupom é maior que o valor permitido para este pacote."
-    }
+    },
+    "termsRequired": "Aceite os Termos de Uso atualizados para continuar."
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",

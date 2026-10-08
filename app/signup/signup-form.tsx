@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { AuthShell, Divider, GoogleButton } from "@/components/auth/auth-shell";
 import { buttonClass } from "@/components/app/ui-bits";
 
-export function SignupForm({ googleEnabled, signupCredits }: { googleEnabled: boolean; signupCredits: number }) {
+export function SignupForm({ googleEnabled, signupCredits, termsVersion }: { googleEnabled: boolean; signupCredits: number; termsVersion: string }) {
   const t = useTranslations("auth");
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -50,9 +50,15 @@ export function SignupForm({ googleEnabled, signupCredits }: { googleEnabled: bo
     >
       {googleEnabled && (
         <>
-          <GoogleButton disabled={loading} onClick={() => {
+          <GoogleButton disabled={loading} onClick={async () => {
             if (!accept) return setError(t("signup.errors.acceptTerms"));
             setLoading(true);
+            // Registra o aceite antes de sair para o Google (a conta é criada na volta).
+            await fetch("/api/legal/accept", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ accept: true, version: termsVersion }),
+            }).catch(() => undefined);
             signIn("google", { callbackUrl: "/onboarding" });
           }} />
           <p className="mt-2 text-center text-xs text-muted-foreground">{t("signup.googleNotice")}</p>

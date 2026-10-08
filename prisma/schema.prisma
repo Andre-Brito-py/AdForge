@@ -31,6 +31,9 @@ model User {
   locale              String    @default("pt")
   // País detectado no cadastro (ISO 3166-1 alpha-2), para moeda/impostos
   country             String?
+  // Versão dos Termos/Privacidade aceita por último (ver lib/terms.ts e ConsentRecord)
+  termsVersion        String?
+  termsAcceptedAt     DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -245,6 +248,24 @@ model Creative {
   publications Publication[]
 
   @@index([campaignId])
+}
+
+/// Prova do aceite dos Termos de Uso e da Política de Privacidade (versão, data, IP e navegador).
+/// Sem chave estrangeira: precisa sobreviver à exclusão da conta pelo prazo de guarda (5 anos, ver lib/terms.ts).
+model ConsentRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  userEmail String
+  version   String
+  // signup_email, signup_google, reaccept
+  method    String
+  locale    String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 /// Prova da declaração de autorização de uso de imagem (Código Civil art. 20; LGPD art. 7º, VI e art. 16).

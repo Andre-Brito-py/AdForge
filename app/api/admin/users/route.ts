@@ -12,7 +12,7 @@ export const GET = handler(async (request: Request) => {
     orderBy: { createdAt: "desc" },
     take: 50,
     select: {
-      id: true, email: true, name: true, role: true, createdAt: true, emailVerified: true, twoFactorEnabled: true,
+      id: true, email: true, name: true, role: true, createdAt: true, emailVerified: true, twoFactorEnabled: true, termsVersion: true, termsAcceptedAt: true,
       workspaces: { take: 1, select: { workspace: { select: { id: true, creditBalance: { select: { balance: true } }, _count: { select: { campaigns: true } } } } } },
     },
   });
@@ -26,6 +26,8 @@ export const GET = handler(async (request: Request) => {
       createdAt: u.createdAt,
       emailVerified: !!u.emailVerified,
       twoFactorEnabled: u.twoFactorEnabled,
+      termsVersion: u.termsVersion,
+      termsAcceptedAt: u.termsAcceptedAt,
       workspaceId: u.workspaces[0]?.workspace.id || null,
       balance: u.workspaces[0]?.workspace.creditBalance?.balance ?? 0,
       campaigns: u.workspaces[0]?.workspace._count.campaigns ?? 0,

@@ -5,6 +5,7 @@ import { advancePendingPublications } from "@/lib/publishing";
 import { purgeOldRateLimits } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { imageRightsCutoff } from "@/lib/image-rights";
+import { consentCutoff } from "@/lib/terms";
 
 export const maxDuration = 300;
 
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
   await db.authToken.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
   // Fim do prazo de guarda das declarações de autorização de imagem (LGPD art. 16: não guardar além do necessário).
   await db.imageRightsRecord.deleteMany({ where: { createdAt: { lt: imageRightsCutoff() } } });
+  // Provas de aceite dos Termos: guardadas 5 anos depois que a conta deixa de existir (contas ativas mantêm todas).
+  await db.$executeRaw`DELETE FROM "ConsentRecord" c WHERE c."createdAt" < ${consentCutoff()} AND NOT EXISTS (SELECT 1 FROM "User" u WHERE u.id = c."userId")`;
 
   return NextResponse.json({ ok: true, advanced, publications });
 }

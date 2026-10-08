@@ -215,7 +215,7 @@ function Overview() {
 }
 
 // ---------------- Usuários ----------------
-interface AdminUser { id: string; email: string; name: string | null; role: string; createdAt: string; emailVerified: boolean; twoFactorEnabled: boolean; balance: number; campaigns: number }
+interface AdminUser { id: string; email: string; name: string | null; role: string; createdAt: string; emailVerified: boolean; twoFactorEnabled: boolean; termsVersion: string | null; termsAcceptedAt: string | null; balance: number; campaigns: number }
 
 function UsersTab() {
   const [q, setQ] = useState("");
@@ -258,7 +258,11 @@ function UsersTab() {
                 <tr key={u.id}>
                   <td className="px-4 py-3"><p className="font-medium">{u.name || "—"}{u.role === "SUPERADMIN" && <span className="ml-2 rounded bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand">ADMIN</span>}</p><p className="text-xs text-muted-foreground">{u.email}</p></td>
                   <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDateTime(u.createdAt)}</td>
-                  <td className="px-4 py-3 text-xs">{u.emailVerified ? "E-mail ok" : "Não verificado"}{u.twoFactorEnabled ? " · 2FA" : ""}</td>
+                  <td className="px-4 py-3 text-xs">{u.emailVerified ? "E-mail ok" : "Não verificado"}{u.twoFactorEnabled ? " · 2FA" : ""}
+                    <span className="block text-muted-foreground" title={u.termsAcceptedAt ? `Aceite registrado em ${formatDateTime(u.termsAcceptedAt)}` : undefined}>
+                      {u.termsVersion ? `Termos v${u.termsVersion}` : "Termos pendentes"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 tabular-nums">{u.campaigns}</td>
                   <td className="px-4 py-3 tabular-nums">{u.balance}</td>
                   <td className="px-4 py-3 text-right"><button onClick={() => setAdjust({ user: u, amount: "", reason: "" })} className={buttonClass("outline", "sm")}>Ajustar créditos</button></td>

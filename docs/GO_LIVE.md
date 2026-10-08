@@ -97,7 +97,14 @@ O `CRON_SECRET` também protege `POST /api/jobs/run`: cada variação de uma cam
 
 - Uptime: aponte o UptimeRobot ou o Better Stack para `/api/health`.
 - Provedores de IA sem saldo: alerta no topo do painel admin e e-mail para os super admins (exige o Resend configurado).
-- Erros: recomendo adicionar o Sentry (`npx @sentry/wizard@latest -i nextjs`), que precisa da sua conta.
+- Erros (Sentry): o código já está pronto e desligado. Crie um projeto Next.js em sentry.io e defina na Vercel `SENTRY_DSN` e `NEXT_PUBLIC_SENTRY_DSN` (o mesmo DSN), depois faça um novo deploy. Só a mensagem do erro, a página e o navegador são enviados (sem usuário, cookies, corpo ou query string); a Política de Privacidade já cita o Sentry.
+- CI: a cada push, o GitHub Actions (`.github/workflows/ci.yml`) roda tipos, lint, testes (com um Postgres descartável) e o build. Ative em **Settings › Branches** a regra "Require status checks" na `main` para bloquear merge com falha.
+
+## 8.1 Aceite dos Termos
+
+- O cadastro (e-mail ou Google) registra a versão aceita, a data, o IP e o navegador (`ConsentRecord`, guardado 5 anos após a exclusão da conta).
+- Ao mudar os Termos ou a Privacidade de forma relevante, troque `TERMS_VERSION` em `lib/terms.ts` e a data em `lib/company.ts`: no próximo acesso, cada cliente aceita a nova versão antes de continuar (e nada que gere cobrança funciona sem esse aceite).
+- **Admin › Usuários** mostra a versão aceita por cada um. O registro também aparece na exportação de dados do cliente (LGPD).
 
 ## 9. Jurídico
 
@@ -133,4 +140,4 @@ A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie
 - Criação de anúncios pagos na Meta (Marketing API, permissão `ads_management`).
 - Assinaturas recorrentes (hoje são pacotes avulsos).
 - Convites para mais de um membro por workspace.
-- Monitoramento de erros (Sentry), que depende da sua conta.
+- Nota fiscal de serviço (NFS-e) automática nas vendas em reais (depende da escolha do emissor).

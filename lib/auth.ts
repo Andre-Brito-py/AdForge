@@ -14,6 +14,7 @@ import { rateLimit } from "./rate-limit";
 import { createUserWithWorkspace, getWorkspaceIdForUser } from "./users";
 import { HttpError } from "./api";
 import { sendWelcomeEmail } from "@/services/email";
+import { consumePreAccept, recordTermsAcceptance } from "./terms";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
@@ -134,6 +135,9 @@ export const authOptions: NextAuthOptions = {
           emailVerified: new Date(),
           ...origin,
         });
+        // Aceite marcado na tela de cadastro antes de ir ao Google. Sem ele (ex.: Google pela tela de login),
+        // a conta é criada e o aceite é pedido no primeiro acesso (/accept-terms).
+        if (await consumePreAccept()) await recordTermsAcceptance(created, "signup_google");
         sendWelcomeEmail(created.email, created.name || "", created.locale).catch(console.error);
       } else if (!existing.emailVerified) {
         // O Google provou a posse do e-mail. Uma senha definida antes disso pode ter sido criada
@@ -191,7 +195,7 @@ async function loadSessionUser() {
       id: true, email: true, name: true, image: true, role: true,
       emailVerified: true, onboardingCompleted: true, twoFactorEnabled: true,
       sessionVersion: true, passwordHash: true, notifyOnComplete: true, marketingOptIn: true,
-      locale: true, country: true,
+      locale: true, country: true, termsVersion: true,
     },
   });
   // Sessão de um usuário apagado ou invalidada por troca de senha.

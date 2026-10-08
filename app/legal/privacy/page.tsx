@@ -57,6 +57,7 @@ async function PrivacyPt() {
         <li>Pagamentos: Mercado Pago e Stripe;</li>
         <li>Meta Platforms (Facebook e Instagram): recebe a imagem ou o vídeo e a legenda que você decidir publicar, na conta que você escolher;</li>
         <li>Infraestrutura: Vercel (hospedagem), Supabase (banco de dados e armazenamento) e Resend (e-mails transacionais).</li>
+        <li>Monitoramento de erros: Sentry (Functional Software, EUA), que recebe apenas a mensagem técnica do erro, a página e o tipo de navegador, sem nome, e-mail, cookies ou conteúdo enviado por você.</li>
       </ul>
       <p>
         Alguns desses provedores processam dados fora do Brasil. Nesses casos, a transferência ocorre com base em cláusulas contratuais e nas garantias

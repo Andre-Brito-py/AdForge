@@ -9,5 +9,5 @@ export async function getCompany() {
   return (await getAppConfig()).settings.company;
 }
 
-export const LEGAL_UPDATED_AT = "2 de outubro de 2026";
-export const LEGAL_UPDATED_AT_EN = "October 2, 2026";
+export const LEGAL_UPDATED_AT = "8 de outubro de 2026";
+export const LEGAL_UPDATED_AT_EN = "October 8, 2026";

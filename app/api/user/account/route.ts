@@ -11,7 +11,7 @@ import { revokePermissions } from "@/lib/meta/graph";
 // LGPD (art. 18, V): portabilidade. Exporta os dados pessoais e de uso da conta em JSON.
 export const GET = handler(async () => {
   const user = await requireApiUser();
-  const [profile, products, campaigns, transactions, payments, brand, imageRightsDeclarations] = await Promise.all([
+  const [profile, products, campaigns, transactions, payments, brand, imageRightsDeclarations, termsAcceptances] = await Promise.all([
     db.user.findUnique({
       where: { id: user.id },
       select: { email: true, name: true, createdAt: true, emailVerified: true, onboardingRole: true, onboardingGoal: true, notifyOnComplete: true, marketingOptIn: true },
@@ -22,9 +22,10 @@ export const GET = handler(async () => {
     db.payment.findMany({ where: { userId: user.id } }),
     db.brandKit.findUnique({ where: { workspaceId: user.workspaceId } }),
     db.imageRightsRecord.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+    db.consentRecord.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
   ]);
 
-  const body = JSON.stringify({ exportedAt: new Date().toISOString(), profile, brand, products, campaigns, transactions, payments, imageRightsDeclarations }, null, 2);
+  const body = JSON.stringify({ exportedAt: new Date().toISOString(), profile, brand, products, campaigns, transactions, payments, imageRightsDeclarations, termsAcceptances }, null, 2);
   return new NextResponse(body, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",

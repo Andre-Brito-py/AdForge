@@ -217,6 +217,15 @@
       "connection": "Connection error.",
       "errorHelp": "Sign in and use the “Resend link” button in the notice at the top of the page.",
       "signIn": "Sign in"
+    },
+    "acceptTerms": {
+      "title": "Before you continue",
+      "subtitle": "To use Vysify, please read and accept the Terms of Service and the Privacy Policy.",
+      "titleUpdated": "We've updated our terms",
+      "subtitleUpdated": "The Terms of Service and the Privacy Policy were updated on {date}. Please read and accept them to continue.",
+      "submit": "Accept and continue",
+      "signOut": "Sign out",
+      "error": "We couldn't record your acceptance. Please try again."
     }
   },
   "onboarding": {
@@ -746,7 +755,8 @@
       "plan": "This coupon doesn't apply to this pack.",
       "currency": "This coupon doesn't apply to this currency.",
       "tooLow": "This coupon's discount exceeds what is allowed for this pack."
-    }
+    },
+    "termsRequired": "Please accept the updated Terms of Service to continue."
   },
   "validation": {
     "emailInvalid": "Invalid email.",

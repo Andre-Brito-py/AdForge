@@ -30,7 +30,7 @@ export default async function DashboardPage() {
       take: 6,
       include: {
         product: { select: { name: true, originalImageUrl: true } },
-        creatives: { where: { type: { in: ["IMAGE", "VIDEO"] }, status: "COMPLETED" }, take: 1, select: { outputUrl: true, type: true } },
+        creatives: { where: { type: { in: ["IMAGE", "VIDEO"] }, status: "COMPLETED" }, take: 1, select: { outputUrl: true, type: true, thumbnailUrl: true } },
       },
     }),
   ]);
@@ -96,11 +96,11 @@ export default async function DashboardPage() {
               return (
                 <Link key={c.id} href={c.status === "GENERATING" ? `/campaigns/${c.id}/generating` : `/campaigns/${c.id}`} className="surface group overflow-hidden transition hover:border-foreground/20">
                   <div className="relative aspect-[4/3] bg-muted">
-                    {cover?.type === "VIDEO" && cover.outputUrl ? (
+                    {cover?.type === "VIDEO" && cover.outputUrl && !cover.thumbnailUrl ? (
                       <video src={cover.outputUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={cover?.outputUrl || c.product.originalImageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                      <img src={(cover?.type === "VIDEO" ? cover.thumbnailUrl : cover?.outputUrl) || c.product.originalImageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                     )}
                     <div className="absolute left-3 top-3">
                       <StatusBadge status={c.status} />

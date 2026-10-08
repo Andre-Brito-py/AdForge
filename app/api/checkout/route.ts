@@ -9,6 +9,7 @@ import { appUrl } from "@/services/email";
 import { refundWindowDays } from "@/lib/locale";
 import { applyCoupon, CouponError, type AppliedCoupon } from "@/lib/coupons";
 import { stripeMode, stripePriceFor } from "@/lib/stripe-sync";
+import { assertCurrentTerms } from "@/lib/terms";
 
 const bodySchema = z.object({
   planId: z.string().min(1).max(60),
@@ -18,6 +19,7 @@ const bodySchema = z.object({
 
 export const POST = handler(async (request: Request) => {
   const user = await requireApiUser();
+  assertCurrentTerms(user);
   await enforceRateLimit(request, "checkout", 10, 15 * 60, user.id);
   const { planId, currency, coupon: couponCode } = await parseBody(request, bodySchema);
 

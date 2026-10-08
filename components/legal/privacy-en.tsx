@@ -40,6 +40,7 @@ export async function PrivacyEn() {
         <li>Payments: Stripe and Mercado Pago;</li>
         <li>Meta Platforms (Facebook and Instagram) — receives the image or video and caption you decide to publish, on the account you choose;</li>
         <li>Infrastructure: Vercel (hosting), Supabase (database and storage) and Resend (transactional email).</li>
+        <li>Error monitoring: Sentry (Functional Software, USA), which only receives the technical error message, the page and the browser type, with no name, email, cookies or content you submit.</li>
       </ul>
 
       <h2>4. International transfers</h2>

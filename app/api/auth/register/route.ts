@@ -7,6 +7,7 @@ import { hashPassword } from "@/lib/password";
 import { createUserWithWorkspace } from "@/lib/users";
 import { requestOrigin } from "@/lib/auth";
 import { issueAuthToken } from "@/lib/auth-tokens";
+import { recordTermsAcceptance } from "@/lib/terms";
 import { sendVerificationEmail, sendWelcomeEmail } from "@/services/email";
 
 export const POST = handler(async (request: Request) => {
@@ -25,6 +26,9 @@ export const POST = handler(async (request: Request) => {
     passwordHash: await hashPassword(data.password),
     ...(await requestOrigin()),
   });
+
+  // O schema exige acceptTerms === true: fica registrada a versão aceita, com data, IP e navegador.
+  await recordTermsAcceptance(user, "signup_email");
 
   const token = await issueAuthToken(user.id, "VERIFY_EMAIL");
   await Promise.all([

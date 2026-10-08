@@ -4,6 +4,7 @@ import { getAppConfig } from "@/lib/config";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { buttonClass } from "@/components/app/ui-bits";
 import { SignupForm } from "./signup-form";
+import { TERMS_VERSION } from "@/lib/terms";
 
 export async function generateMetadata() {
   return { title: (await getLocale()) === "en" ? "Create account" : "Criar conta" };
@@ -24,5 +25,5 @@ export default async function SignupPage() {
       </AuthShell>
     );
   }
-  return <SignupForm googleEnabled={googleLogin.active} signupCredits={signupCredits} />;
+  return <SignupForm googleEnabled={googleLogin.active} signupCredits={signupCredits} termsVersion={TERMS_VERSION} />;
 }
