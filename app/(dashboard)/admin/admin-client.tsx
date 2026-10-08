@@ -59,26 +59,27 @@ function useTr() {
 async function api(url: string, method = "GET", body?: unknown) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Erro na requisição");
+  if (!res.ok) throw new Error(data.error || "Erro / Error");
   return data;
 }
 
 const TABS = [
-  { id: "overview", label: "Visão geral", icon: BarChart3 },
-  { id: "users", label: "Usuários", icon: Users },
-  { id: "ai", label: "IA e custos", icon: KeyRound },
-  { id: "plans", label: "Pacotes", icon: Package },
-  { id: "coupons", label: "Cupons", icon: TicketPercent },
-  { id: "showcase", label: "Vitrine da landing", icon: Sparkles },
-  { id: "trial", label: "Teste grátis", icon: Gift },
-  { id: "payments", label: "Pagamentos", icon: CreditCard },
-  { id: "fiscal", label: "Fiscal", icon: FileText },
-  { id: "integrations", label: "Integrações", icon: Plug },
-  { id: "general", label: "Configurações gerais", icon: Settings2 },
-  { id: "imageRights", label: "Autorizações de imagem", icon: ShieldCheck },
+  { id: "overview", label: ["Visão geral", "Overview"], icon: BarChart3 },
+  { id: "users", label: ["Usuários", "Users"], icon: Users },
+  { id: "ai", label: ["IA e custos", "AI and costs"], icon: KeyRound },
+  { id: "plans", label: ["Pacotes", "Packs"], icon: Package },
+  { id: "coupons", label: ["Cupons", "Coupons"], icon: TicketPercent },
+  { id: "showcase", label: ["Vitrine da landing", "Landing showcase"], icon: Sparkles },
+  { id: "trial", label: ["Teste grátis", "Free trial"], icon: Gift },
+  { id: "payments", label: ["Pagamentos", "Payments"], icon: CreditCard },
+  { id: "fiscal", label: ["Fiscal", "Tax"], icon: FileText },
+  { id: "integrations", label: ["Integrações", "Integrations"], icon: Plug },
+  { id: "general", label: ["Configurações gerais", "General settings"], icon: Settings2 },
+  { id: "imageRights", label: ["Autorizações de imagem", "Image authorizations"], icon: ShieldCheck },
 ] as const;
 
 export function AdminClient({ baseUrl }: { baseUrl: string }) {
+  const tr = useTr();
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
   const [config, setConfig] = useState<ConfigResponse | null>(null);
 
@@ -87,11 +88,11 @@ export function AdminClient({ baseUrl }: { baseUrl: string }) {
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <nav className="flex gap-1 overflow-x-auto lg:w-52 lg:flex-col" aria-label="Seções do admin">
+      <nav className="flex gap-1 overflow-x-auto lg:w-52 lg:flex-col" aria-label={tr("Seções do admin", "Admin sections")}>
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
             className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${tab === t.id ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-            <t.icon className="h-4 w-4" /> {t.label}
+            <t.icon className="h-4 w-4" /> {tr(t.label[0], t.label[1])}
           </button>
         ))}
       </nav>
@@ -118,6 +119,7 @@ export function AdminClient({ baseUrl }: { baseUrl: string }) {
 interface ProviderAlert { provider: string; label: string; message: string; failures: number; since: string; lastFailureAt: string; paused: boolean; billingUrl: string | null }
 
 function ProviderAlerts() {
+  const tr = useTr();
   const [alerts, setAlerts] = useState<ProviderAlert[]>([]);
   const load = useCallback(() => api("/api/admin/alerts").then((d) => setAlerts(d.alerts)).catch(() => undefined), []);
   useEffect(() => {
@@ -129,7 +131,7 @@ function ProviderAlerts() {
   const resolve = async (provider: string) => {
     try {
       await api("/api/admin/alerts", "POST", { provider });
-      toast.success("Alerta encerrado: o provedor está liberado de novo");
+      toast.success(tr("Alerta encerrado: o provedor está liberado de novo", "Alert closed: the provider is enabled again"));
       load();
     } catch (e) {
       toast.error((e as Error).message);
@@ -144,12 +146,12 @@ function ProviderAlerts() {
           <div className="flex flex-wrap items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="font-semibold">{a.label}: sem saldo ou chave recusada</p>
+              <p className="font-semibold">{a.label}: {tr("sem saldo ou chave recusada", "out of balance or key rejected")}</p>
               <p className="text-muted-foreground">
-                {a.failures} falha(s) desde {formatDateTime(a.since)}.{" "}
+                {tr(`${a.failures} falha(s) desde ${formatDateTime(a.since)}.`, `${a.failures} failure(s) since ${formatDateTime(a.since)}.`)}{" "}
                 {a.paused
-                  ? "Gerações que dependem dele estão pausadas (os clientes não são cobrados)."
-                  : "A pausa acabou: a próxima geração vai testar de novo."}
+                  ? tr("Gerações que dependem dele estão pausadas (os clientes não são cobrados).", "Generations that depend on it are paused (customers aren't charged).")
+                  : tr("A pausa acabou: a próxima geração vai testar de novo.", "The pause is over: the next generation will try again.")}
               </p>
               <p className="break-words font-mono text-xs text-muted-foreground">{a.message}</p>
             </div>
@@ -157,10 +159,10 @@ function ProviderAlerts() {
           <div className="mt-3 flex flex-wrap gap-2 pl-8">
             {a.billingUrl && (
               <a href={a.billingUrl} target="_blank" rel="noreferrer" className={buttonClass("outline", "sm")}>
-                <ExternalLink className="h-3.5 w-3.5" /> Recarregar saldo
+                <ExternalLink className="h-3.5 w-3.5" /> {tr("Recarregar saldo", "Top up balance")}
               </a>
             )}
-            <button onClick={() => resolve(a.provider)} className={buttonClass("brand", "sm")}>Já recarreguei</button>
+            <button onClick={() => resolve(a.provider)} className={buttonClass("brand", "sm")}>{tr("Já recarreguei", "I've topped up")}</button>
           </div>
         </div>
       ))}
@@ -181,18 +183,19 @@ interface Overview {
 }
 
 function Overview() {
+  const tr = useTr();
   const [data, setData] = useState<Overview | null>(null);
   useEffect(() => { api("/api/admin/overview").then(setData).catch((e) => toast.error(e.message)); }, []);
   if (!data) return <Loading />;
 
   const money = (rows: Overview["revenue"]) => rows.length ? rows.map((r) => formatMoney(r.total, r.currency)).join(" + ") : formatMoney(0);
   const stats = [
-    ["Usuários", data.users.toLocaleString("pt-BR"), `+${data.newUsers30d} em 30 dias`],
-    ["Receita (30 dias)", money(data.revenue30d), `${data.revenue30d.reduce((a, r) => a + r.count, 0)} pagamentos`],
-    ["Receita total", money(data.revenue), `${data.revenue.reduce((a, r) => a + r.count, 0)} pagamentos`],
-    ["Custo estimado de IA (30d)", formatMoney(data.estimatedAiCostUsd30d, "USD"), "Estimativa por operação"],
-    ["Campanhas", data.campaigns.toLocaleString("pt-BR"), ""],
-    ["Criativos entregues", data.creatives.toLocaleString("pt-BR"), `${data.failedJobs30d} falhas em 30 dias`],
+    [tr("Usuários", "Users"), data.users.toLocaleString(), tr(`+${data.newUsers30d} em 30 dias`, `+${data.newUsers30d} in 30 days`)],
+    [tr("Receita (30 dias)", "Revenue (30 days)"), money(data.revenue30d), tr(`${data.revenue30d.reduce((a, r) => a + r.count, 0)} pagamentos`, `${data.revenue30d.reduce((a, r) => a + r.count, 0)} payments`)],
+    [tr("Receita total", "Total revenue"), money(data.revenue), tr(`${data.revenue.reduce((a, r) => a + r.count, 0)} pagamentos`, `${data.revenue.reduce((a, r) => a + r.count, 0)} payments`)],
+    [tr("Custo estimado de IA (30d)", "Estimated AI cost (30d)"), formatMoney(data.estimatedAiCostUsd30d, "USD"), tr("Estimativa por operação", "Estimate per operation")],
+    [tr("Campanhas", "Campaigns"), data.campaigns.toLocaleString(), ""],
+    [tr("Criativos entregues", "Creatives delivered"), data.creatives.toLocaleString(), tr(`${data.failedJobs30d} falhas em 30 dias`, `${data.failedJobs30d} failures in 30 days`)],
   ];
 
   return (
@@ -207,8 +210,8 @@ function Overview() {
         ))}
       </div>
       <div className="surface overflow-x-auto">
-        <h3 className="border-b border-border px-5 py-3 font-semibold">Últimos pagamentos</h3>
-        {data.recentPayments.length === 0 ? <p className="p-5 text-sm text-muted-foreground">Nenhum pagamento ainda.</p> : (
+        <h3 className="border-b border-border px-5 py-3 font-semibold">{tr("Últimos pagamentos", "Latest payments")}</h3>
+        {data.recentPayments.length === 0 ? <p className="p-5 text-sm text-muted-foreground">{tr("Nenhum pagamento ainda.", "No payments yet.")}</p> : (
           <table className="w-full text-sm">
             <tbody className="divide-y divide-border">
               {data.recentPayments.map((p) => (
@@ -232,6 +235,7 @@ function Overview() {
 interface AdminUser { id: string; email: string; name: string | null; role: string; createdAt: string; emailVerified: boolean; twoFactorEnabled: boolean; termsVersion: string | null; termsAcceptedAt: string | null; balance: number; campaigns: number }
 
 function UsersTab() {
+  const tr = useTr();
   const [q, setQ] = useState("");
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [adjust, setAdjust] = useState<{ user: AdminUser; amount: string; reason: string } | null>(null);
@@ -245,7 +249,7 @@ function UsersTab() {
     setSaving(true);
     try {
       await api(`/api/admin/users/${adjust.user.id}/credits`, "POST", { amount: Number(adjust.amount), reason: adjust.reason });
-      toast.success("Saldo ajustado");
+      toast.success(tr("Saldo ajustado", "Balance adjusted"));
       setAdjust(null);
       load(q);
     } catch (e) {
@@ -259,27 +263,27 @@ function UsersTab() {
     <div className="space-y-4">
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <input className="input-base pl-9" placeholder="Buscar por e-mail ou nome" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="input-base pl-9" placeholder={tr("Buscar por e-mail ou nome", "Search by email or name")} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       {!users ? <Loading /> : (
         <div className="surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-xs text-muted-foreground">
-              <tr><th className="px-4 py-3 font-medium">Usuário</th><th className="px-4 py-3 font-medium">Desde</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Campanhas</th><th className="px-4 py-3 font-medium">Saldo</th><th /></tr>
+              <tr><th className="px-4 py-3 font-medium">{tr("Usuário", "User")}</th><th className="px-4 py-3 font-medium">{tr("Desde", "Since")}</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">{tr("Campanhas", "Campaigns")}</th><th className="px-4 py-3 font-medium">{tr("Saldo", "Balance")}</th><th /></tr>
             </thead>
             <tbody className="divide-y divide-border">
               {users.map((u) => (
                 <tr key={u.id}>
                   <td className="px-4 py-3"><p className="font-medium">{u.name || "—"}{u.role === "SUPERADMIN" && <span className="ml-2 rounded bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand">ADMIN</span>}</p><p className="text-xs text-muted-foreground">{u.email}</p></td>
                   <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDateTime(u.createdAt)}</td>
-                  <td className="px-4 py-3 text-xs">{u.emailVerified ? "E-mail ok" : "Não verificado"}{u.twoFactorEnabled ? " · 2FA" : ""}
-                    <span className="block text-muted-foreground" title={u.termsAcceptedAt ? `Aceite registrado em ${formatDateTime(u.termsAcceptedAt)}` : undefined}>
-                      {u.termsVersion ? `Termos v${u.termsVersion}` : "Termos pendentes"}
+                  <td className="px-4 py-3 text-xs">{u.emailVerified ? tr("E-mail ok", "Email ok") : tr("Não verificado", "Not verified")}{u.twoFactorEnabled ? " · 2FA" : ""}
+                    <span className="block text-muted-foreground" title={u.termsAcceptedAt ? tr(`Aceite registrado em ${formatDateTime(u.termsAcceptedAt)}`, `Accepted on ${formatDateTime(u.termsAcceptedAt)}`) : undefined}>
+                      {u.termsVersion ? tr(`Termos v${u.termsVersion}`, `Terms v${u.termsVersion}`) : tr("Termos pendentes", "Terms pending")}
                     </span>
                   </td>
                   <td className="px-4 py-3 tabular-nums">{u.campaigns}</td>
                   <td className="px-4 py-3 tabular-nums">{u.balance}</td>
-                  <td className="px-4 py-3 text-right"><button onClick={() => setAdjust({ user: u, amount: "", reason: "" })} className={buttonClass("outline", "sm")}>Ajustar créditos</button></td>
+                  <td className="px-4 py-3 text-right"><button onClick={() => setAdjust({ user: u, amount: "", reason: "" })} className={buttonClass("outline", "sm")}>{tr("Ajustar créditos", "Adjust credits")}</button></td>
                 </tr>
               ))}
             </tbody>
@@ -288,15 +292,15 @@ function UsersTab() {
       )}
       {adjust && (
         <div className="surface space-y-3 p-5">
-          <p className="font-medium">Ajustar créditos de {adjust.user.email} (saldo atual: {adjust.user.balance})</p>
+          <p className="font-medium">{tr(`Ajustar créditos de ${adjust.user.email} (saldo atual: ${adjust.user.balance})`, `Adjust credits for ${adjust.user.email} (current balance: ${adjust.user.balance})`)}</p>
           <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
-            <input className="input-base" type="number" placeholder="+50 ou -20" value={adjust.amount} onChange={(e) => setAdjust({ ...adjust, amount: e.target.value })} />
-            <input className="input-base" placeholder="Motivo (fica no extrato do cliente)" value={adjust.reason} onChange={(e) => setAdjust({ ...adjust, reason: e.target.value })} />
+            <input className="input-base" type="number" placeholder={tr("+50 ou -20", "+50 or -20")} value={adjust.amount} onChange={(e) => setAdjust({ ...adjust, amount: e.target.value })} />
+            <input className="input-base" placeholder={tr("Motivo (fica no extrato do cliente)", "Reason (shown in the customer's statement)")} value={adjust.reason} onChange={(e) => setAdjust({ ...adjust, reason: e.target.value })} />
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setAdjust(null)} className={buttonClass("ghost")}>Cancelar</button>
+            <button onClick={() => setAdjust(null)} className={buttonClass("ghost")}>{tr("Cancelar", "Cancel")}</button>
             <button onClick={submitAdjust} disabled={saving || !Number(adjust.amount) || adjust.reason.length < 3} className={buttonClass("brand")}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Aplicar
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />} {tr("Aplicar", "Apply")}
             </button>
           </div>
         </div>
@@ -309,20 +313,25 @@ function UsersTab() {
 function SecretField({ label, field, info, value, onChange, help }: {
   label: string; field: string; info?: SecretInfo; value: string | null | undefined; onChange: (field: string, v: string | null | undefined) => void; help?: string;
 }) {
+  const tr = useTr();
   const removing = value === null;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <label htmlFor={field} className="label-base">{label}</label>
         <span className={`text-xs ${info?.configured ? "text-success" : "text-muted-foreground"}`}>
-          {removing ? "será removida" : info?.configured ? `configurada ${info.hint} (${info.source === "env" ? "variável de ambiente" : "painel"})` : "não configurada"}
+          {removing
+            ? tr("será removida", "will be removed")
+            : info?.configured
+              ? tr(`configurada ${info.hint} (${info.source === "env" ? "variável de ambiente" : "painel"})`, `set ${info.hint} (${info.source === "env" ? "environment variable" : "panel"})`)
+              : tr("não configurada", "not set")}
         </span>
       </div>
       <div className="flex gap-2">
-        <input id={field} type="password" autoComplete="off" className="input-base font-mono" placeholder={info?.configured ? "Deixe em branco para manter" : "Cole a chave"}
+        <input id={field} type="password" autoComplete="off" className="input-base font-mono" placeholder={info?.configured ? tr("Deixe em branco para manter", "Leave blank to keep") : tr("Cole a chave", "Paste the key")}
           value={typeof value === "string" ? value : ""} onChange={(e) => onChange(field, e.target.value || undefined)} />
         {info?.source === "painel" && (
-          <button type="button" onClick={() => onChange(field, removing ? undefined : null)} className={buttonClass("ghost")} title="Remover chave salva no painel">
+          <button type="button" onClick={() => onChange(field, removing ? undefined : null)} className={buttonClass("ghost")} title={tr("Remover chave salva no painel", "Remove key saved in the panel")}>
             <Trash2 className="h-4 w-4" />
           </button>
         )}
@@ -340,6 +349,7 @@ function useSecretDraft() {
 }
 
 function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => void }) {
+  const tr = useTr();
   const draft = useSecretDraft();
   const [costs, setCosts] = useState(config.costs);
   const [models, setModels] = useState(config.models);
@@ -349,7 +359,7 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
     setSaving(true);
     try {
       await api("/api/admin/config", "PUT", { secrets: draft.payload(), costs, models });
-      toast.success("Configurações salvas");
+      toast.success(tr("Configurações salvas", "Settings saved"));
       draft.reset();
       onSaved();
     } catch (e) {
@@ -359,10 +369,13 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
     }
   };
 
+  const textLabel = tr("Texto / estratégia / revisões", "Text / strategy / reviews");
+  const imageLabel = tr("Imagem (padrão)", "Image (standard)");
+  const imagePremiumLabel = tr("Imagem (premium e quadro de abertura)", "Image (premium and opening frame)");
   const modelGroups: { title: string; fields: Record<string, string> }[] = [
-    { title: "Google Gemini", fields: { text: "Texto / estratégia / revisões", image: "Imagem (padrão)", imagePremium: "Imagem (premium e quadro de abertura)" } },
-    { title: "OpenAI", fields: { openaiText: "Texto / estratégia / revisões", openaiImage: "Imagem (padrão)", openaiImagePremium: "Imagem (premium e quadro de abertura)" } },
-    { title: "Vídeo", fields: { video: "Vídeo (padrão)", videoPremium: "Vídeo (premium)", lipsync: "Lip-sync final (fal.ai)" } },
+    { title: "Google Gemini", fields: { text: textLabel, image: imageLabel, imagePremium: imagePremiumLabel } },
+    { title: "OpenAI", fields: { openaiText: textLabel, openaiImage: imageLabel, openaiImagePremium: imagePremiumLabel } },
+    { title: tr("Vídeo", "Video"), fields: { video: tr("Vídeo (padrão)", "Video (standard)"), videoPremium: tr("Vídeo (premium)", "Video (premium)"), lipsync: tr("Lip-sync final (fal.ai)", "Final lip-sync (fal.ai)") } },
   ];
   const providerOptions = [
     { value: "gemini", label: "Google Gemini", ok: config.secrets.geminiKey?.configured },
@@ -372,20 +385,24 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
   return (
     <div className="space-y-5">
       <section className="surface space-y-4 p-5 sm:p-6">
-        <h3 className="font-semibold">Chaves dos provedores</h3>
-        <p className="text-sm text-muted-foreground">Salvas criptografadas no banco. Por segurança, a chave nunca é exibida de novo, só os 4 últimos caracteres.</p>
-        <SecretField label="Google Gemini" field="geminiKey" info={config.secrets.geminiKey} value={draft.secrets.geminiKey} onChange={draft.change} help="Textos e/ou imagens (conforme “Qual IA usar”). aistudio.google.com — ative o faturamento para os modelos de imagem." />
-        <SecretField label="fal.ai (vídeo Wan)" field="wanKey" info={config.secrets.wanKey} value={draft.secrets.wanKey} onChange={draft.change} help="Obrigatória para vídeos. fal.ai/dashboard/keys" />
-        <SecretField label="ElevenLabs (locução)" field="elevenLabsKey" info={config.secrets.elevenLabsKey} value={draft.secrets.elevenLabsKey} onChange={draft.change} help="Opcional: locução dos vídeos." />
-        <SecretField label="OpenAI" field="openAiKey" info={config.secrets.openAiKey} value={draft.secrets.openAiKey} onChange={draft.change} help="Textos e/ou imagens (conforme “Qual IA usar”); também reserva da locução. platform.openai.com/api-keys" />
+        <h3 className="font-semibold">{tr("Chaves dos provedores", "Provider keys")}</h3>
+        <p className="text-sm text-muted-foreground">{tr("Salvas criptografadas no banco. Por segurança, a chave nunca é exibida de novo, só os 4 últimos caracteres.", "Stored encrypted in the database. For security, a key is never shown again, only its last 4 characters.")}</p>
+        <SecretField label="Google Gemini" field="geminiKey" info={config.secrets.geminiKey} value={draft.secrets.geminiKey} onChange={draft.change}
+          help={tr("Textos e/ou imagens (conforme “Qual IA usar”) e o vídeo Veo. aistudio.google.com — ative o faturamento.", "Text and/or images (per “Which AI to use”) and Veo video. aistudio.google.com — enable billing.")} />
+        <SecretField label={tr("fal.ai (vídeo Wan/Kling e lip-sync)", "fal.ai (Wan/Kling video and lip-sync)")} field="wanKey" info={config.secrets.wanKey} value={draft.secrets.wanKey} onChange={draft.change}
+          help={tr("Vídeos com Wan ou Kling e o lip-sync final. fal.ai/dashboard/keys", "Wan or Kling videos and the final lip-sync. fal.ai/dashboard/keys")} />
+        <SecretField label={tr("ElevenLabs (locução)", "ElevenLabs (voiceover)")} field="elevenLabsKey" info={config.secrets.elevenLabsKey} value={draft.secrets.elevenLabsKey} onChange={draft.change}
+          help={tr("Opcional: locução dos vídeos (plano Creator ou superior para uso comercial).", "Optional: video voiceover (Creator plan or higher for commercial use).")} />
+        <SecretField label="OpenAI" field="openAiKey" info={config.secrets.openAiKey} value={draft.secrets.openAiKey} onChange={draft.change}
+          help={tr("Textos e/ou imagens (conforme “Qual IA usar”); também reserva da locução. platform.openai.com/api-keys", "Text and/or images (per “Which AI to use”); also voiceover fallback. platform.openai.com/api-keys")} />
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
-        <h3 className="font-semibold">Custos em créditos</h3>
+        <h3 className="font-semibold">{tr("Custos em créditos", "Costs in credits")}</h3>
         <div className="grid gap-4 sm:grid-cols-3">
-          <NumberField label="Imagem" value={costs.image} onChange={(v) => setCosts({ ...costs, image: v })} />
-          <NumberField label="Vídeo (a cada 5 s)" value={costs.video} onChange={(v) => setCosts({ ...costs, video: v })} />
-          <NumberField label="Multiplicador Premium" value={costs.premiumMultiplier} step={0.5} onChange={(v) => setCosts({ ...costs, premiumMultiplier: v })} />
+          <NumberField label={tr("Imagem", "Image")} value={costs.image} onChange={(v) => setCosts({ ...costs, image: v })} />
+          <NumberField label={tr("Vídeo (a cada 5 s)", "Video (per 5 s)")} value={costs.video} onChange={(v) => setCosts({ ...costs, video: v })} />
+          <NumberField label={tr("Multiplicador Premium", "Premium multiplier")} value={costs.premiumMultiplier} step={0.5} onChange={(v) => setCosts({ ...costs, premiumMultiplier: v })} />
         </div>
       </section>
 
@@ -393,25 +410,25 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
 
       <section className="surface space-y-4 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">Qual IA usar</h3>
+          <h3 className="font-semibold">{tr("Qual IA usar", "Which AI to use")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Escolha o provedor de cada tarefa. Se ele falhar ou estiver sem chave, o outro (com chave) entra como reserva automaticamente.
+            {tr("Escolha o provedor de cada tarefa. Se ele falhar ou estiver sem chave, o outro (com chave) entra como reserva automaticamente.", "Pick the provider for each task. If it fails or has no key, the other one (with a key) takes over automatically.")}
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {([["textProvider", "Textos, estratégia, moderação e revisões"], ["imageProvider", "Imagens e quadro de abertura dos vídeos"]] as const).map(([k, label]) => (
+          {([["textProvider", tr("Textos, estratégia, moderação e revisões", "Text, strategy, moderation and reviews")], ["imageProvider", tr("Imagens e quadro de abertura dos vídeos", "Images and video opening frames")]] as const).map(([k, label]) => (
             <div key={k} className="space-y-1.5">
               <label className="label-base" htmlFor={`p-${k}`}>{label}</label>
               <select id={`p-${k}`} className="input-base" value={String(models[k] || config.defaultModels[k])} onChange={(e) => setModels({ ...models, [k]: e.target.value })}>
                 {providerOptions.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}{o.ok ? "" : " (sem chave)"}</option>
+                  <option key={o.value} value={o.value}>{o.label}{o.ok ? "" : tr(" (sem chave)", " (no key)")}</option>
                 ))}
               </select>
             </div>
           ))}
         </div>
         <div className="space-y-1.5">
-          <label className="label-base" htmlFor="p-video">Vídeos</label>
+          <label className="label-base" htmlFor="p-video">{tr("Vídeos", "Videos")}</label>
           <select
             id="p-video"
             className="input-base"
@@ -421,20 +438,22 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
             {VIDEO_MODEL_PRESETS.map((p) => {
               const veo = p.id.startsWith("veo-");
               const ok = veo ? config.secrets.geminiKey?.configured : config.secrets.wanKey?.configured;
-              return <option key={p.id} value={p.id}>{p.label}{ok ? "" : veo ? " (sem chave do Gemini)" : " (sem chave da fal.ai)"}</option>;
+              return <option key={p.id} value={p.id}>{p.label}{ok ? "" : veo ? tr(" (sem chave do Gemini)", " (no Gemini key)") : tr(" (sem chave da fal.ai)", " (no fal.ai key)")}</option>;
             })}
-            <option value="custom">Outro modelo (campo “Vídeo” abaixo)</option>
+            <option value="custom">{tr("Outro modelo (campo “Vídeo” abaixo)", "Other model (“Video” field below)")}</option>
           </select>
           <p className="text-xs text-muted-foreground">
-            Wan usa a chave da fal.ai; Veo usa a chave do Gemini (com faturamento ativo). Vale para padrão e premium; ajuste os modelos individualmente abaixo, se quiser.
+            {tr("Wan e Kling usam a chave da fal.ai; Veo usa a chave do Gemini (com faturamento ativo). Vale para padrão e premium; ajuste os modelos individualmente abaixo, se quiser.", "Wan and Kling use the fal.ai key; Veo uses the Gemini key (with billing on). Applies to standard and premium; tweak each model below if you want.")}
           </p>
         </div>
         <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border p-4">
           <span>
-            <span className="block font-medium">Lip-sync final nos vídeos com apresentador</span>
+            <span className="block font-medium">{tr("Lip-sync final nos vídeos com apresentador", "Final lip-sync on presenter videos")}</span>
             <span className="block text-sm text-muted-foreground">
-              Quando alguém fala no vídeo, um modelo especializado refaz a boca no vídeo inteiro, sincronizada com a locução desde o primeiro quadro.
-              Recomendado: sem ele, o modelo de vídeo às vezes deixa a pessoa calada nos primeiros segundos. Custo extra na fal.ai por vídeo.
+              {tr(
+                "Quando alguém fala no vídeo, um modelo especializado refaz a boca no vídeo inteiro, sincronizada com a locução desde o primeiro quadro. Recomendado: sem ele, o modelo de vídeo às vezes deixa a pessoa calada nos primeiros segundos. Custo extra na fal.ai por vídeo.",
+                "When someone speaks in the video, a specialized model redoes the mouth across the whole video, synced with the voiceover from the first frame. Recommended: without it, the video model sometimes leaves the person silent in the first seconds. Extra fal.ai cost per video."
+              )}
             </span>
           </span>
           <Switch checked={models.lipsyncEnabled !== false} onChange={(v) => setModels({ ...models, lipsyncEnabled: v })} />
@@ -443,8 +462,8 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
 
       <section className="surface space-y-5 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">Modelos</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Troque quando um provedor lançar uma versão nova, sem precisar de deploy.</p>
+          <h3 className="font-semibold">{tr("Modelos", "Models")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{tr("Troque quando um provedor lançar uma versão nova, sem precisar de deploy.", "Change them when a provider ships a new version, no deploy needed.")}</p>
         </div>
         {modelGroups.map((g) => (
           <div key={g.title} className="space-y-3">
@@ -462,24 +481,24 @@ function AiTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => voi
       </section>
 
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
       </button>
     </div>
   );
 }
 
 // ---------------- Custo real e margem ----------------
-const PRICE_FIELDS: { key: keyof ProviderPrices; label: string; step: number }[] = [
-  { key: "videoPerSecond", label: "Vídeo padrão (US$/s)", step: 0.01 },
-  { key: "videoPremiumPerSecond", label: "Vídeo premium (US$/s)", step: 0.01 },
-  { key: "lipsyncPerSecond", label: "Lip-sync final (US$/s)", step: 0.005 },
-  { key: "image", label: "Imagem padrão (US$)", step: 0.005 },
-  { key: "imagePremium", label: "Imagem premium (US$)", step: 0.005 },
-  { key: "keyframe", label: "Quadro de abertura do vídeo (US$)", step: 0.005 },
-  { key: "voicePerVideo", label: "Locução de 20 s (US$)", step: 0.01 },
-  { key: "textPerVariation", label: "Textos/revisões por variação (US$)", step: 0.005 },
-  { key: "brlPerUsd", label: "Cotação R$ por US$", step: 0.05 },
-  { key: "eurPerUsd", label: "Cotação € por US$", step: 0.01 },
+const PRICE_FIELDS: { key: keyof ProviderPrices; label: [string, string]; step: number }[] = [
+  { key: "videoPerSecond", label: ["Vídeo padrão (US$/s)", "Standard video (US$/s)"], step: 0.01 },
+  { key: "videoPremiumPerSecond", label: ["Vídeo premium (US$/s)", "Premium video (US$/s)"], step: 0.01 },
+  { key: "lipsyncPerSecond", label: ["Lip-sync final (US$/s)", "Final lip-sync (US$/s)"], step: 0.005 },
+  { key: "image", label: ["Imagem padrão (US$)", "Standard image (US$)"], step: 0.005 },
+  { key: "imagePremium", label: ["Imagem premium (US$)", "Premium image (US$)"], step: 0.005 },
+  { key: "keyframe", label: ["Quadro de abertura do vídeo (US$)", "Video opening frame (US$)"], step: 0.005 },
+  { key: "voicePerVideo", label: ["Locução de 20 s (US$)", "20 s voiceover (US$)"], step: 0.01 },
+  { key: "textPerVariation", label: ["Textos/revisões por variação (US$)", "Text/reviews per variation (US$)"], step: 0.005 },
+  { key: "brlPerUsd", label: ["Cotação R$ por US$", "BRL per USD rate"], step: 0.05 },
+  { key: "eurPerUsd", label: ["Cotação € por US$", "EUR per USD rate"], step: 0.01 },
 ];
 
 type Costs = ConfigResponse["costs"];
@@ -487,6 +506,7 @@ type Costs = ConfigResponse["costs"];
 function MarginSection({ costs, setCosts, models, plans, hasFal }: {
   costs: Costs; setCosts: (c: Costs) => void; models: Record<string, string | boolean>; plans: Plan[]; hasFal: boolean;
 }) {
+  const tr = useTr();
   const [target, setTarget] = useState(60);
   const m = Object.fromEntries(Object.entries(models).map(([k, v]) => [k, String(v)])) as Parameters<typeof defaultProviderPrices>[0];
   const defaults = defaultProviderPrices(m);
@@ -497,11 +517,11 @@ function MarginSection({ costs, setCosts, models, plans, hasFal }: {
     estimateVariationUsd(prices, { media, premium, seconds, videoModel: premium ? m.videoPremium : m.video, lipsync });
 
   const rows = [
-    { label: "Imagem", credits: costs.image, cost: est("IMAGE", false) },
-    { label: "Imagem premium", credits: Math.ceil(costs.image * costs.premiumMultiplier), cost: est("IMAGE", true) },
-    { label: "Vídeo 10 s", credits: costs.video * 2, cost: est("VIDEO", false, 10) },
-    { label: "Vídeo 20 s", credits: costs.video * 4, cost: est("VIDEO", false, 20) },
-    { label: "Vídeo 20 s premium", credits: Math.ceil(costs.video * 4 * costs.premiumMultiplier), cost: est("VIDEO", true, 20) },
+    { label: tr("Imagem", "Image"), credits: costs.image, cost: est("IMAGE", false) },
+    { label: tr("Imagem premium", "Premium image"), credits: Math.ceil(costs.image * costs.premiumMultiplier), cost: est("IMAGE", true) },
+    { label: tr("Vídeo 10 s", "10 s video"), credits: costs.video * 2, cost: est("VIDEO", false, 10) },
+    { label: tr("Vídeo 20 s", "20 s video"), credits: costs.video * 4, cost: est("VIDEO", false, 20) },
+    { label: tr("Vídeo 20 s premium", "20 s premium video"), credits: Math.ceil(costs.video * 4 * costs.premiumMultiplier), cost: est("VIDEO", true, 20) },
   ];
 
   const setPrice = (key: keyof ProviderPrices, raw: string) => {
@@ -520,29 +540,32 @@ function MarginSection({ costs, setCosts, models, plans, hasFal }: {
     const ratio = Math.max(est("IMAGE", true) / est("IMAGE", false), est("VIDEO", true, 20) / est("VIDEO", false, 20));
     const premiumMultiplier = Math.min(10, Math.max(1, Math.ceil(ratio * 2) / 2));
     setCosts({ ...costs, image, video, premiumMultiplier });
-    toast.success(`Sugestão aplicada (margem de ${target}%): imagem ${image}, vídeo ${video} a cada 5 s, premium ×${premiumMultiplier}. Revise e salve; ajuste também os textos dos pacotes ("~X vídeos").`, { duration: 10_000 });
+    toast.success(tr(
+      `Sugestão aplicada (margem de ${target}%): imagem ${image}, vídeo ${video} a cada 5 s, premium ×${premiumMultiplier}. Revise e salve; ajuste também os textos dos pacotes ("~X vídeos").`,
+      `Suggestion applied (${target}% margin): image ${image}, video ${video} per 5 s, premium ×${premiumMultiplier}. Review and save; also update the pack texts ("~X videos").`
+    ), { duration: 10_000 });
   };
 
   return (
     <section className="surface space-y-5 p-5 sm:p-6">
       <div>
-        <h3 className="font-semibold">Custo real e margem</h3>
+        <h3 className="font-semibold">{tr("Custo real e margem", "Real cost and margin")}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Estimativa do que cada geração custa nos provedores, comparada com o que o cliente paga no pacote de crédito mais barato
-          {revenue ? ` (${plans[revenue.plan]?.name}: US$ ${revenue.usd.toFixed(4)} por crédito)` : ""}. Os valores vêm de uma tabela padrão por modelo;
-          confira nas faturas dos provedores e corrija abaixo quando precisar. Vídeo conta os segundos realmente gerados (o Veo estende 8 + 7 + 7 s),
-          o quadro de abertura, a locução{lipsync ? " e o lip-sync final" : ""}.
+          {tr(
+            `Estimativa do que cada geração custa nos provedores, comparada com o que o cliente paga no pacote de crédito mais barato${revenue ? ` (${plans[revenue.plan]?.name}: US$ ${revenue.usd.toFixed(4)} por crédito)` : ""}. Os valores vêm de uma tabela padrão por modelo; confira nas faturas dos provedores e corrija abaixo quando precisar. Vídeo conta os segundos realmente gerados (o Veo estende 8 + 7 + 7 s), o quadro de abertura, a locução${lipsync ? " e o lip-sync final" : ""}.`,
+            `Estimate of what each generation costs at the providers, compared with what the customer pays in the cheapest-per-credit pack${revenue ? ` (${plans[revenue.plan]?.name}: US$ ${revenue.usd.toFixed(4)} per credit)` : ""}. Values come from a default table per model; check the provider invoices and correct them below when needed. Video counts the seconds actually generated (Veo extends 8 + 7 + 7 s), the opening frame, the voiceover${lipsync ? " and the final lip-sync" : ""}.`
+          )}
         </p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-border text-left text-xs text-muted-foreground">
             <tr>
-              <th className="py-2 pr-4 font-medium">Geração</th>
-              <th className="py-2 pr-4 font-medium">Créditos</th>
-              <th className="py-2 pr-4 font-medium">Receita mínima</th>
-              <th className="py-2 pr-4 font-medium">Custo estimado</th>
-              <th className="py-2 font-medium">Margem</th>
+              <th className="py-2 pr-4 font-medium">{tr("Geração", "Generation")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Créditos", "Credits")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Receita mínima", "Minimum revenue")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Custo estimado", "Estimated cost")}</th>
+              <th className="py-2 font-medium">{tr("Margem", "Margin")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border tabular-nums">
@@ -556,7 +579,7 @@ function MarginSection({ costs, setCosts, models, plans, hasFal }: {
                   <td className="py-2 pr-4">{r.credits}</td>
                   <td className="py-2 pr-4">{revenue ? `US$ ${rev.toFixed(2)}` : "—"}</td>
                   <td className="py-2 pr-4">US$ {r.cost.toFixed(2)}</td>
-                  <td className={`py-2 ${tone}`}>{margin === null ? "—" : `${Math.round(margin * 100)}%${margin < 0 ? " (prejuízo)" : ""}`}</td>
+                  <td className={`py-2 ${tone}`}>{margin === null ? "—" : `${Math.round(margin * 100)}%${margin < 0 ? tr(" (prejuízo)", " (loss)") : ""}`}</td>
                 </tr>
               );
             })}
@@ -565,18 +588,18 @@ function MarginSection({ costs, setCosts, models, plans, hasFal }: {
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-36 space-y-1.5">
-          <label className="label-base" htmlFor="m-target">Margem alvo (%)</label>
+          <label className="label-base" htmlFor="m-target">{tr("Margem alvo (%)", "Target margin (%)")}</label>
           <input id="m-target" type="number" min={0} max={95} className="input-base tabular-nums" value={target} onChange={(e) => setTarget(Math.min(95, Math.max(0, Number(e.target.value))))} />
         </div>
-        <button onClick={suggest} disabled={!revenue} className={buttonClass("outline")}>Sugerir créditos para essa margem</button>
+        <button onClick={suggest} disabled={!revenue} className={buttonClass("outline")}>{tr("Sugerir créditos para essa margem", "Suggest credits for this margin")}</button>
       </div>
       <details className="rounded-xl border border-border p-4">
-        <summary className="cursor-pointer text-sm font-medium">Corrigir o custo dos provedores</summary>
-        <p className="mt-2 text-xs text-muted-foreground">Em branco = valor padrão do modelo escolhido (mostrado no campo).</p>
+        <summary className="cursor-pointer text-sm font-medium">{tr("Corrigir o custo dos provedores", "Correct provider costs")}</summary>
+        <p className="mt-2 text-xs text-muted-foreground">{tr("Em branco = valor padrão do modelo escolhido (mostrado no campo).", "Blank = default value for the chosen model (shown in the field).")}</p>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           {PRICE_FIELDS.map((f) => (
             <div key={f.key} className="space-y-1.5">
-              <label className="label-base" htmlFor={`usd-${f.key}`}>{f.label}</label>
+              <label className="label-base" htmlFor={`usd-${f.key}`}>{tr(f.label[0], f.label[1])}</label>
               <input id={`usd-${f.key}`} type="number" min={0} step={f.step} className="input-base tabular-nums"
                 placeholder={String(defaults[f.key])} value={costs.usd?.[f.key] ?? ""} onChange={(e) => setPrice(f.key, e.target.value)} />
             </div>
@@ -597,17 +620,19 @@ function NumberField({ label, value, onChange, step = 1 }: { label: string; valu
 }
 
 // ---------------- Pacotes ----------------
-function stripeToast(result: StripeSync | null | undefined, okText: string) {
-  if (!result?.configured) return toast.success(`${okText}. Stripe não configurada: os pacotes serão criados nela quando a chave for salva em Pagamentos.`);
-  const where = result.mode === "live" ? "produção" : "teste";
+function stripeToast(result: StripeSync | null | undefined, okText: string, en = false) {
+  const tr = (pt: string, english: string) => (en ? english : pt);
+  if (!result?.configured) return toast.success(tr(`${okText}. Stripe não configurada: os pacotes serão criados nela quando a chave for salva em Pagamentos.`, `${okText}. Stripe not set up: packs will be created there once the key is saved in Payments.`));
+  const where = result.mode === "live" ? tr("produção", "live") : tr("teste", "test");
   if (result.errors.length) {
-    return toast.error(`${okText}, mas a Stripe (${where}) recusou: ${result.errors.join(" · ")}`, { duration: 12_000 });
+    return toast.error(tr(`${okText}, mas a Stripe (${where}) recusou: ${result.errors.join(" · ")}`, `${okText}, but Stripe (${where}) rejected: ${result.errors.join(" · ")}`), { duration: 12_000 });
   }
-  toast.success(`${okText} e sincronizados com a Stripe (${where}): ${result.synced} pacote(s).`);
+  toast.success(tr(`${okText} e sincronizados com a Stripe (${where}): ${result.synced} pacote(s).`, `${okText} and synced with Stripe (${where}): ${result.synced} pack(s).`));
 }
 
 function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMode: "test" | "live" | null; onSaved: () => void }) {
   const tr = useTr();
+  const en = useLocale() === "en";
   const [plans, setPlans] = useState<Plan[]>(initial);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -619,7 +644,7 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
     try {
       const clean = plans.map((p) => ({ ...p, features_pt: p.features_pt.filter((f) => f.trim()), features_en: p.features_en.filter((f) => f.trim()) }));
       const res = await api("/api/admin/config", "PUT", { plans: clean });
-      stripeToast(res.stripe, "Pacotes salvos");
+      stripeToast(res.stripe, tr("Pacotes salvos", "Packs saved"), en);
       onSaved();
     } catch (e) {
       toast.error((e as Error).message);
@@ -631,7 +656,7 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
   const syncNow = async () => {
     setSyncing(true);
     try {
-      stripeToast(await api("/api/admin/stripe/sync", "POST"), "Sincronização concluída");
+      stripeToast(await api("/api/admin/stripe/sync", "POST"), tr("Sincronização concluída", "Sync complete"), en);
       onSaved();
     } catch (e) {
       toast.error((e as Error).message);
@@ -648,11 +673,11 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
     const dashboard = `https://dashboard.stripe.com/${stripeMode === "test" ? "test/" : ""}products/${saved?.stripe?.productId}`;
     return ok ? (
       <a href={dashboard} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-        Na Stripe ({stripeMode === "live" ? "produção" : "teste"}) <ExternalLink className="h-3 w-3" />
+        {tr("Na Stripe", "In Stripe")} ({stripeMode === "live" ? tr("produção", "live") : tr("teste", "test")}) <ExternalLink className="h-3 w-3" />
       </a>
     ) : (
       <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-        {saved ? "Ainda não está na Stripe" : "Novo: vai para a Stripe ao salvar"}
+        {saved ? tr("Ainda não está na Stripe", "Not in Stripe yet") : tr("Novo: vai para a Stripe ao salvar", "New: goes to Stripe on save")}
       </span>
     );
   };
@@ -662,12 +687,15 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
       <div className="surface flex flex-wrap items-center gap-3 p-4 text-sm">
         <p className="min-w-0 flex-1 text-muted-foreground">
           {stripeMode
-            ? <>Ao salvar, cada pacote vira um produto na Stripe ({stripeMode === "live" ? "produção" : "teste"}) com um preço por moeda. Mudar o preço cria um preço novo e arquiva o antigo; ocultar ou remover arquiva o produto. Quem já pagou não é afetado.</>
-            : <>Configure a Stripe em <strong>Pagamentos</strong> para os pacotes serem criados lá automaticamente. O Mercado Pago não precisa de cadastro de produto.</>}
+            ? tr(
+                `Ao salvar, cada pacote vira um produto na Stripe (${stripeMode === "live" ? "produção" : "teste"}) com um preço por moeda. Mudar o preço cria um preço novo e arquiva o antigo; ocultar ou remover arquiva o produto. Quem já pagou não é afetado.`,
+                `On save, each pack becomes a Stripe product (${stripeMode}) with one price per currency. Changing a price creates a new one and archives the old; hiding or removing archives the product. Past buyers aren't affected.`
+              )
+            : tr("Configure a Stripe em Pagamentos para os pacotes serem criados lá automaticamente. O Mercado Pago não precisa de cadastro de produto.", "Set up Stripe in Payments so packs are created there automatically. Mercado Pago needs no product setup.")}
         </p>
         {stripeMode && (
           <button onClick={syncNow} disabled={syncing} className={buttonClass("outline", "sm")}>
-            {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Sincronizar agora
+            {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} {tr("Sincronizar agora", "Sync now")}
           </button>
         )}
       </div>
@@ -675,14 +703,14 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
         <div key={i} className={`surface space-y-4 p-5 ${p.isFeatured ? "border-brand" : ""}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold">{p.name || "Novo pacote"}</p>
+              <p className="font-semibold">{p.name || tr("Novo pacote", "New pack")}</p>
               {stripeBadge(p)}
             </div>
-            <button onClick={() => setPlans(plans.filter((_, j) => j !== i))} className={buttonClass("ghost", "sm")}><Trash2 className="h-3.5 w-3.5" /> Remover</button>
+            <button onClick={() => setPlans(plans.filter((_, j) => j !== i))} className={buttonClass("ghost", "sm")}><Trash2 className="h-3.5 w-3.5" /> {tr("Remover", "Remove")}</button>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <TextField label="ID (não mude após vender)" value={p.id} onChange={(v) => update(i, { id: v })} />
-            <TextField label="Nome" value={p.name} onChange={(v) => update(i, { name: v })} />
+            <TextField label={tr("ID (não mude após vender)", "ID (don't change after selling)")} value={p.id} onChange={(v) => update(i, { id: v })} />
+            <TextField label={tr("Nome", "Name")} value={p.name} onChange={(v) => update(i, { name: v })} />
             <div className="space-y-1.5">
               <label className="label-base">{tr("Tipo", "Type")}</label>
               <select className="input-base" value={p.interval || "once"} onChange={(e) => update(i, { interval: e.target.value as "once" | "month" })}>
@@ -691,36 +719,36 @@ function PlansTab({ initial, stripeMode, onSaved }: { initial: Plan[]; stripeMod
               </select>
             </div>
             <NumberField label={p.interval === "month" ? tr("Créditos por mês", "Credits per month") : tr("Créditos", "Credits")} value={p.credits} onChange={(v) => update(i, { credits: v })} />
-            <NumberField label="Preço R$" value={p.price_brl} step={0.01} onChange={(v) => update(i, { price_brl: v })} />
-            <NumberField label="Preço US$" value={p.price_usd} step={0.01} onChange={(v) => update(i, { price_usd: v })} />
-            <NumberField label="Preço € (opcional)" value={p.price_eur || 0} step={0.01} onChange={(v) => update(i, { price_eur: v || null })} />
+            <NumberField label={tr("Preço R$", "Price R$")} value={p.price_brl} step={0.01} onChange={(v) => update(i, { price_brl: v })} />
+            <NumberField label={tr("Preço US$", "Price US$")} value={p.price_usd} step={0.01} onChange={(v) => update(i, { price_usd: v })} />
+            <NumberField label={tr("Preço € (opcional)", "Price € (optional)")} value={p.price_eur || 0} step={0.01} onChange={(v) => update(i, { price_eur: v || null })} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <TextField label="Descrição (PT)" value={p.description || ""} onChange={(v) => update(i, { description: v })} />
-            <TextField label="Descrição (EN)" value={p.description_en || ""} onChange={(v) => update(i, { description_en: v })} />
+            <TextField label={tr("Descrição (PT)", "Description (PT)")} value={p.description || ""} onChange={(v) => update(i, { description: v })} />
+            <TextField label={tr("Descrição (EN)", "Description (EN)")} value={p.description_en || ""} onChange={(v) => update(i, { description_en: v })} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="label-base">Benefícios PT (um por linha)</label>
+              <label className="label-base">{tr("Benefícios PT (um por linha)", "Benefits PT (one per line)")}</label>
               <textarea className="input-base min-h-24 py-2" value={p.features_pt.join("\n")} onChange={(e) => update(i, { features_pt: e.target.value.split("\n") })} />
             </div>
             <div className="space-y-1.5">
-              <label className="label-base">Benefícios EN (um por linha)</label>
+              <label className="label-base">{tr("Benefícios EN (um por linha)", "Benefits EN (one per line)")}</label>
               <textarea className="input-base min-h-24 py-2" value={p.features_en.join("\n")} onChange={(e) => update(i, { features_en: e.target.value.split("\n") })} />
             </div>
           </div>
           <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={!!p.isFeatured} onChange={(e) => update(i, { isFeatured: e.target.checked })} /> Destacado</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={!!p.isHidden} onChange={(e) => update(i, { isHidden: e.target.checked })} /> Oculto</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={!!p.isFeatured} onChange={(e) => update(i, { isFeatured: e.target.checked })} /> {tr("Destacado", "Featured")}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={!!p.isHidden} onChange={(e) => update(i, { isHidden: e.target.checked })} /> {tr("Oculto", "Hidden")}</label>
           </div>
         </div>
       ))}
       <div className="flex flex-wrap gap-2">
         <button onClick={() => setPlans([...plans, { id: `pack_${Date.now().toString(36)}`, name: "", price_brl: 0, price_usd: 0, credits: 100, interval: "once", features_pt: [], features_en: [] }])} className={buttonClass("outline")}>
-          <Plus className="h-4 w-4" /> Adicionar pacote
+          <Plus className="h-4 w-4" /> {tr("Adicionar pacote", "Add pack")}
         </button>
         <button onClick={save} disabled={saving} className={buttonClass("brand")}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar pacotes
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar pacotes", "Save packs")}
         </button>
       </div>
     </div>
@@ -736,6 +764,7 @@ interface AdminCoupon {
 const EMPTY_COUPON = { code: "", kind: "percent" as "percent" | "amount", value: 10, currency: "BRL", planIds: [] as string[], maxRedemptions: "", expiresAt: "" };
 
 function CouponsTab({ plans }: { plans: Plan[] }) {
+  const tr = useTr();
   const [data, setData] = useState<{ stripeMode: "test" | "live" | null; coupons: AdminCoupon[] } | null>(null);
   const [form, setForm] = useState(EMPTY_COUPON);
   const [saving, setSaving] = useState(false);
@@ -754,7 +783,7 @@ function CouponsTab({ plans }: { plans: Plan[] }) {
         // Vale até o fim do dia escolhido (horário de Brasília).
         expiresAt: form.expiresAt ? `${form.expiresAt}T23:59:59-03:00` : null,
       });
-      toast.success(data?.stripeMode ? "Cupom criado (também na Stripe)" : "Cupom criado");
+      toast.success(data?.stripeMode ? tr("Cupom criado (também na Stripe)", "Coupon created (also in Stripe)") : tr("Cupom criado", "Coupon created"));
       setForm(EMPTY_COUPON);
       load();
     } catch (e) {
@@ -774,10 +803,12 @@ function CouponsTab({ plans }: { plans: Plan[] }) {
   };
 
   const remove = async (c: AdminCoupon) => {
-    if (!confirm(c.redemptions ? `O cupom ${c.code} já foi usado: ele será desativado (fica no histórico).` : `Apagar o cupom ${c.code}?`)) return;
+    if (!confirm(c.redemptions
+      ? tr(`O cupom ${c.code} já foi usado: ele será desativado (fica no histórico).`, `Coupon ${c.code} was already used: it will be deactivated (kept in history).`)
+      : tr(`Apagar o cupom ${c.code}?`, `Delete coupon ${c.code}?`))) return;
     try {
       const res = await api(`/api/admin/coupons/${c.id}`, "DELETE");
-      toast.success(res.result === "deleted" ? "Cupom apagado" : "Cupom desativado");
+      toast.success(res.result === "deleted" ? tr("Cupom apagado", "Coupon deleted") : tr("Cupom desativado", "Coupon deactivated"));
       load();
     } catch (e) {
       toast.error((e as Error).message);
@@ -785,39 +816,41 @@ function CouponsTab({ plans }: { plans: Plan[] }) {
   };
 
   const discountLabel = (c: AdminCoupon) => (c.percentOff ? `${c.percentOff}%` : formatMoney(c.amountOff || 0, c.currency || "BRL"));
-  const planNames = (ids: string[]) => (ids.length ? ids.map((id) => plans.find((p) => p.id === id)?.name || id).join(", ") : "Todos");
+  const planNames = (ids: string[]) => (ids.length ? ids.map((id) => plans.find((p) => p.id === id)?.name || id).join(", ") : tr("Todos", "All"));
 
   return (
     <div className="space-y-5">
       <section className="surface space-y-4 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">Novo cupom</h3>
+          <h3 className="font-semibold">{tr("Novo cupom", "New coupon")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            O cliente digita o código em Comprar créditos. Vale no Mercado Pago e na Stripe{data?.stripeMode ? " (onde também é criado como cupom e código promocional)" : ""}.
-            Depois de criado, desconto, validade e limite não mudam: para alterar, desative e crie outro código.
+            {tr(
+              `O cliente digita o código em Comprar créditos. Vale no Mercado Pago e na Stripe${data?.stripeMode ? " (onde também é criado como cupom e código promocional)" : ""}. Depois de criado, desconto, validade e limite não mudam: para alterar, desative e crie outro código.`,
+              `Customers enter the code in Buy credits. Works on Mercado Pago and Stripe${data?.stripeMode ? " (where it is also created as a coupon and promotion code)" : ""}. Once created, discount, expiry and limit can't change: to change them, deactivate and create another code.`
+            )}
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <label className="label-base" htmlFor="c-code">Código</label>
+            <label className="label-base" htmlFor="c-code">{tr("Código", "Code")}</label>
             <input id="c-code" className="input-base font-mono uppercase" maxLength={40} placeholder="BEMVINDO10" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "") })} />
           </div>
           <div className="space-y-1.5">
-            <label className="label-base" htmlFor="c-kind">Tipo de desconto</label>
+            <label className="label-base" htmlFor="c-kind">{tr("Tipo de desconto", "Discount type")}</label>
             <select id="c-kind" className="input-base" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as "percent" | "amount" })}>
-              <option value="percent">Porcentagem</option>
-              <option value="amount">Valor fixo</option>
+              <option value="percent">{tr("Porcentagem", "Percentage")}</option>
+              <option value="amount">{tr("Valor fixo", "Fixed amount")}</option>
             </select>
           </div>
           <div className="flex gap-2">
             <div className="min-w-0 flex-1 space-y-1.5">
-              <label className="label-base" htmlFor="c-value">{form.kind === "percent" ? "Desconto (%)" : "Desconto"}</label>
+              <label className="label-base" htmlFor="c-value">{form.kind === "percent" ? tr("Desconto (%)", "Discount (%)") : tr("Desconto", "Discount")}</label>
               <input id="c-value" type="number" min={form.kind === "percent" ? 1 : 0.01} max={form.kind === "percent" ? 95 : undefined} step={form.kind === "percent" ? 1 : 0.01}
                 className="input-base tabular-nums" value={form.value} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} />
             </div>
             {form.kind === "amount" && (
               <div className="w-24 space-y-1.5">
-                <label className="label-base" htmlFor="c-cur">Moeda</label>
+                <label className="label-base" htmlFor="c-cur">{tr("Moeda", "Currency")}</label>
                 <select id="c-cur" className="input-base" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
                   <option>BRL</option><option>USD</option><option>EUR</option>
                 </select>
@@ -825,16 +858,16 @@ function CouponsTab({ plans }: { plans: Plan[] }) {
             )}
           </div>
           <div className="space-y-1.5">
-            <label className="label-base" htmlFor="c-max">Limite de usos (opcional)</label>
-            <input id="c-max" type="number" min={1} className="input-base tabular-nums" placeholder="Sem limite" value={form.maxRedemptions} onChange={(e) => setForm({ ...form, maxRedemptions: e.target.value })} />
+            <label className="label-base" htmlFor="c-max">{tr("Limite de usos (opcional)", "Usage limit (optional)")}</label>
+            <input id="c-max" type="number" min={1} className="input-base tabular-nums" placeholder={tr("Sem limite", "No limit")} value={form.maxRedemptions} onChange={(e) => setForm({ ...form, maxRedemptions: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <label className="label-base" htmlFor="c-exp">Válido até (opcional)</label>
+            <label className="label-base" htmlFor="c-exp">{tr("Válido até (opcional)", "Valid until (optional)")}</label>
             <input id="c-exp" type="date" className="input-base" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
           </div>
         </div>
         <fieldset className="space-y-2">
-          <legend className="label-base">Pacotes em que vale (nenhum marcado = todos)</legend>
+          <legend className="label-base">{tr("Pacotes em que vale (nenhum marcado = todos)", "Packs it applies to (none checked = all)")}</legend>
           <div className="flex flex-wrap gap-4 text-sm">
             {plans.map((p) => (
               <label key={p.id} className="flex items-center gap-2">
@@ -846,22 +879,22 @@ function CouponsTab({ plans }: { plans: Plan[] }) {
           </div>
         </fieldset>
         <button onClick={create} disabled={saving || form.code.length < 3 || !(form.value > 0)} className={buttonClass("brand")}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Criar cupom
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {tr("Criar cupom", "Create coupon")}
         </button>
       </section>
 
       <section className="surface overflow-x-auto">
-        <h3 className="border-b border-border px-5 py-3 font-semibold">Cupons</h3>
-        {!data ? <Loading /> : data.coupons.length === 0 ? <p className="p-5 text-sm text-muted-foreground">Nenhum cupom ainda.</p> : (
+        <h3 className="border-b border-border px-5 py-3 font-semibold">{tr("Cupons", "Coupons")}</h3>
+        {!data ? <Loading /> : data.coupons.length === 0 ? <p className="p-5 text-sm text-muted-foreground">{tr("Nenhum cupom ainda.", "No coupons yet.")}</p> : (
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-xs text-muted-foreground">
               <tr>
-                <th className="px-5 py-2 font-medium">Código</th>
-                <th className="px-5 py-2 font-medium">Desconto</th>
-                <th className="px-5 py-2 font-medium">Pacotes</th>
-                <th className="px-5 py-2 font-medium">Usos</th>
-                <th className="px-5 py-2 font-medium">Validade</th>
-                <th className="px-5 py-2 font-medium">Ativo</th>
+                <th className="px-5 py-2 font-medium">{tr("Código", "Code")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Desconto", "Discount")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Pacotes", "Packs")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Usos", "Uses")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Validade", "Expires")}</th>
+                <th className="px-5 py-2 font-medium">{tr("Ativo", "Active")}</th>
                 <th className="px-5 py-2" />
               </tr>
             </thead>
@@ -874,17 +907,17 @@ function CouponsTab({ plans }: { plans: Plan[] }) {
                       <span className="font-mono font-medium">{c.code}</span>
                       {data.stripeMode && (
                         <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${c.inStripe ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
-                          {c.inStripe ? "Stripe" : "só no Vysify"}
+                          {c.inStripe ? "Stripe" : tr("só no Vysify", "Vysify only")}
                         </span>
                       )}
                     </td>
                     <td className="px-5 py-3 tabular-nums">{discountLabel(c)}</td>
                     <td className="px-5 py-3">{planNames(c.planIds)}</td>
                     <td className="px-5 py-3 tabular-nums">{c.redemptions}{c.maxRedemptions ? ` / ${c.maxRedemptions}` : ""}</td>
-                    <td className="whitespace-nowrap px-5 py-3">{c.expiresAt ? `${formatDateTime(c.expiresAt)}${expired ? " (expirado)" : ""}` : "Sem prazo"}</td>
+                    <td className="whitespace-nowrap px-5 py-3">{c.expiresAt ? `${formatDateTime(c.expiresAt)}${expired ? tr(" (expirado)", " (expired)") : ""}` : tr("Sem prazo", "No expiry")}</td>
                     <td className="px-5 py-3"><Switch checked={c.active} onChange={() => toggle(c)} /></td>
                     <td className="px-5 py-3 text-right">
-                      <button onClick={() => remove(c)} className={buttonClass("ghost", "sm")} aria-label={`Apagar ${c.code}`}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => remove(c)} className={buttonClass("ghost", "sm")} aria-label={tr(`Apagar ${c.code}`, `Delete ${c.code}`)}><Trash2 className="h-3.5 w-3.5" /></button>
                     </td>
                   </tr>
                 );
@@ -917,6 +950,7 @@ function Switch({ checked, disabled, onChange }: { checked: boolean; disabled?: 
 }
 
 function TrialTab({ initial, onSaved }: { initial: ConfigResponse["freeTrial"]; onSaved: () => void }) {
+  const tr = useTr();
   const [trial, setTrial] = useState(initial);
   const [saving, setSaving] = useState(false);
 
@@ -924,7 +958,7 @@ function TrialTab({ initial, onSaved }: { initial: ConfigResponse["freeTrial"]; 
     setSaving(true);
     try {
       await api("/api/admin/config", "PUT", { freeTrial: { ...trial, planVisible: trial.enabled && trial.planVisible } });
-      toast.success(trial.enabled ? "Oferta de teste grátis salva" : "Ofertas grátis desativadas");
+      toast.success(trial.enabled ? tr("Oferta de teste grátis salva", "Free trial offer saved") : tr("Ofertas grátis desativadas", "Free offers turned off"));
       onSaved();
     } catch (e) {
       toast.error((e as Error).message);
@@ -937,43 +971,43 @@ function TrialTab({ initial, onSaved }: { initial: ConfigResponse["freeTrial"]; 
     <div className="space-y-5">
       <section className="surface space-y-5 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">Ofertas de teste grátis</h3>
+          <h3 className="font-semibold">{tr("Ofertas de teste grátis", "Free trial offers")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Desligadas por padrão. Enquanto estiverem desligadas, nenhum texto de “grátis” aparece no site e novas contas começam com 0 créditos.
+            {tr("Desligadas por padrão. Enquanto estiverem desligadas, nenhum texto de “grátis” aparece no site e novas contas começam com 0 créditos.", "Off by default. While off, no “free” text appears on the site and new accounts start with 0 credits.")}
           </p>
         </div>
 
         <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
           <div>
-            <p className="font-medium">Dar créditos grátis no cadastro</p>
-            <p className="text-sm text-muted-foreground">Cada conta nova recebe créditos para testar. Ativa o selo “créditos grátis” e o botão “Começar grátis”.</p>
+            <p className="font-medium">{tr("Dar créditos grátis no cadastro", "Give free credits at signup")}</p>
+            <p className="text-sm text-muted-foreground">{tr("Cada conta nova recebe créditos para testar. Ativa o selo “créditos grátis” e o botão “Começar grátis”.", "Each new account gets credits to try. Enables the “free credits” badge and the “Start free” button.")}</p>
           </div>
           <Switch checked={trial.enabled} onChange={(v) => setTrial({ ...trial, enabled: v })} />
         </div>
 
         {trial.enabled && (
           <div className="max-w-xs">
-            <NumberField label="Créditos por conta nova" value={trial.credits} onChange={(v) => setTrial({ ...trial, credits: Math.max(1, Math.round(v)) })} />
+            <NumberField label={tr("Créditos por conta nova", "Credits per new account")} value={trial.credits} onChange={(v) => setTrial({ ...trial, credits: Math.max(1, Math.round(v)) })} />
           </div>
         )}
 
         <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
           <div>
-            <p className="font-medium">Mostrar plano “Grátis” na página inicial</p>
+            <p className="font-medium">{tr("Mostrar plano “Grátis” na página inicial", "Show a “Free” plan on the home page")}</p>
             <p className="text-sm text-muted-foreground">
               {trial.enabled
-                ? `Exibe um card “Grátis · ${trial.credits} créditos” ao lado dos pacotes pagos.`
-                : "Disponível apenas com os créditos grátis ativados (para não anunciar algo que não existe)."}
+                ? tr(`Exibe um card “Grátis · ${trial.credits} créditos” ao lado dos pacotes pagos.`, `Shows a “Free · ${trial.credits} credits” card next to the paid packs.`)
+                : tr("Disponível apenas com os créditos grátis ativados (para não anunciar algo que não existe).", "Only available with free credits on (so nothing that doesn't exist is advertised).")}
             </p>
           </div>
           <Switch checked={trial.enabled && trial.planVisible} disabled={!trial.enabled} onChange={(v) => setTrial({ ...trial, planVisible: v })} />
         </div>
 
-        <p className="text-xs text-muted-foreground">Alterações valem para novos cadastros. Contas já criadas não ganham nem perdem créditos.</p>
+        <p className="text-xs text-muted-foreground">{tr("Alterações valem para novos cadastros. Contas já criadas não ganham nem perdem créditos.", "Changes apply to new signups. Existing accounts don't gain or lose credits.")}</p>
       </section>
 
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
       </button>
     </div>
   );
