@@ -4,6 +4,7 @@ import { isCurrency, type Currency } from "@/lib/locale";
 import { getAppConfig, purchasablePlans } from "@/lib/config";
 import { getSessionUser } from "@/lib/auth";
 import LandingPageClient from "./landing-client";
+import { publicShowcase } from "@/lib/showcase";
 
 export default async function Page() {
   const locale = (await getLocale()) === "en" ? "en" : "pt";
@@ -14,7 +15,9 @@ export default async function Page() {
   let freePlanVisible = false;
   let costs = { image: 3, video: 10, premiumMultiplier: 2 };
   let supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "suporte@vysify.com";
+  let showcase: Awaited<ReturnType<typeof publicShowcase>> = [];
   try {
+    showcase = await publicShowcase();
     const config = await getAppConfig();
     plans = purchasablePlans(config.plans);
     supportEmail = config.settings.company.supportEmail;
@@ -26,5 +29,5 @@ export default async function Page() {
   }
   const user = await getSessionUser().catch(() => null);
 
-  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} currency={currency} loggedIn={!!user} supportEmail={supportEmail} />;
+  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} currency={currency} loggedIn={!!user} supportEmail={supportEmail} showcase={showcase} />;
 }

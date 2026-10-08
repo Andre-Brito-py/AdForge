@@ -25,6 +25,11 @@ const COPY = {
     h1a: "Da foto do produto", h1b: "ao anúncio pronto.",
     sub: "Envie uma foto, escolha o objetivo e receba estratégia, textos, imagens publicitárias e vídeos com locução, prontos para Instagram, TikTok e Facebook.",
     ctaFree: "Começar grátis", cta: "Criar conta", how: "Ver como funciona",
+    showcaseTitle: "Feito no Vysify, pronto para postar",
+    showcaseSub: "Um exemplo real: a foto do produto virou anúncio com legenda e hashtags, no formato de cada rede.",
+    yourPhoto: "Foto do produto",
+    caption: "Legenda gerada",
+    postTo: "Pronto para",
     howTitle: "Três passos. Nenhum designer de plantão.",
     steps: [
       { t: "Envie a foto do produto", d: "Uma foto nítida já basta. Adicione descrição e público se quiser mais precisão." },
@@ -68,6 +73,11 @@ const COPY = {
     h1a: "From product photo", h1b: "to ready-to-run ad.",
     sub: "Upload a photo, pick a goal and get strategy, copy, ad images and voiced-over videos ready for Instagram, TikTok and Facebook.",
     ctaFree: "Start free", cta: "Create account", how: "See how it works",
+    showcaseTitle: "Made with Vysify, ready to post",
+    showcaseSub: "A real example: the product photo became an ad with caption and hashtags, in each network's format.",
+    yourPhoto: "Product photo",
+    caption: "Generated caption",
+    postTo: "Ready for",
     howTitle: "Three steps. No designer on call.",
     steps: [
       { t: "Upload a product photo", d: "One sharp photo is enough. Add a description and audience for more precision." },
@@ -110,10 +120,19 @@ const COPY = {
 
 const fade = { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-60px" }, transition: { duration: 0.45 } };
 
+/** Exemplo real escolhido no Admin › Vitrine (ver lib/showcase.ts). */
+export interface ShowcaseCard {
+  creativeId: string; mediaType: "IMAGE" | "VIDEO"; mediaUrl: string; posterUrl?: string | null; productImageUrl?: string | null;
+  aspectRatio: string; platformLabel: string; headline: string; caption: string; hashtags: string;
+}
+
+const RATIO: Record<string, string> = { "1:1": "aspect-square", "4:5": "aspect-[4/5]", "9:16": "aspect-[9/16]", "16:9": "aspect-video" };
+
 export default function LandingPageClient({
-  plans, signupCredits, freePlanVisible, costs, locale, currency, loggedIn, supportEmail,
+  plans, signupCredits, freePlanVisible, costs, locale, currency, loggedIn, supportEmail, showcase = [],
 }: {
   plans: Plan[]; signupCredits: number; freePlanVisible: boolean; costs: { image: number; video: number }; locale: "pt" | "en"; currency: "BRL" | "USD" | "EUR"; loggedIn: boolean; supportEmail: string;
+  showcase?: ShowcaseCard[];
 }) {
   const showFreePlan = freePlanVisible && signupCredits > 0;
   const priceIn = (p: Plan, c: string) => (c === "BRL" ? p.price_brl : c === "EUR" ? p.price_eur ?? 0 : p.price_usd);
@@ -176,9 +195,37 @@ export default function LandingPageClient({
           </div>
 
           <div className="mx-auto mt-16 max-w-5xl animate-in fade-in slide-in-from-bottom-6 duration-700 delay-300 fill-mode-backwards">
-            <ProductPreview isPt={isPt} />
+            {showcase.length > 0 ? <RealPreview items={showcase} label={t.yourPhoto} /> : <ProductPreview isPt={isPt} />}
           </div>
         </section>
+
+        {/* Vitrine: um exemplo real com a legenda e as hashtags que o Vysify gerou */}
+        {showcase.length > 0 && (
+          <section id="exemplo" className="scroll-mt-20 border-t border-border px-4 py-20 sm:px-6">
+            <div className="mx-auto max-w-6xl">
+              <motion.div {...fade} className="max-w-2xl">
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t.showcaseTitle}</h2>
+                <p className="mt-3 text-muted-foreground">{t.showcaseSub}</p>
+              </motion.div>
+              <div className={`mt-12 grid gap-6 ${showcase.length > 1 ? "lg:grid-cols-2" : ""}`}>
+                {showcase.slice(0, 2).map((item) => (
+                  <motion.article key={item.creativeId} {...fade} className="surface grid gap-5 overflow-hidden p-4 sm:grid-cols-[minmax(0,220px)_1fr] sm:p-5">
+                    <div className={`${RATIO[item.aspectRatio] || "aspect-square"} max-h-[420px] w-full overflow-hidden rounded-xl bg-muted`}>
+                      <ShowcaseMedia item={item} controls />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t.postTo} {item.platformLabel}</p>
+                      {item.headline && <h3 className="mt-2 text-lg font-semibold leading-snug">{item.headline}</h3>}
+                      <p className="mt-4 text-xs font-medium text-muted-foreground">{t.caption}</p>
+                      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed">{item.caption}</p>
+                      {item.hashtags && <p className="mt-3 text-sm font-medium text-brand">{item.hashtags}</p>}
+                    </div>
+                  </motion.article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Como funciona */}
         <section id="como-funciona" className="scroll-mt-20 border-t border-border bg-muted/30 px-4 py-20 sm:px-6">
@@ -302,6 +349,53 @@ export default function LandingPageClient({
           <p>© {new Date().getFullYear()} Vysify. {t.footer.rights}</p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function ShowcaseMedia({ item, controls }: { item: ShowcaseCard; controls?: boolean }) {
+  if (item.mediaType === "VIDEO") {
+    // Sem som e em loop no topo; com controles na seção de exemplo (o visitante pode ligar o som).
+    return (
+      <video src={item.mediaUrl} poster={item.posterUrl || undefined} muted={!controls} autoPlay={!controls} loop={!controls} controls={controls}
+        playsInline preload={controls ? "none" : "metadata"} className="h-full w-full object-cover" />
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={item.mediaUrl} alt={item.headline || ""} loading="lazy" className="h-full w-full object-cover" />;
+}
+
+/** Topo da landing com exemplos reais: foto do produto → anúncios prontos. */
+function RealPreview({ items, label }: { items: ShowcaseCard[]; label: string }) {
+  const product = items.find((i) => i.productImageUrl)?.productImageUrl;
+  return (
+    <div className="relative rounded-3xl border border-border bg-card/70 p-3 shadow-2xl shadow-brand/10 backdrop-blur sm:p-4">
+      <div className="absolute -top-[30px] right-10 hidden sm:block"><PixelMascot mood="working" size={40} /></div>
+      <div className={`grid items-center gap-4 rounded-2xl bg-muted/50 p-4 sm:p-6 ${product ? "sm:grid-cols-[180px_auto_1fr]" : ""}`}>
+        {product && (
+          <>
+            <div className="mx-auto w-40 sm:w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={product} alt={label} className="aspect-square w-full rounded-2xl border border-border bg-background object-contain p-2" />
+              <p className="mt-2 text-center text-xs text-muted-foreground">{label}</p>
+            </div>
+            <ArrowRight className="mx-auto h-5 w-5 rotate-90 text-brand sm:rotate-0" />
+          </>
+        )}
+        <div className={`grid items-end gap-3 ${items.length === 1 ? "mx-auto w-full max-w-xs grid-cols-1" : items.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+          {items.map((item) => (
+            <div key={item.creativeId} className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+              <div className={`relative ${RATIO[item.aspectRatio] || "aspect-square"} bg-muted`}>
+                <ShowcaseMedia item={item} />
+              </div>
+              <div className="p-2 sm:p-3">
+                <p className="truncate text-[11px] font-semibold sm:text-xs">{item.headline}</p>
+                <p className="text-[10px] text-muted-foreground">{item.platformLabel} · {item.aspectRatio}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

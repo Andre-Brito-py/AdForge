@@ -462,6 +462,8 @@ model SystemConfig {
   // Desligado = ninguém consegue criar conta nova (e-mail ou Google)
   signupsEnabled           Boolean  @default(true)
   aiCostsJson              String?
+  // Vitrine da landing (criativos de exemplo escolhidos no Admin), ver lib/showcase.ts
+  showcaseJson             String?
   plansJson                String?
   modelsJson               String?
   // Ofertas de teste grátis: tudo desligado até o super admin ativar

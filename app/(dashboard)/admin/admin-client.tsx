@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle, BarChart3, ChevronDown, Copy, CreditCard, Download, ExternalLink, Gift, ImageOff, KeyRound, Plug, Loader2, Package, Plus,
-  RefreshCw, Save, Search, Settings2, ShieldCheck, TicketPercent, Trash2, Users,
+  ArrowDown, ArrowUp, RefreshCw, Save, Search, Settings2, ShieldCheck, Sparkles, TicketPercent, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocale } from "next-intl";
@@ -67,6 +67,7 @@ const TABS = [
   { id: "ai", label: "IA e custos", icon: KeyRound },
   { id: "plans", label: "Pacotes", icon: Package },
   { id: "coupons", label: "Cupons", icon: TicketPercent },
+  { id: "showcase", label: "Vitrine da landing", icon: Sparkles },
   { id: "trial", label: "Teste grátis", icon: Gift },
   { id: "payments", label: "Pagamentos", icon: CreditCard },
   { id: "integrations", label: "Integrações", icon: Plug },
@@ -98,6 +99,7 @@ export function AdminClient({ baseUrl }: { baseUrl: string }) {
         {tab === "ai" && (config ? <AiTab config={config} onSaved={reload} /> : <Loading />)}
         {tab === "plans" && (config ? <PlansTab key={JSON.stringify(config.plans)} initial={config.plans} stripeMode={config.stripeMode} onSaved={reload} /> : <Loading />)}
         {tab === "coupons" && (config ? <CouponsTab plans={config.plans} /> : <Loading />)}
+        {tab === "showcase" && <ShowcaseTab />}
         {tab === "trial" && (config ? <TrialTab initial={config.freeTrial} onSaved={reload} /> : <Loading />)}
         {tab === "payments" && (config ? <PaymentsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
         {tab === "integrations" && (config ? <IntegrationsTab config={config} onSaved={reload} baseUrl={baseUrl} /> : <Loading />)}
@@ -1355,6 +1357,147 @@ function ImageRightsTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------- Vitrine da landing ----------------
+interface ShowcaseItemUi {
+  creativeId: string; mediaType: "IMAGE" | "VIDEO"; mediaUrl: string; posterUrl?: string | null; aspectRatio: string; platformLabel: string;
+  headline: string; caption: string; hashtags: string;
+}
+interface ShowcaseCandidate { id: string; type: string; url: string; posterUrl: string | null; aspectRatio: string | null; campaignName: string; platform: string; headline: string | null; createdAt: string }
+
+function ShowcaseTab() {
+  const tr = useTr();
+  const [data, setData] = useState<{ max: number; candidates: ShowcaseCandidate[] } | null>(null);
+  const [enabled, setEnabled] = useState(false);
+  const [items, setItems] = useState<(ShowcaseItemUi | { creativeId: string; pending: ShowcaseCandidate; headline: string; caption: string; hashtags: string })[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(() => api("/api/admin/showcase").then((d) => {
+    setData({ max: d.max, candidates: d.candidates });
+    setEnabled(d.showcase.enabled);
+    setItems(d.showcase.items);
+  }).catch((e) => toast.error(e.message)), []);
+  useEffect(() => { load(); }, [load]);
+
+  const add = (c: ShowcaseCandidate) => {
+    if (!data || items.length >= data.max || items.some((i) => i.creativeId === c.id)) return;
+    setItems([...items, { creativeId: c.id, pending: c, headline: c.headline || "", caption: "", hashtags: "" }]);
+  };
+  const move = (i: number, d: -1 | 1) => setItems((list) => {
+    const next = [...list];
+    const j = i + d;
+    if (j < 0 || j >= next.length) return list;
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
+  const edit = (i: number, patch: Partial<{ headline: string; caption: string; hashtags: string }>) => setItems((list) => list.map((it, j) => (j === i ? { ...it, ...patch } : it)));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/admin/showcase", "PUT", {
+        enabled,
+        // Item novo: o servidor copia a mídia e preenche legenda e hashtags do próprio criativo (dá para editar depois).
+        items: items.map((it) => "pending" in it
+          ? { creativeId: it.creativeId, ...(it.headline ? { headline: it.headline } : {}) }
+          : { creativeId: it.creativeId, headline: it.headline, caption: it.caption, hashtags: it.hashtags }),
+      });
+      toast.success(tr("Vitrine salva. Abra a landing para conferir.", "Showcase saved. Open the landing page to check it."));
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!data) return <Loading />;
+  const chosen = new Set(items.map((i) => i.creativeId));
+
+  return (
+    <div className="space-y-5">
+      <section className="surface space-y-3 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-semibold">{tr("Vitrine da landing", "Landing showcase")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {tr(
+                `Mostre na página inicial até ${data.max} anúncios reais feitos no Vysify: a foto do produto, o anúncio (imagem ou vídeo), a legenda e as hashtags. Só aparecem criativos do seu próprio workspace — nunca de clientes. Os arquivos são copiados, então a vitrine continua no ar mesmo se a campanha for apagada.`,
+                `Show up to ${data.max} real ads made with Vysify on the home page: the product photo, the ad (image or video), the caption and hashtags. Only creatives from your own workspace are listed — never customers'. Files are copied, so the showcase stays up even if the campaign is deleted.`
+              )}
+            </p>
+          </div>
+          <Switch checked={enabled} onChange={setEnabled} />
+        </div>
+      </section>
+
+      {items.length > 0 && (
+        <section className="space-y-3">
+          {items.map((it, i) => {
+            const media = "pending" in it ? { type: it.pending.type, url: it.pending.url, poster: it.pending.posterUrl } : { type: it.mediaType, url: it.mediaUrl, poster: it.posterUrl };
+            return (
+              <div key={it.creativeId} className="surface grid gap-4 p-4 sm:grid-cols-[120px_1fr]">
+                <div className="aspect-[4/5] overflow-hidden rounded-lg bg-muted">
+                  {media.type === "VIDEO"
+                    ? <video src={media.url} poster={media.poster || undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    : <img src={media.url} alt="" className="h-full w-full object-cover" />}
+                </div>
+                <div className="min-w-0 space-y-2">
+                  <div className="flex items-center gap-1">
+                    <span className="mr-auto text-xs text-muted-foreground">#{i + 1}{"pending" in it ? ` · ${tr("novo (salve para publicar)", "new (save to publish)")}` : ""}</span>
+                    <button onClick={() => move(i, -1)} disabled={i === 0} className={buttonClass("ghost", "sm")} aria-label={tr("Subir", "Move up")}><ArrowUp className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => move(i, 1)} disabled={i === items.length - 1} className={buttonClass("ghost", "sm")} aria-label={tr("Descer", "Move down")}><ArrowDown className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setItems(items.filter((_, j) => j !== i))} className={buttonClass("ghost", "sm")} aria-label={tr("Remover", "Remove")}><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                  <TextField label={tr("Título", "Headline")} value={it.headline} onChange={(v) => edit(i, { headline: v })} />
+                  {!("pending" in it) && (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="label-base">{tr("Legenda", "Caption")}</label>
+                        <textarea className="input-base min-h-20 py-2" value={it.caption} onChange={(e) => edit(i, { caption: e.target.value })} />
+                      </div>
+                      <TextField label="Hashtags" value={it.hashtags} onChange={(v) => edit(i, { hashtags: v })} />
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      <section className="surface space-y-3 p-5 sm:p-6">
+        <h3 className="font-semibold">{tr("Seus criativos prontos", "Your finished creatives")}</h3>
+        {data.candidates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{tr("Gere uma campanha com a sua conta admin para ter o que mostrar.", "Generate a campaign with your admin account to have something to show.")}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {data.candidates.map((c) => (
+              <button key={c.id} onClick={() => add(c)} disabled={chosen.has(c.id) || items.length >= data.max}
+                className={`overflow-hidden rounded-xl border text-left transition ${chosen.has(c.id) ? "border-brand ring-1 ring-brand" : "border-border hover:border-foreground/30"} disabled:cursor-default`}>
+                <div className="aspect-square bg-muted">
+                  {c.type === "VIDEO"
+                    ? <video src={c.url} poster={c.posterUrl || undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    : <img src={c.url} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                </div>
+                <div className="p-2">
+                  <p className="truncate text-xs font-medium">{c.headline || c.campaignName}</p>
+                  <p className="text-[11px] text-muted-foreground">{c.type === "VIDEO" ? tr("Vídeo", "Video") : tr("Imagem", "Image")} · {c.platform}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar vitrine", "Save showcase")}
+      </button>
     </div>
   );
 }
