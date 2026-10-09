@@ -6,8 +6,7 @@ O que já está pronto no código e o que depende de você (contas, chaves e dec
 
 O projeto agora usa **migrations** (`prisma/migrations`) em vez de `db push --accept-data-loss`.
 
-- `0_init` corresponde ao schema que já estava no Supabase.
-- `20261001000000_go_live_hardening` adiciona as novas tabelas e colunas.
+- `0_init` corresponde ao schema que já estava no Supabase; as demais (em `prisma/migrations`) adicionam as tabelas e colunas novas e são aplicadas em ordem pelo `db:deploy`.
 
 Como o app ainda não está no ar, há dois caminhos:
 
@@ -68,8 +67,9 @@ Detalhes em [docs/AI_PROVIDERS.md](AI_PROVIDERS.md). Antes de abrir para cliente
 
 ## 5. Pagamentos
 
-- **Mercado Pago:** Access Token e assinatura secreta do webhook. URL: `https://SEU_DOMINIO/api/webhooks/mercadopago` (evento: Pagamentos).
-- **Stripe:** Secret key e signing secret. URL: `https://SEU_DOMINIO/api/webhooks/stripe`. Eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded` e `charge.dispute.created`.
+- **Stripe (gateway principal):** em **Admin › Pagamentos**, cole só a Secret key e clique em **Criar webhook automaticamente** (o painel cria o webhook com todos os eventos usados e salva o segredo). O painel mostra a conta, o modo (teste/produção) e se ela já pode cobrar. Pix, boleto, Google Pay e Apple Pay aparecem no checkout quando ativados em Stripe › Configurações › Formas de pagamento. Em **Pagamentos em reais**, escolha Stripe (padrão) ou Mercado Pago.
+- **Assinaturas mensais:** em **Admin › Pacotes**, mude o tipo de um pacote para "Assinatura mensal (Stripe)"; os créditos entram a cada fatura paga. Ative o **Portal do cliente** em Stripe › Configurações › Portal do cliente (trocar plano, cartão e cancelar) — o botão "Gerenciar assinatura" leva para lá.
+- **Mercado Pago (opcional):** Access Token e assinatura secreta do webhook. URL: `https://SEU_DOMINIO/api/webhooks/mercadopago` (evento: Pagamentos). Só pacotes avulsos.
 - **Pacotes na Stripe:** ao salvar a chave (e sempre que salvar **Admin › Pacotes**), cada pacote vira um produto na Stripe com um preço por moeda. Editar o preço cria um preço novo e arquiva o antigo; ocultar ou remover um pacote arquiva o produto. Ao trocar a chave de teste pela de produção, tudo é recriado na conta de produção (ou use **Sincronizar agora**).
 - **Cupons:** em **Admin › Cupons** (veja [docs/COSTS.md](COSTS.md)). Com a Stripe configurada, cada cupom também é criado lá. Cupons criados com a chave de teste precisam ser recriados depois de trocar para a de produção.
 - **Estornos:** feitos no painel do gateway. O webhook retira os créditos correspondentes automaticamente (proporcional em estorno parcial). Se o cliente já gastou os créditos, você recebe um e-mail.
@@ -98,7 +98,8 @@ O `CRON_SECRET` também protege `POST /api/jobs/run`: cada variação de uma cam
 - Uptime: aponte o UptimeRobot ou o Better Stack para `/api/health`.
 - Provedores de IA sem saldo: alerta no topo do painel admin e e-mail para os super admins (exige o Resend configurado).
 - Erros (Sentry): o código já está pronto e desligado. Crie um projeto Next.js em sentry.io e defina na Vercel `SENTRY_DSN` e `NEXT_PUBLIC_SENTRY_DSN` (o mesmo DSN), depois faça um novo deploy. Só a mensagem do erro, a página e o navegador são enviados (sem usuário, cookies, corpo ou query string); a Política de Privacidade já cita o Sentry.
-- CI: a cada push, o GitHub Actions (`.github/workflows/ci.yml`) roda tipos, lint, testes (com um Postgres descartável) e o build. Ative em **Settings › Branches** a regra "Require status checks" na `main` para bloquear merge com falha.
+- CI: a cada push, o GitHub Actions (`.github/workflows/ci.yml`) roda tipos, lint, testes (com um Postgres descartável), o build e os testes no navegador (Playwright, com IA simulada). Ative em **Settings › Branches** a regra "Require status checks" na `main` para bloquear merge com falha.
+- Testes no navegador localmente: `E2E_DATABASE_URL=<postgres de teste> npm run test:e2e` (nunca aponte para produção).
 
 ## 8.1 Aceite dos Termos
 
@@ -110,9 +111,33 @@ O `CRON_SECRET` também protege `POST /api/jobs/run`: cada variação de uma cam
 
 Os textos de Termos e Privacidade foram reescritos para refletir o produto real (pacotes avulsos, estorno automático, LGPD, operadores de dados). **Peça a revisão de um advogado** antes do lançamento, principalmente das cláusulas de reembolso e de responsabilidade.
 
-## 10. Publicação no Instagram/Facebook
+## 10. Publicação no Instagram/Facebook e anúncios pagos
 
 O código está pronto e testado contra uma Graph API simulada. Falta o lado da Meta (app, verificação da empresa e App Review): siga o [docs/META_SETUP.md](META_SETUP.md). Enquanto as credenciais não forem cadastradas, a página Integrações mostra "Em breve" e nada quebra.
+
+- **Anúncios pagos:** no diálogo Publicar › Anúncio pago, o dono/admin escolhe conta de anúncios, página, objetivo, orçamento diário, países, link e textos. O Vysify cria campanha, conjunto e anúncio **pausados**; o cliente revisa e ativa no Gerenciador de Anúncios (o gasto é cobrado pela Meta na conta dele). Peça no App Review as permissões `ads_management` e `ads_read`; quem conectou antes precisa reconectar.
+
+## 10.2 Lojas virtuais (Mercado Livre, Nuvemshop, Shopify)
+
+Em **Admin › Integrações › Lojas virtuais**, cadastre as credenciais do app de cada plataforma e a URL de retorno mostrada no painel:
+
+- **Mercado Livre:** developers.mercadolivre.com.br › criar aplicação (escopos de leitura/escrita de anúncios).
+- **Nuvemshop:** partners.nuvemshop.com.br › criar aplicativo (permissão de produtos).
+- **Shopify:** partners.shopify.com › criar app (escopos `read_products`, `write_products`); o lojista informa o endereço `loja.myshopify.com` ao conectar.
+
+Depois, cada cliente conecta a loja em Integrações e envia as imagens geradas para os anúncios/produtos (como capa ou na galeria) pelo diálogo Publicar › Lojas.
+
+## 10.3 Equipes
+
+Cada workspace pode ter várias pessoas (padrão: 5, ajustável em **Admin › Configurações gerais**). Dono e administradores convidam por e-mail, compram créditos e mexem no Brand Kit e nas integrações; membros criam produtos, campanhas e publicam. Os convites dependem do Resend configurado.
+
+## 10.4 Vitrine da landing
+
+Em **Admin › Vitrine da landing**, escolha até 3 anúncios feitos com a sua própria conta (nunca de clientes) para aparecerem na página inicial, com a foto do produto, o anúncio, a legenda e as hashtags.
+
+## 10.5 Nota fiscal (NFS-e)
+
+**Admin › Fiscal** mostra as vendas por mês e exporta a planilha do ano (útil para o carnê-leão ou para o contador, inclusive antes de ter CNPJ). Com CNPJ, cadastre a empresa na NFE.io, preencha a chave, o ID da empresa e o código do serviço na prefeitura e ligue a emissão: cada venda em reais gera a NFS-e e o estorno total a cancela. Confirme o código do serviço e o regime tributário com o contador.
 
 ## 10.0 Vídeos longos (ffmpeg)
 
@@ -124,7 +149,7 @@ Em **Admin › Integrações › Login com Google**: cole o Client ID e o Client
 
 ## 11. Clientes internacionais
 
-A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie Policy existem em português e inglês. O idioma e a moeda são escolhidos pelo país do visitante (cabeçalho `x-vercel-ip-country`) e pelo navegador, e o cliente pode trocar em Configurações (idioma) e no Billing (moeda). O painel Admin continua em português.
+A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie Policy existem em português e inglês. O idioma e a moeda são escolhidos pelo país do visitante (cabeçalho `x-vercel-ip-country`) e pelo navegador, e o cliente pode trocar em Configurações (idioma) e no Billing (moeda). O painel Admin segue o idioma escolhido pelo admin em Configurações (as mensagens de erro das APIs do admin continuam em português).
 
 - **Preços:** cadastre o preço em USD (e, se quiser, em EUR) de cada pacote em **Admin › Pacotes**, junto com a descrição em inglês. Sem preço em EUR, o visitante europeu vê o valor em USD.
 - **Impostos (Stripe Tax):** ative o Stripe Tax, registre-se onde for obrigado (ex.: IVA da UE via OSS, VAT do Reino Unido, estados dos EUA ao atingir o limite) e ligue **Admin › Configurações gerais › Impostos (Stripe)**. O checkout já coleta endereço de cobrança e VAT ID e gera fatura.
@@ -136,8 +161,5 @@ A interface, os e-mails, os erros da API, os Termos, a Privacy Policy e a Cookie
 
 ## Pendências conhecidas (próximos passos)
 
-- Publicação em Mercado Livre, Nuvemshop, Shopify e TikTok (a estrutura de conexões já existe; cada uma precisa do app/credenciais da plataforma).
-- Criação de anúncios pagos na Meta (Marketing API, permissão `ads_management`).
-- Assinaturas recorrentes (hoje são pacotes avulsos).
-- Convites para mais de um membro por workspace.
-- Nota fiscal de serviço (NFS-e) automática nas vendas em reais (depende da escolha do emissor).
+- Publicação no TikTok (exige o app e a aprovação do TikTok).
+- Testar com as credenciais reais: Stripe (assinaturas, cupons, estornos), Mercado Livre, Nuvemshop, Shopify, Meta Ads, Kling e NFE.io — o código foi testado contra versões simuladas dessas APIs.
