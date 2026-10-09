@@ -10,7 +10,7 @@ import { HttpError } from "./api";
  * Cada aceite vira um ConsentRecord (versão, data, IP e navegador), guardado mesmo após a exclusão da conta
  * pelo prazo de defesa em juízo (LGPD art. 16, II e art. 7º, VI; CDC art. 27: 5 anos).
  */
-export const TERMS_VERSION = "2026-10-08";
+export const TERMS_VERSION = "2026-10-09";
 export const CONSENT_RETENTION_YEARS = 5;
 
 export type ConsentMethod = "signup_email" | "signup_google" | "reaccept";

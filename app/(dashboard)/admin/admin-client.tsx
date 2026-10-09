@@ -1774,6 +1774,7 @@ function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onS
   const [status, setStatus] = useState<StripeStatus | null>(null);
   const [hooking, setHooking] = useState(false);
   const [gateway, setGateway] = useState<"stripe" | "mercadopago">(config.effectiveSettings.brlGateway);
+  const [feePercent, setFeePercent] = useState(config.effectiveSettings.cancellationFeePercent);
   const [showMp, setShowMp] = useState(gateway === "mercadopago" || !!config.secrets.mercadoPagoAccessToken?.configured);
 
   const loadStatus = useCallback(() => api("/api/admin/stripe").then(setStatus).catch(() => setStatus(null)), []);
@@ -1785,7 +1786,7 @@ function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onS
       const res = await api("/api/admin/config", "PUT", {
         secrets: draft.payload(),
         // As configurações gerais são salvas inteiras: junta a escolha do gateway com o que já existe.
-        settings: { ...config.settings, brlGateway: gateway },
+        settings: { ...config.settings, brlGateway: gateway, cancellationFeePercent: Math.min(100, Math.max(0, feePercent)) },
       });
       if (res.stripe?.configured) stripeToast(res.stripe, tr("Pagamentos salvos", "Payments saved"));
       else toast.success(tr("Pagamentos salvos", "Payments saved"));
@@ -1901,6 +1902,20 @@ function PaymentsTab({ config, onSaved, baseUrl }: { config: ConfigResponse; onS
           ))}
         </div>
         <p className="text-xs text-muted-foreground">{tr("Dólar e euro são sempre cobrados pela Stripe.", "USD and EUR are always charged through Stripe.")}</p>
+      </section>
+
+      <section className="surface space-y-3 p-5 sm:p-6">
+        <h3 className="font-semibold">{tr("Cancelamento de assinaturas", "Subscription cancellation")}</h3>
+        <p className="text-sm text-muted-foreground">
+          {tr(
+            "O cliente cancela em Comprar créditos e nada mais é cobrado depois do período já pago. A taxa abaixo (% de uma mensalidade) é cobrada uma vez no cartão da assinatura e aparece antes da contratação e na confirmação do cancelamento. Ela nunca é cobrada nos 7 primeiros dias (direito de arrependimento, CDC art. 49) e o cancelamento acontece mesmo se a cobrança da taxa falhar. 0 = sem taxa.",
+            "Customers cancel in Buy credits and nothing else is charged after the paid period. The fee below (% of one monthly fee) is charged once to the subscription card and is shown before subscribing and in the cancellation confirmation. It's never charged in the first 7 days (right of withdrawal, CDC art. 49) and cancellation goes through even if the fee charge fails. 0 = no fee."
+          )}
+        </p>
+        <div className="max-w-xs">
+          <NumberField label={tr("Taxa de cancelamento (%)", "Cancellation fee (%)")} value={feePercent} step={1} onChange={(v) => setFeePercent(Math.min(100, Math.max(0, v)))} />
+        </div>
+        <p className="text-xs text-warning">{tr("Atenção: o CDC não fixa um percentual; multas em assinaturas sem fidelidade podem ser consideradas abusivas. Confirme o valor e o texto dos Termos com um advogado.", "Note: Brazilian consumer law sets no fixed percentage; fees on subscriptions without a loyalty period may be deemed abusive. Confirm the amount and the Terms wording with a lawyer.")}</p>
       </section>
 
       {showMp ? (

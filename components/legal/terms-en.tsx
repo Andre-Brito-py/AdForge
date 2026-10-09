@@ -1,7 +1,9 @@
 import { getCompany, LEGAL_UPDATED_AT_EN } from "@/lib/company";
+import { getAppConfig } from "@/lib/config";
 
 export async function TermsEn() {
   const COMPANY = await getCompany();
+  const fee = (await getAppConfig()).settings.cancellationFeePercent;
   return (
     <>
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Terms of Service</h1>
@@ -23,7 +25,14 @@ export async function TermsEn() {
       <h2>3. Credits, prices and taxes</h2>
       <ul>
         <li>Generations consume credits according to the price table shown in the platform before each generation.</li>
-        <li>Credits are sold in <strong>one-off packs</strong>. There is no subscription and no automatic renewal.</li>
+        <li>Credits are sold in <strong>one-off packs</strong> (single payment, no renewal) or <strong>monthly plans</strong>, renewed automatically every month until cancelled.</li>
+        <li>
+          You can cancel a subscription at any time under Buy credits. After cancelling <strong>no future charges are made</strong>: the plan stays active until
+          the end of the paid period and the credits you received stay in your balance.{" "}
+          {fee > 0
+            ? <>A cancellation fee of <strong>{fee}% of one monthly fee</strong> applies, charged once and shown before subscribing and before you confirm the cancellation; it is never charged within the first 7 days of the subscription (right of withdrawal).</>
+            : <>There is no cancellation fee.</>}
+        </li>
         <li>Credits do not expire while your account is active and cannot be exchanged for cash, except as described in section 4.</li>
         <li>If a generation fails for technical reasons, the credits for that generation are refunded to your balance automatically.</li>
         <li>

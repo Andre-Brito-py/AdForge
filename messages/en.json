@@ -602,7 +602,29 @@
     "subEnds": "Canceled: active until {date} and won't renew.",
     "subPastDue": "Payment pending: update your card to keep receiving credits.",
     "manageSubscription": "Manage subscription",
-    "membersCantBuy": "Only the owner and admins of this workspace can buy credits or subscribe. Purchased credits are available to the whole team."
+    "membersCantBuy": "Only the owner and admins of this workspace can buy credits or subscribe. Purchased credits are available to the whole team.",
+    "managePayment": "Card and invoices",
+    "cancelFeeInfo": "Cancellation: {percent}% of one monthly fee (waived in the first 7 days).",
+    "cancelFree": "Cancel anytime, no fee.",
+    "cancel": {
+      "button": "Cancel subscription",
+      "title": "Cancel the subscription?",
+      "description": "After cancelling, no future charges are made.",
+      "accessUntil": "Your plan stays active until {date} and won't renew.",
+      "endsNow": "Since a payment is pending, the subscription ends now and your card won't be charged again.",
+      "noMoreCharges": "No future charges will be made.",
+      "keepCredits": "Credits you've already received stay in your balance and never expire.",
+      "fee": "Cancellation fee: {amount} ({percent}% of one monthly fee), charged once to the subscription card.",
+      "noFee": "No cancellation fee.",
+      "noFeeWithdrawal": "No fee: you're within the 7-day withdrawal period.",
+      "keep": "Keep subscription",
+      "confirm": "Confirm cancellation",
+      "canceled": "Subscription cancelled. No future charges will be made.",
+      "canceledFeeFailed": "Subscription cancelled (no future charges). We couldn't charge the fee to your card; the invoice is open under \"Card and invoices\".",
+      "resume": "Reactivate subscription",
+      "resumed": "Subscription reactivated: it renews normally again.",
+      "error": "Couldn't complete this. Try again or contact support."
+    }
   },
   "credits": {
     "title": "Credits",
@@ -878,7 +900,8 @@
     "storeItemNotFound": "Listing or product not found in the store.",
     "storeImagesOnly": "Stores only take images.",
     "adsPermission": "Your Meta connection has no ads permission. Reconnect in Integrations and allow access to ad accounts.",
-    "adAccountNotFound": "Ad account not found."
+    "adAccountNotFound": "Ad account not found.",
+    "cannotResume": "This subscription can't be reactivated. Subscribe to the plan again."
   },
   "validation": {
     "emailInvalid": "Invalid email.",

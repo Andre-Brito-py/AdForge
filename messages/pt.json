@@ -602,7 +602,29 @@
     "subEnds": "Cancelada: vale até {date} e não renova.",
     "subPastDue": "Pagamento pendente: atualize o cartão para continuar recebendo créditos.",
     "manageSubscription": "Gerenciar assinatura",
-    "membersCantBuy": "Só o dono e os administradores deste workspace podem comprar créditos ou assinar. Os créditos comprados ficam disponíveis para toda a equipe."
+    "membersCantBuy": "Só o dono e os administradores deste workspace podem comprar créditos ou assinar. Os créditos comprados ficam disponíveis para toda a equipe.",
+    "managePayment": "Cartão e faturas",
+    "cancelFeeInfo": "Cancelamento: taxa de {percent}% de uma mensalidade (isenta nos primeiros 7 dias).",
+    "cancelFree": "Cancele quando quiser, sem taxa.",
+    "cancel": {
+      "button": "Cancelar assinatura",
+      "title": "Cancelar a assinatura?",
+      "description": "Depois de cancelar, nenhuma cobrança futura é feita.",
+      "accessUntil": "O plano continua valendo até {date}, sem renovação.",
+      "endsNow": "Como há um pagamento pendente, a assinatura termina agora e o cartão não será mais cobrado.",
+      "noMoreCharges": "Nenhuma cobrança futura será feita.",
+      "keepCredits": "Os créditos que você já recebeu continuam no saldo e não expiram.",
+      "fee": "Taxa de cancelamento: {amount} ({percent}% de uma mensalidade), cobrada uma única vez no cartão da assinatura.",
+      "noFee": "Sem taxa de cancelamento.",
+      "noFeeWithdrawal": "Sem taxa: você está dentro dos 7 dias do direito de arrependimento.",
+      "keep": "Manter assinatura",
+      "confirm": "Confirmar cancelamento",
+      "canceled": "Assinatura cancelada. Nenhuma cobrança futura será feita.",
+      "canceledFeeFailed": "Assinatura cancelada (sem cobranças futuras). Não conseguimos cobrar a taxa no cartão; a fatura ficou em aberto em \"Cartão e faturas\".",
+      "resume": "Reativar assinatura",
+      "resumed": "Assinatura reativada: ela volta a renovar normalmente.",
+      "error": "Não foi possível concluir. Tente de novo ou fale com o suporte."
+    }
   },
   "credits": {
     "title": "Créditos",
@@ -878,7 +900,8 @@
     "storeItemNotFound": "Anúncio ou produto não encontrado na loja.",
     "storeImagesOnly": "As lojas recebem só imagens.",
     "adsPermission": "Sua conexão com a Meta não tem permissão para anúncios. Reconecte em Integrações e autorize o acesso às contas de anúncio.",
-    "adAccountNotFound": "Conta de anúncios não encontrada."
+    "adAccountNotFound": "Conta de anúncios não encontrada.",
+    "cannotResume": "Esta assinatura não pode ser reativada. Assine novamente o plano desejado."
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",

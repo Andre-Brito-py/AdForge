@@ -15,6 +15,7 @@ import { stripeMode } from "@/lib/stripe-sync";
 import { activeSubscription } from "@/lib/subscriptions";
 import { canManageBilling } from "@/lib/workspaces";
 import { PortalButton } from "./portal-button";
+import { CancelSubscription } from "./cancel-subscription";
 import { isCurrency, refundWindowDays, type Currency } from "@/lib/locale";
 
 export async function generateMetadata() {
@@ -66,6 +67,7 @@ export default async function BillingPage(props: PageProps<"/billing">) {
 
   // Compras são do dono/admins; assinatura só uma por workspace (gerenciada no portal da Stripe).
   const manager = canManageBilling(user.workspaceRole);
+  const feePercent = config.settings.cancellationFeePercent;
   const subscription = await activeSubscription(user.workspaceId);
   const monthly = plans.filter((p) => p.interval === "month");
   const packs = plans.filter((p) => p.interval !== "month");
@@ -96,6 +98,12 @@ export default async function BillingPage(props: PageProps<"/billing">) {
             ? t("creditsPerMonth", { credits: format.number(plan.credits) })
             : t("perCredit", { credits: format.number(plan.credits), price: money(price / plan.credits, currency) })}
         </p>
+        {/* A taxa de cancelamento é informada antes da contratação (CDC art. 6º, III). */}
+        {isMonthly && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {feePercent > 0 ? t("cancelFeeInfo", { percent: feePercent }) : t("cancelFree")}
+          </p>
+        )}
         <ul className="mt-6 flex-1 space-y-2.5 text-sm">
           {features.map((f) => (
             <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />{f}</li>
@@ -140,7 +148,12 @@ export default async function BillingPage(props: PageProps<"/billing">) {
                     : null}
             </p>
           </div>
-          {manager && <PortalButton label={t("manageSubscription")} />}
+          {manager && (
+            <div className="flex flex-wrap gap-2">
+              <PortalButton label={t("managePayment")} />
+              <CancelSubscription canceled={subscription.cancelAtPeriodEnd} canResume={subscription.status === "active" && subscription.cancellationFeeStatus !== "PAID"} />
+            </div>
+          )}
         </section>
       )}
 

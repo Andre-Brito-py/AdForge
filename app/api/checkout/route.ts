@@ -89,9 +89,12 @@ export const POST = handler(async (request: Request) => {
       tax_id_collection: { enabled: true },
       custom_text: {
         submit: {
-          message: en
-            ? `${plan.credits} credits are added every month after payment and never expire. Cancel anytime in Billing.`
-            : `${plan.credits} créditos entram todo mês após o pagamento e não expiram. Cancele quando quiser em Comprar créditos.`,
+          message: (() => {
+            const fee = config.settings.cancellationFeePercent;
+            return en
+              ? `${plan.credits} credits are added every month after payment and never expire. Cancel anytime in Billing${fee > 0 ? ` (cancellation fee: ${fee}% of one monthly fee, waived in the first 7 days)` : ", no fee"}.`
+              : `${plan.credits} créditos entram todo mês após o pagamento e não expiram. Cancele quando quiser em Comprar créditos${fee > 0 ? ` (taxa de cancelamento: ${fee}% de uma mensalidade, isenta nos primeiros 7 dias)` : ", sem taxa"}.`;
+          })(),
         },
       },
       subscription_data: { metadata },

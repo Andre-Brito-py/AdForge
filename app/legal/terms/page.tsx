@@ -1,5 +1,6 @@
 import { getLocale } from "next-intl/server";
 import { getCompany, LEGAL_UPDATED_AT } from "@/lib/company";
+import { getAppConfig } from "@/lib/config";
 import { TermsEn } from "@/components/legal/terms-en";
 
 export async function generateMetadata() {
@@ -12,6 +13,7 @@ export default async function TermsPage() {
 
 async function TermsPt() {
   const COMPANY = await getCompany();
+  const fee = (await getAppConfig()).settings.cancellationFeePercent;
   return (
     <>
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Termos de Uso</h1>
@@ -32,7 +34,14 @@ async function TermsPt() {
       <h2>3. Créditos e pagamentos</h2>
       <ul>
         <li>As gerações consomem créditos, conforme a tabela exibida na plataforma antes de cada geração.</li>
-        <li>Créditos são vendidos em <strong>pacotes avulsos</strong>, com pagamento único. Não há assinatura nem renovação automática.</li>
+        <li>Créditos são vendidos em <strong>pacotes avulsos</strong> (pagamento único, sem renovação) ou em <strong>planos mensais</strong>, renovados automaticamente todo mês até o cancelamento.</li>
+        <li>
+          A assinatura pode ser cancelada a qualquer momento em Comprar créditos. Depois do cancelamento <strong>nenhuma cobrança futura é feita</strong>: o plano
+          vale até o fim do período já pago e os créditos recebidos continuam no saldo.{" "}
+          {fee > 0
+            ? <>Há taxa de cancelamento de <strong>{fee}% de uma mensalidade</strong>, cobrada uma única vez e informada antes da contratação e da confirmação do cancelamento; ela não é cobrada nos 7 primeiros dias da assinatura (direito de arrependimento).</>
+            : <>Não há taxa de cancelamento.</>}
+        </li>
         <li>Créditos não expiram enquanto a conta estiver ativa e não podem ser convertidos em dinheiro, exceto nos casos de reembolso abaixo.</li>
         <li>Se uma geração falhar por motivo técnico, os créditos daquela geração são devolvidos automaticamente.</li>
         <li>Os pagamentos são processados pelo Mercado Pago ou pela Stripe. Não armazenamos dados de cartão.</li>

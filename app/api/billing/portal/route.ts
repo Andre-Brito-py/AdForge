@@ -5,11 +5,11 @@ import { enforceRateLimit, handler, HttpError } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth";
 import { getAppConfig } from "@/lib/config";
 import { canManageBilling } from "@/lib/workspaces";
+import { portalConfiguration } from "@/lib/subscriptions";
 import { appUrl } from "@/services/email";
 
 /**
- * Portal do cliente da Stripe: trocar de plano, atualizar o cartão, ver faturas e cancelar a assinatura.
- * (Ative as opções em Stripe › Configurações › Portal do cliente.)
+ * Portal do cliente da Stripe: atualizar o cartão e ver as faturas (o cancelamento fica no próprio Vysify).
  */
 export const POST = handler(async (request: Request) => {
   const user = await requireApiUser();
@@ -22,6 +22,8 @@ export const POST = handler(async (request: Request) => {
   const stripe = new Stripe(config.secrets.stripeSecretKey);
   const session = await stripe.billingPortal.sessions.create({
     customer: workspace.stripeCustomerId,
+    // Cartão e faturas; o cancelamento é feito no Vysify (taxa e direito de arrependimento aplicados).
+    configuration: await portalConfiguration(stripe),
     return_url: `${appUrl()}/billing`,
     locale: user.locale === "en" ? "en" : "pt-BR",
   });
