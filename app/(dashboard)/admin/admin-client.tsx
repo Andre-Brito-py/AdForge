@@ -1015,12 +1015,13 @@ function TrialTab({ initial, onSaved }: { initial: ConfigResponse["freeTrial"]; 
 
 // ---------------- Integrações (Meta) ----------------
 function CopyRow({ label, value }: { label: string; value: string }) {
+  const tr = useTr();
   return (
     <div className="space-y-1">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2">
         <code className="flex-1 break-all font-mono text-xs">{value}</code>
-        <button type="button" onClick={() => { navigator.clipboard.writeText(value); toast.success("Copiado"); }} className="rounded-md p-1 text-muted-foreground hover:text-foreground" aria-label={`Copiar ${label}`}>
+        <button type="button" onClick={() => { navigator.clipboard.writeText(value); toast.success(tr("Copiado", "Copied")); }} className="rounded-md p-1 text-muted-foreground hover:text-foreground" aria-label={tr(`Copiar ${label}`, `Copy ${label}`)}>
           <Copy className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -1055,30 +1056,30 @@ function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse;
       <section className="surface space-y-4 p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-semibold">App da Meta (Instagram + Facebook)</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Em developers.facebook.com › seu app › Configurações › Básico.</p>
+            <h3 className="font-semibold">{tr("App da Meta (Instagram + Facebook)", "Meta app (Instagram + Facebook)")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{tr("Em developers.facebook.com › seu app › Configurações › Básico.", "At developers.facebook.com › your app › Settings › Basic.")}</p>
           </div>
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${configured ? "bg-success/12 text-success" : "bg-muted text-muted-foreground"}`}>
-            {configured ? "Ativo para clientes" : "Não configurado"}
+            {configured ? tr("Ativo para clientes", "Live for customers") : tr("Não configurado", "Not set up")}
           </span>
         </div>
         <SecretField label="App ID" field="metaAppId" info={config.secrets.metaAppId} value={draft.secrets.metaAppId} onChange={draft.change} />
         <SecretField label="App Secret" field="metaAppSecret" info={config.secrets.metaAppSecret} value={draft.secrets.metaAppSecret} onChange={draft.change}
-          help="Enquanto o app estiver em modo de desenvolvimento, só quem tem função no app (admin, desenvolvedor, testador) consegue conectar." />
+          help={tr("Enquanto o app estiver em modo de desenvolvimento, só quem tem função no app (admin, desenvolvedor, testador) consegue conectar.", "While the app is in development mode, only people with an app role (admin, developer, tester) can connect.")} />
         <button onClick={save} disabled={saving} className={buttonClass("brand")}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
         </button>
       </section>
 
       <section className="surface space-y-3 p-5 sm:p-6">
-        <h3 className="font-semibold">URLs para cadastrar no painel da Meta</h3>
-        <CopyRow label="URI de redirecionamento do OAuth válido (Login do Facebook › Configurações)" value={`${baseUrl}/api/integrations/meta/callback`} />
-        <CopyRow label="URL de retorno de chamada para cancelar autorização" value={`${baseUrl}/api/integrations/meta/deauthorize`} />
-        <CopyRow label="URL de solicitação de exclusão de dados" value={`${baseUrl}/api/integrations/meta/data-deletion`} />
-        <CopyRow label="URL da Política de Privacidade" value={`${baseUrl}/legal/privacy`} />
-        <CopyRow label="URL dos Termos de Serviço" value={`${baseUrl}/legal/terms`} />
-        <CopyRow label="Domínio do app" value={baseUrl.replace(/^https?:\/\//, "")} />
-        <p className="text-xs text-muted-foreground">Passo a passo completo, incluindo o App Review: docs/META_SETUP.md no repositório.</p>
+        <h3 className="font-semibold">{tr("URLs para cadastrar no painel da Meta", "URLs to register in the Meta dashboard")}</h3>
+        <CopyRow label={tr("URI de redirecionamento do OAuth válido (Login do Facebook › Configurações)", "Valid OAuth redirect URI (Facebook Login › Settings)")} value={`${baseUrl}/api/integrations/meta/callback`} />
+        <CopyRow label={tr("URL de retorno de chamada para cancelar autorização", "Deauthorize callback URL")} value={`${baseUrl}/api/integrations/meta/deauthorize`} />
+        <CopyRow label={tr("URL de solicitação de exclusão de dados", "Data deletion request URL")} value={`${baseUrl}/api/integrations/meta/data-deletion`} />
+        <CopyRow label={tr("URL da Política de Privacidade", "Privacy Policy URL")} value={`${baseUrl}/legal/privacy`} />
+        <CopyRow label={tr("URL dos Termos de Serviço", "Terms of Service URL")} value={`${baseUrl}/legal/terms`} />
+        <CopyRow label={tr("Domínio do app", "App domain")} value={baseUrl.replace(/^https?:\/\//, "")} />
+        <p className="text-xs text-muted-foreground">{tr("Passo a passo completo, incluindo o App Review: docs/META_SETUP.md no repositório.", "Full walkthrough, including App Review: docs/META_SETUP.md in the repository.")}</p>
         <p className="text-xs text-muted-foreground">{tr("Anúncios pagos usam também as permissões ads_management e ads_read (peça no App Review). Clientes que conectaram antes precisam reconectar para conceder.", "Paid ads also use the ads_management and ads_read permissions (request them in App Review). Customers who connected before need to reconnect to grant them.")}</p>
       </section>
 
@@ -1108,6 +1109,7 @@ function IntegrationsTab({ config, onSaved, baseUrl }: { config: ConfigResponse;
 }
 
 function GoogleLoginSection({ config, onSaved, baseUrl }: { config: ConfigResponse; onSaved: () => void; baseUrl: string }) {
+  const tr = useTr();
   const draft = useSecretDraft();
   const [enabled, setEnabled] = useState(config.googleLogin.enabled);
   const [saving, setSaving] = useState(false);
@@ -1117,7 +1119,7 @@ function GoogleLoginSection({ config, onSaved, baseUrl }: { config: ConfigRespon
     setSaving(true);
     try {
       await api("/api/admin/config", "PUT", { secrets: draft.payload(), googleLogin: { enabled } });
-      toast.success(enabled ? "Login com Google salvo" : "Login com Google desligado");
+      toast.success(enabled ? tr("Login com Google salvo", "Google login saved") : tr("Login com Google desligado", "Google login turned off"));
       draft.reset();
       onSaved();
     } catch (e) {
@@ -1131,21 +1133,23 @@ function GoogleLoginSection({ config, onSaved, baseUrl }: { config: ConfigRespon
     <section className="surface space-y-4 p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Login com Google</h3>
+          <h3 className="font-semibold">{tr("Login com Google", "Google login")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Mostra “Continuar com Google” no login e no cadastro. Vale na hora, sem redeploy (até 15 s para todos os servidores).
+            {tr("Mostra “Continuar com Google” no login e no cadastro. Vale na hora, sem redeploy (até 15 s para todos os servidores).", "Shows “Continue with Google” on sign-in and sign-up. Takes effect right away, no redeploy (up to 15 s for every server).")}
           </p>
         </div>
         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${config.googleLogin.active ? "bg-success/12 text-success" : "bg-muted text-muted-foreground"}`}>
-          {config.googleLogin.active ? "Visível para clientes" : !hasCredentials ? "Sem credenciais" : "Desligado"}
+          {config.googleLogin.active ? tr("Visível para clientes", "Visible to customers") : !hasCredentials ? tr("Sem credenciais", "No credentials") : tr("Desligado", "Off")}
         </span>
       </div>
 
       <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
         <div>
-          <p className="font-medium">Exibir botão do Google</p>
+          <p className="font-medium">{tr("Exibir botão do Google", "Show the Google button")}</p>
           <p className="text-sm text-muted-foreground">
-            {hasCredentials ? "Desligar não afeta quem já tem conta: essas pessoas entram com e-mail e senha ou criam uma senha em “Esqueci minha senha”." : "Preencha o Client ID e o Client Secret abaixo para o botão aparecer."}
+            {hasCredentials
+              ? tr("Desligar não afeta quem já tem conta: essas pessoas entram com e-mail e senha ou criam uma senha em “Esqueci minha senha”.", "Turning it off doesn't affect existing accounts: they sign in with email and password or create one via “Forgot password”.")
+              : tr("Preencha o Client ID e o Client Secret abaixo para o botão aparecer.", "Fill in the Client ID and Client Secret below for the button to show up.")}
           </p>
         </div>
         <Switch checked={enabled} onChange={setEnabled} />
@@ -1153,11 +1157,11 @@ function GoogleLoginSection({ config, onSaved, baseUrl }: { config: ConfigRespon
 
       <SecretField label="Client ID" field="googleClientId" info={config.secrets.googleClientId} value={draft.secrets.googleClientId} onChange={draft.change} />
       <SecretField label="Client Secret" field="googleClientSecret" info={config.secrets.googleClientSecret} value={draft.secrets.googleClientSecret} onChange={draft.change}
-        help="Google Cloud Console › APIs e serviços › Credenciais › ID do cliente OAuth (Aplicativo da Web)." />
-      <CopyRow label="URI de redirecionamento autorizado (cadastre no Google Cloud)" value={`${baseUrl}/api/auth/callback/google`} />
+        help={tr("Google Cloud Console › APIs e serviços › Credenciais › ID do cliente OAuth (Aplicativo da Web).", "Google Cloud Console › APIs & Services › Credentials › OAuth client ID (Web application).")} />
+      <CopyRow label={tr("URI de redirecionamento autorizado (cadastre no Google Cloud)", "Authorized redirect URI (register it in Google Cloud)")} value={`${baseUrl}/api/auth/callback/google`} />
 
       <button onClick={save} disabled={saving} className={buttonClass("brand")}>
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
       </button>
     </section>
   );
@@ -1167,11 +1171,12 @@ function GoogleLoginSection({ config, onSaved, baseUrl }: { config: ConfigRespon
 function SettingInput({ label, value, inUse, onChange, help, type = "text" }: {
   label: string; value: string; inUse?: string | null; onChange: (v: string) => void; help?: string; type?: string;
 }) {
+  const tr = useTr();
   return (
     <div className="space-y-1.5">
       <label className="label-base">{label}</label>
       <input className="input-base" type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={inUse || ""} />
-      {!value && inUse && <p className="text-xs text-muted-foreground">Em uso (variável de ambiente ou padrão): {inUse}</p>}
+      {!value && inUse && <p className="text-xs text-muted-foreground">{tr("Em uso (variável de ambiente ou padrão)", "In use (environment variable or default)")}: {inUse}</p>}
       {help && <p className="text-xs text-muted-foreground">{help}</p>}
     </div>
   );
@@ -1190,6 +1195,7 @@ function SettingSwitch({ title, text, checked, onChange }: { title: string; text
 }
 
 function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () => void }) {
+  const tr = useTr();
   const eff = config.effectiveSettings;
   const draft = useSecretDraft();
   const [signupsEnabled, setSignupsEnabled] = useState(config.signupsEnabled);
@@ -1197,6 +1203,7 @@ function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () =
     Object.fromEntries(Object.entries(config.settings).filter(([, v]) => typeof v === "string")) as Record<string, string>
   );
   const [autoTax, setAutoTax] = useState(eff.stripeAutomaticTax);
+  const [maxMembers, setMaxMembers] = useState(eff.maxMembers);
   const [saving, setSaving] = useState(false);
   const v = (k: SettingKey) => values[k] ?? "";
   const set = (k: SettingKey) => (val: string) => setValues((s) => ({ ...s, [k]: val }));
@@ -1208,9 +1215,10 @@ function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () =
       await api("/api/admin/config", "PUT", {
         signupsEnabled,
         secrets: draft.payload(),
-        settings: { ...values, stripeAutomaticTax: autoTax },
+        // As configurações são salvas inteiras: mantém as que não são texto (gateway, fiscal...) e aplica as desta aba.
+        settings: { ...config.settings, ...values, stripeAutomaticTax: autoTax, maxMembers: Math.min(200, Math.max(1, Math.round(maxMembers))) },
       });
-      toast.success("Configurações salvas. Valem em até 15 segundos, sem redeploy.");
+      toast.success(tr("Configurações salvas. Valem em até 15 segundos, sem redeploy.", "Settings saved. They apply within 15 seconds, no redeploy."));
       draft.reset();
       onSaved();
     } catch (e) {
@@ -1225,84 +1233,87 @@ function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () =
   return (
     <div className="space-y-5">
       <section className="surface space-y-4 p-5 sm:p-6">
-        <h3 className="font-semibold">Cadastros</h3>
-        <SettingSwitch title="Aceitar novas contas" checked={signupsEnabled} onChange={setSignupsEnabled}
-          text="Desligado: a página de cadastro mostra “Cadastros fechados” e o login com Google não cria contas novas. Quem já tem conta continua entrando normalmente." />
+        <h3 className="font-semibold">{tr("Cadastros e equipes", "Sign-ups and teams")}</h3>
+        <SettingSwitch title={tr("Aceitar novas contas", "Accept new accounts")} checked={signupsEnabled} onChange={setSignupsEnabled}
+          text={tr("Desligado: a página de cadastro mostra “Cadastros fechados” e o login com Google não cria contas novas. Quem já tem conta continua entrando normalmente.", "Off: the sign-up page shows “Sign-ups closed” and Google login doesn't create new accounts. Existing users keep signing in normally.")} />
+        <div className="max-w-xs">
+          <NumberField label={tr("Pessoas por workspace (com o dono)", "People per workspace (incl. owner)")} value={maxMembers} onChange={setMaxMembers} />
+        </div>
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">Dados da empresa</h3>
+          <h3 className="font-semibold">{tr("Dados da empresa", "Company details")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Exibidos nos Termos, na Política de Privacidade e no rodapé das páginas legais. A razão social, o CNPJ, o endereço e um e-mail de contato são obrigatórios (Decreto 7.962/2013 e LGPD).
+            {tr("Exibidos nos Termos, na Política de Privacidade e no rodapé das páginas legais. A razão social, o CNPJ, o endereço e um e-mail de contato são obrigatórios (Decreto 7.962/2013 e LGPD).", "Shown in the Terms, the Privacy Policy and the legal pages' footer. Legal name, CNPJ (tax id), address and a contact email are required in Brazil (Decree 7.962/2013 and LGPD).")}
           </p>
           {missingCompany.length > 0 && (
-            <p className="mt-2 rounded-xl bg-warning/12 p-3 text-sm text-warning">Faltam dados obrigatórios: hoje os documentos legais mostram textos como “[CNPJ]”. Preencha antes de abrir para clientes.</p>
+            <p className="mt-2 rounded-xl bg-warning/12 p-3 text-sm text-warning">{tr("Faltam dados obrigatórios: hoje os documentos legais mostram textos como “[CNPJ]”. Preencha antes de abrir para clientes.", "Required details are missing: the legal documents currently show placeholders like “[CNPJ]”. Fill them in before opening to customers.")}</p>
           )}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <SettingInput label="Razão social" value={v("companyName")} inUse={placeholder(eff.company.name)} onChange={set("companyName")} />
-          <SettingInput label="CNPJ" value={v("companyCnpj")} inUse={placeholder(eff.company.cnpj)} onChange={set("companyCnpj")} />
+          <SettingInput label={tr("Razão social", "Legal name")} value={v("companyName")} inUse={placeholder(eff.company.name)} onChange={set("companyName")} />
+          <SettingInput label={tr("CNPJ", "CNPJ (tax id)")} value={v("companyCnpj")} inUse={placeholder(eff.company.cnpj)} onChange={set("companyCnpj")} />
         </div>
-        <SettingInput label="Endereço completo" value={v("companyAddress")} inUse={placeholder(eff.company.address)} onChange={set("companyAddress")} />
+        <SettingInput label={tr("Endereço completo", "Full address")} value={v("companyAddress")} inUse={placeholder(eff.company.address)} onChange={set("companyAddress")} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <SettingInput label="E-mail de suporte" type="email" value={v("supportEmail")} inUse={eff.company.supportEmail} onChange={set("supportEmail")} />
-          <SettingInput label="E-mail de privacidade (encarregado/DPO)" type="email" value={v("privacyEmail")} inUse={eff.company.privacyEmail} onChange={set("privacyEmail")} />
+          <SettingInput label={tr("E-mail de suporte", "Support email")} type="email" value={v("supportEmail")} inUse={eff.company.supportEmail} onChange={set("supportEmail")} />
+          <SettingInput label={tr("E-mail de privacidade (encarregado/DPO)", "Privacy email (DPO)")} type="email" value={v("privacyEmail")} inUse={eff.company.privacyEmail} onChange={set("privacyEmail")} />
         </div>
-        <SettingInput label="Representante na União Europeia (GDPR art. 27)" value={v("euRepresentative")} inUse={eff.company.euRepresentative} onChange={set("euRepresentative")}
-          help="Nome e endereço do representante contratado. Vazio = a seção não aparece na Privacy Policy em inglês." />
-        <SettingInput label="Representante no Reino Unido (UK GDPR)" value={v("ukRepresentative")} inUse={eff.company.ukRepresentative} onChange={set("ukRepresentative")} />
+        <SettingInput label={tr("Representante na União Europeia (GDPR art. 27)", "EU representative (GDPR art. 27)")} value={v("euRepresentative")} inUse={eff.company.euRepresentative} onChange={set("euRepresentative")}
+          help={tr("Nome e endereço do representante contratado. Vazio = a seção não aparece na Privacy Policy em inglês.", "Name and address of the appointed representative. Empty = the section doesn't appear in the English Privacy Policy.")} />
+        <SettingInput label={tr("Representante no Reino Unido (UK GDPR)", "UK representative (UK GDPR)")} value={v("ukRepresentative")} inUse={eff.company.ukRepresentative} onChange={set("ukRepresentative")} />
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">E-mails (Resend)</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Confirmação de e-mail, recuperação de senha, boas-vindas, recibos e avisos de campanha pronta.</p>
+          <h3 className="font-semibold">{tr("E-mails (Resend)", "Emails (Resend)")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{tr("Confirmação de e-mail, recuperação de senha, boas-vindas, recibos, convites, avisos de campanha pronta e alertas para os admins.", "Email confirmation, password reset, welcome, receipts, invitations, campaign-ready notices and admin alerts.")}</p>
         </div>
-        <SecretField label="API key do Resend" field="resendKey" info={config.secrets.resendKey} value={draft.secrets.resendKey} onChange={draft.change}
-          help="resend.com › API Keys. Sem ela, nenhum e-mail é enviado (os links só aparecem no log do servidor)." />
-        <SettingInput label="Remetente" value={v("emailFrom")} inUse={eff.emailFrom} onChange={set("emailFrom")}
-          help="Formato: Vysify <nao-responda@seudominio.com>. O domínio precisa estar verificado no Resend." />
+        <SecretField label={tr("API key do Resend", "Resend API key")} field="resendKey" info={config.secrets.resendKey} value={draft.secrets.resendKey} onChange={draft.change}
+          help={tr("resend.com › API Keys. Sem ela, nenhum e-mail é enviado (os links só aparecem no log do servidor).", "resend.com › API Keys. Without it no email is sent (links only show up in the server log).")} />
+        <SettingInput label={tr("Remetente", "Sender")} value={v("emailFrom")} inUse={eff.emailFrom} onChange={set("emailFrom")}
+          help={tr("Formato: Vysify <nao-responda@seudominio.com>. O domínio precisa estar verificado no Resend.", "Format: Vysify <no-reply@yourdomain.com>. The domain must be verified in Resend.")} />
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">Análise e marketing</h3>
+          <h3 className="font-semibold">{tr("Análise e marketing", "Analytics and marketing")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Só carregam depois que o visitante aceita no banner de cookies (LGPD/GDPR). Com os dois vazios, o banner nem aparece.
+            {tr("Só carregam depois que o visitante aceita no banner de cookies (LGPD/GDPR). Com os dois vazios, o banner nem aparece.", "They only load after the visitor accepts the cookie banner (LGPD/GDPR). With both empty, the banner doesn't even show.")}
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <SettingInput label="Google Analytics 4 (ID de medição)" value={v("gaId")} inUse={eff.trackers.gaId} onChange={set("gaId")} help="Formato G-XXXXXXX." />
-          <SettingInput label="Pixel da Meta (ID)" value={v("metaPixelId")} inUse={eff.trackers.metaPixelId} onChange={set("metaPixelId")} help="Apenas números." />
+          <SettingInput label={tr("Google Analytics 4 (ID de medição)", "Google Analytics 4 (measurement ID)")} value={v("gaId")} inUse={eff.trackers.gaId} onChange={set("gaId")} help={tr("Formato G-XXXXXXX.", "Format G-XXXXXXX.")} />
+          <SettingInput label={tr("Pixel da Meta (ID)", "Meta Pixel (ID)")} value={v("metaPixelId")} inUse={eff.trackers.metaPixelId} onChange={set("metaPixelId")} help={tr("Apenas números.", "Digits only.")} />
         </div>
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
-        <h3 className="font-semibold">Impostos (Stripe)</h3>
-        <SettingSwitch title="Calcular impostos automaticamente (Stripe Tax)" checked={autoTax} onChange={setAutoTax}
-          text="Soma IVA/VAT/sales tax no checkout internacional conforme o endereço do cliente. Só ligue depois de ativar o Stripe Tax e fazer os registros fiscais no painel da Stripe." />
+        <h3 className="font-semibold">{tr("Impostos (Stripe)", "Taxes (Stripe)")}</h3>
+        <SettingSwitch title={tr("Calcular impostos automaticamente (Stripe Tax)", "Calculate taxes automatically (Stripe Tax)")} checked={autoTax} onChange={setAutoTax}
+          text={tr("Soma IVA/VAT/sales tax no checkout internacional conforme o endereço do cliente. Só ligue depois de ativar o Stripe Tax e fazer os registros fiscais no painel da Stripe.", "Adds VAT/sales tax at international checkout based on the customer's address. Only turn on after enabling Stripe Tax and registering in the Stripe dashboard.")} />
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">
         <div>
-          <h3 className="font-semibold">Avançado</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Raramente precisa mudar. Vazio = padrão.</p>
+          <h3 className="font-semibold">{tr("Avançado", "Advanced")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{tr("Raramente precisa mudar. Vazio = padrão.", "Rarely needs changing. Empty = default.")}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <SettingInput label="Meta: ID da configuração do login" value={v("metaLoginConfigId")} inUse={eff.meta.loginConfigId} onChange={set("metaLoginConfigId")}
-            help="“Login do Facebook para Empresas”. Vazio = usa as permissões padrão." />
-          <SettingInput label="Meta: versão da Graph API" value={v("metaGraphVersion")} inUse={eff.meta.graphVersion} onChange={set("metaGraphVersion")} help="Ex.: v23.0" />
+          <SettingInput label={tr("Meta: ID da configuração do login", "Meta: login configuration ID")} value={v("metaLoginConfigId")} inUse={eff.meta.loginConfigId} onChange={set("metaLoginConfigId")}
+            help={tr("“Login do Facebook para Empresas”. Vazio = usa as permissões padrão.", "“Facebook Login for Business”. Empty = uses the default permissions.")} />
+          <SettingInput label={tr("Meta: versão da Graph API", "Meta: Graph API version")} value={v("metaGraphVersion")} inUse={eff.meta.graphVersion} onChange={set("metaGraphVersion")} help={tr("Ex.: v23.0", "E.g. v23.0")} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <SettingInput label="ElevenLabs: voz feminina / padrão" value={v("elevenLabsVoiceId")} inUse={eff.elevenLabsVoiceId} onChange={set("elevenLabsVoiceId")} />
-          <SettingInput label="ElevenLabs: voz masculina" value={v("elevenLabsVoiceIdMale")} inUse={eff.elevenLabsVoiceIdMale} onChange={set("elevenLabsVoiceIdMale")}
-            help="Usada quando quem apresenta o produto no vídeo é um homem." />
+          <SettingInput label={tr("ElevenLabs: voz feminina / padrão", "ElevenLabs: female / default voice")} value={v("elevenLabsVoiceId")} inUse={eff.elevenLabsVoiceId} onChange={set("elevenLabsVoiceId")} />
+          <SettingInput label={tr("ElevenLabs: voz masculina", "ElevenLabs: male voice")} value={v("elevenLabsVoiceIdMale")} inUse={eff.elevenLabsVoiceIdMale} onChange={set("elevenLabsVoiceIdMale")}
+            help={tr("Usada quando quem apresenta o produto no vídeo é um homem.", "Used when the person presenting the product in the video is a man.")} />
         </div>
       </section>
 
       <button onClick={save} disabled={saving} className={buttonClass("brand", "lg")}>
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {tr("Salvar", "Save")}
       </button>
     </div>
   );
@@ -1316,25 +1327,27 @@ interface ImageRightsItem {
 }
 
 function RefThumb({ url, n }: { url: string; n: number }) {
+  const tr = useTr();
   const [broken, setBroken] = useState(false);
   return (
     <figure className="w-16 shrink-0">
       {broken ? (
-        <div className="flex aspect-square w-16 flex-col items-center justify-center rounded-lg bg-muted text-[10px] text-muted-foreground" title="O arquivo foi apagado; o hash continua no registro.">
-          <ImageOff className="h-4 w-4" /> apagada
+        <div className="flex aspect-square w-16 flex-col items-center justify-center rounded-lg bg-muted text-[10px] text-muted-foreground" title={tr("O arquivo foi apagado; o hash continua no registro.", "The file was deleted; the hash stays in the record.")}>
+          <ImageOff className="h-4 w-4" /> {tr("apagada", "deleted")}
         </div>
       ) : (
         <a href={url} target="_blank" rel="noopener">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={`Imagem ${n}`} onError={() => setBroken(true)} className="aspect-square w-16 rounded-lg border border-border bg-muted object-cover" />
+          <img src={url} alt={tr(`Imagem ${n}`, `Image ${n}`)} onError={() => setBroken(true)} className="aspect-square w-16 rounded-lg border border-border bg-muted object-cover" />
         </a>
       )}
-      <figcaption className="mt-0.5 text-center text-[10px] text-muted-foreground">Imagem {n}</figcaption>
+      <figcaption className="mt-0.5 text-center text-[10px] text-muted-foreground">{tr("Imagem", "Image")} {n}</figcaption>
     </figure>
   );
 }
 
 function ImageRightsTab() {
+  const tr = useTr();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ total: number; pageSize: number; items: ImageRightsItem[] } | null>(null);
@@ -1352,29 +1365,27 @@ function ImageRightsTab() {
   return (
     <div className="space-y-5">
       <section className="surface space-y-2 p-5 sm:p-6">
-        <h3 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4 text-brand" /> Autorizações de uso de imagem</h3>
+        <h3 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4 text-brand" /> {tr("Autorizações de uso de imagem", "Image use authorizations")}</h3>
         <p className="text-sm text-muted-foreground">
-          Toda vez que um cliente anexa imagens de referência, ele declara ter autorização para usar a imagem das pessoas nas fotos. Cada declaração fica
-          registrada aqui com data e hora, o texto exato que ele aceitou, IP, navegador e a impressão digital (SHA-256) de cada imagem.
+          {tr("Toda vez que um cliente anexa imagens de referência, ele declara ter autorização para usar a imagem das pessoas nas fotos. Cada declaração fica registrada aqui com data e hora, o texto exato que ele aceitou, IP, navegador e a impressão digital (SHA-256) de cada imagem.", "Every time a customer attaches reference images, they declare they're authorized to use the image of the people in the photos. Each declaration is recorded here with date and time, the exact text accepted, IP, browser and the fingerprint (SHA-256) of each image.")}
         </p>
         <p className="text-xs text-muted-foreground">
-          Use estes registros só para defesa da plataforma (reclamações, processos, pedidos de autoridades). Base legal: LGPD art. 7º, VI, e art. 16;
-          Marco Civil art. 15. Guardados por 5 anos, mesmo se a campanha ou a conta forem apagadas, e depois excluídos automaticamente. Cada consulta fica no log do servidor.
+          {tr("Use estes registros só para defesa da plataforma (reclamações, processos, pedidos de autoridades). Base legal: LGPD art. 7º, VI, e art. 16; Marco Civil art. 15. Guardados por 5 anos, mesmo se a campanha ou a conta forem apagadas, e depois excluídos automaticamente. Cada consulta fica no log do servidor.", "Use these records only to defend the platform (complaints, lawsuits, authority requests). Legal basis: LGPD art. 7, VI and art. 16; Marco Civil art. 15. Kept for 5 years, even if the campaign or account is deleted, then removed automatically. Every lookup is logged on the server.")}
         </p>
       </section>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-60 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input className="input-base pl-9" placeholder="Buscar por e-mail, nome, campanha ou código do registro" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+          <input className="input-base pl-9" placeholder={tr("Buscar por e-mail, nome, campanha ou código do registro", "Search by email, name, campaign or record code")} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         </div>
         <a href={`/api/admin/image-rights?format=csv&q=${encodeURIComponent(q)}`} className={buttonClass("outline")}>
-          <Download className="h-4 w-4" /> Exportar CSV
+          <Download className="h-4 w-4" /> {tr("Exportar CSV", "Export CSV")}
         </a>
       </div>
 
       {!data ? <Loading /> : data.items.length === 0 ? (
-        <div className="surface p-8 text-center text-sm text-muted-foreground">{q ? "Nenhum registro encontrado para essa busca." : "Nenhuma declaração registrada ainda."}</div>
+        <div className="surface p-8 text-center text-sm text-muted-foreground">{q ? tr("Nenhum registro encontrado para essa busca.", "No records match this search.") : tr("Nenhuma declaração registrada ainda.", "No declarations recorded yet.")}</div>
       ) : (
         <div className="surface divide-y divide-border">
           {data.items.map((r) => (
@@ -1384,14 +1395,14 @@ function ImageRightsTab() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">
                     {r.userEmail}
-                    {!r.accountExists && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal text-muted-foreground">conta excluída</span>}
+                    {!r.accountExists && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal text-muted-foreground">{tr("conta excluída", "account deleted")}</span>}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {r.campaignName || "—"}
-                    {!r.campaignExists && " · campanha apagada"}
+                    {!r.campaignExists && tr(" · campanha apagada", " · campaign deleted")}
                   </span>
                 </span>
-                <span className="text-xs text-muted-foreground">{r.imageUrls.length} {r.imageUrls.length === 1 ? "imagem" : "imagens"}</span>
+                <span className="text-xs text-muted-foreground">{r.imageUrls.length} {r.imageUrls.length === 1 ? tr("imagem", "image") : tr("imagens", "images")}</span>
                 <ChevronDown className={`h-4 w-4 text-muted-foreground transition ${open === r.id ? "rotate-180" : ""}`} />
               </button>
 
@@ -1401,15 +1412,15 @@ function ImageRightsTab() {
                     {r.imageUrls.map((u, i) => <RefThumb key={u} url={u} n={i + 2} />)}
                   </div>
                   <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[10rem_1fr]">
-                    <dt className="text-muted-foreground">Texto aceito</dt><dd>“{r.declarationText}” <span className="text-xs text-muted-foreground">(versão {r.declarationVersion}, {r.locale === "en" ? "inglês" : "português"})</span></dd>
-                    <dt className="text-muted-foreground">Cliente</dt><dd>{r.userName ? `${r.userName} · ` : ""}{r.userEmail}</dd>
-                    <dt className="text-muted-foreground">Data e hora (UTC)</dt><dd className="font-mono text-xs">{r.createdAt}</dd>
-                    <dt className="text-muted-foreground">IP</dt><dd className="font-mono text-xs">{r.ipAddress || "não disponível"}</dd>
-                    <dt className="text-muted-foreground">Navegador</dt><dd className="break-all text-xs">{r.userAgent || "não disponível"}</dd>
-                    <dt className="text-muted-foreground">Campanha</dt><dd className="break-all text-xs">{r.campaignName || "—"} <span className="font-mono text-muted-foreground">{r.campaignId}</span></dd>
+                    <dt className="text-muted-foreground">{tr("Texto aceito", "Accepted text")}</dt><dd>“{r.declarationText}” <span className="text-xs text-muted-foreground">({tr("versão", "version")} {r.declarationVersion}, {r.locale === "en" ? tr("inglês", "English") : tr("português", "Portuguese")})</span></dd>
+                    <dt className="text-muted-foreground">{tr("Cliente", "Customer")}</dt><dd>{r.userName ? `${r.userName} · ` : ""}{r.userEmail}</dd>
+                    <dt className="text-muted-foreground">{tr("Data e hora (UTC)", "Date and time (UTC)")}</dt><dd className="font-mono text-xs">{r.createdAt}</dd>
+                    <dt className="text-muted-foreground">IP</dt><dd className="font-mono text-xs">{r.ipAddress || tr("não disponível", "not available")}</dd>
+                    <dt className="text-muted-foreground">{tr("Navegador", "Browser")}</dt><dd className="break-all text-xs">{r.userAgent || tr("não disponível", "not available")}</dd>
+                    <dt className="text-muted-foreground">{tr("Campanha", "Campaign")}</dt><dd className="break-all text-xs">{r.campaignName || "—"} <span className="font-mono text-muted-foreground">{r.campaignId}</span></dd>
                     <dt className="text-muted-foreground">SHA-256</dt>
-                    <dd className="space-y-1">{r.imageHashes.map((h, i) => <p key={h + i} className="break-all font-mono text-[11px]">Imagem {i + 2}: {h}</p>)}</dd>
-                    <dt className="text-muted-foreground">Código do registro</dt><dd className="font-mono text-xs">{r.id}</dd>
+                    <dd className="space-y-1">{r.imageHashes.map((h, i) => <p key={h + i} className="break-all font-mono text-[11px]">{tr("Imagem", "Image")} {i + 2}: {h}</p>)}</dd>
+                    <dt className="text-muted-foreground">{tr("Código do registro", "Record code")}</dt><dd className="font-mono text-xs">{r.id}</dd>
                   </dl>
                 </div>
               )}
@@ -1420,10 +1431,10 @@ function ImageRightsTab() {
 
       {data && pages > 1 && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{data.total} registros · página {page} de {pages}</span>
+          <span className="text-muted-foreground">{tr(`${data.total} registros · página ${page} de ${pages}`, `${data.total} records · page ${page} of ${pages}`)}</span>
           <div className="flex gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={buttonClass("outline", "sm")}>Anterior</button>
-            <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages} className={buttonClass("outline", "sm")}>Próxima</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={buttonClass("outline", "sm")}>{tr("Anterior", "Previous")}</button>
+            <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages} className={buttonClass("outline", "sm")}>{tr("Próxima", "Next")}</button>
           </div>
         </div>
       )}
