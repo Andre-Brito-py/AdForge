@@ -950,5 +950,29 @@
       "invalidText": "Este convite já foi usado, foi cancelado ou venceu. Peça um novo para quem convidou você.",
       "goDashboard": "Ir para o painel"
     }
+  },
+  "support": {
+    "title": "Suporte no WhatsApp",
+    "online": "Online agora",
+    "offline": "Fora do horário",
+    "hours": "Atendimento: {start} às {end} (horário de Brasília)",
+    "hoursDays": "{days}, {start} às {end} (horário de Brasília)",
+    "backToday": "Voltamos hoje às {time}",
+    "backTomorrow": "Voltamos amanhã às {time}",
+    "backOn": "Voltamos {day} às {time}",
+    "talk": "Falar no WhatsApp",
+    "leaveMessage": "Deixar mensagem",
+    "offlineNote": "Pode mandar a mensagem: respondemos assim que o atendimento abrir.",
+    "accountLine": "Minha conta: {email}",
+    "days": [
+      "domingo",
+      "segunda",
+      "terça",
+      "quarta",
+      "quinta",
+      "sexta",
+      "sábado"
+    ],
+    "everyDay": "Todos os dias"
   }
 }

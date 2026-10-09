@@ -11,6 +11,8 @@ import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { CookieSettingsButton } from "@/components/consent/ConsentManager";
 
 import { buttonClass } from "@/components/app/ui-bits";
+import { SupportButton } from "@/components/support-button";
+import type { SupportConfig } from "@/lib/support";
 
 interface Plan {
   id: string; name: string; description?: string | null; description_en?: string | null; price_brl: number; price_usd: number; price_eur?: number | null; credits: number;
@@ -129,10 +131,11 @@ export interface ShowcaseCard {
 const RATIO: Record<string, string> = { "1:1": "aspect-square", "4:5": "aspect-[4/5]", "9:16": "aspect-[9/16]", "16:9": "aspect-video" };
 
 export default function LandingPageClient({
-  plans, signupCredits, freePlanVisible, costs, locale, currency, loggedIn, supportEmail, showcase = [],
+  plans, signupCredits, freePlanVisible, costs, locale, currency, loggedIn, supportEmail, showcase = [], support = null,
 }: {
   plans: Plan[]; signupCredits: number; freePlanVisible: boolean; costs: { image: number; video: number }; locale: "pt" | "en"; currency: "BRL" | "USD" | "EUR"; loggedIn: boolean; supportEmail: string;
   showcase?: ShowcaseCard[];
+  support?: SupportConfig | null;
 }) {
   const showFreePlan = freePlanVisible && signupCredits > 0;
   const priceIn = (p: Plan, c: string) => (c === "BRL" ? p.price_brl : c === "EUR" ? p.price_eur ?? 0 : p.price_usd);
@@ -348,6 +351,7 @@ export default function LandingPageClient({
             <Link href="/legal/cookies" className="hover:text-foreground">{t.footer.cookies}</Link>
             <CookieSettingsButton className="hover:text-foreground" />
             <a href={`mailto:${supportEmail}`} className="hover:text-foreground">{t.footer.support}</a>
+            {support && <SupportButton support={support} variant="link" />}
           </div>
           <p>© {new Date().getFullYear()} Vysify. {t.footer.rights}</p>
         </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Loader2, XCircle, CircleDashed } from "lucide-react";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
+import { VyStudio } from "@/components/mascot/VyStudio";
 import { setMascotMood } from "@/components/mascot/mascot-events";
 import { buttonClass } from "@/components/app/ui-bits";
 import { useTranslations } from "next-intl";
@@ -69,7 +70,9 @@ export default function GeneratingPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center py-6 text-center sm:py-12">
-      <PixelMascot mood={finishedAll ? (data?.status === "FAILED" ? "confused" : "happy") : "working"} size={96} />
+      {finishedAll && data?.status === "FAILED"
+        ? <PixelMascot mood="confused" size={96} />
+        : <VyStudio kind={isVideo ? "VIDEO" : "IMAGE"} progress={Math.min(progress, 100)} done={!!finishedAll} />}
       <h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">
         {finishedAll ? t("done") : t("title")}
       </h1>

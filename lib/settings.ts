@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_SUPPORT, type SupportConfig } from "./support";
 
 /**
  * Configurações gerais editáveis no painel Admin › Configurações gerais (sem redeploy).
@@ -23,6 +24,14 @@ export const settingsSchema = z.object({
   brlGateway: z.enum(["stripe", "mercadopago"]).optional(),
   // Máximo de pessoas por workspace (o dono conta).
   maxMembers: z.number().int().min(1).max(200).optional(),
+  // Atendimento pelo WhatsApp (número com DDI, só dígitos) e horário (Brasília; pode passar da meia-noite).
+  supportWhatsapp: z.union([z.literal(""), z.string().trim().regex(/^\d{10,15}$/, "Use só números, com DDI e DDD (ex.: 5511999998888)")]).optional(),
+  supportStart: z.union([z.literal(""), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário no formato HH:MM")]).optional(),
+  supportEnd: z.union([z.literal(""), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário no formato HH:MM")]).optional(),
+  supportDays: z.union([z.literal(""), z.string().regex(/^[0-6]{1,7}$/)]).optional(),
+  supportMessage: text(300),
+  // Assinaturas: taxa de cancelamento (% da mensalidade); 0 = sem taxa. Nunca cobrada nos 7 dias do arrependimento.
+  cancellationFeePercent: z.number().min(0).max(100).optional(),
   // Nota fiscal de serviço (NFS-e) automática pela NFE.io. Desligada até ter CNPJ e o emissor configurado.
   fiscalEnabled: z.boolean().optional(),
   nfeioCompanyId: text(60),
@@ -46,6 +55,8 @@ export interface Settings {
   brlGateway: "stripe" | "mercadopago";
   maxMembers: number;
   fiscal: { enabled: boolean; companyId: string | null; cityServiceCode: string | null; description: string };
+  support: SupportConfig;
+  cancellationFeePercent: number;
   meta: { loginConfigId: string | null; graphVersion: string };
   /** Voz padrão/feminina e voz masculina (escolhida quando quem apresenta é um homem). */
   elevenLabsVoiceId: string;
@@ -77,6 +88,15 @@ export function resolveSettings(s: StoredSettings): Settings {
     stripeAutomaticTax: s.stripeAutomaticTax ?? process.env.STRIPE_AUTOMATIC_TAX === "true",
     brlGateway: s.brlGateway ?? (process.env.BRL_GATEWAY === "mercadopago" ? "mercadopago" : "stripe"),
     maxMembers: s.maxMembers ?? 5,
+    support: {
+      whatsapp: pick(s.supportWhatsapp, "SUPPORT_WHATSAPP") || null,
+      start: s.supportStart || DEFAULT_SUPPORT.start,
+      end: s.supportEnd || DEFAULT_SUPPORT.end,
+      days: s.supportDays ? [...new Set(s.supportDays.split("").map(Number))] : DEFAULT_SUPPORT.days,
+      timezone: DEFAULT_SUPPORT.timezone,
+      message: s.supportMessage?.trim() || DEFAULT_SUPPORT.message,
+    },
+    cancellationFeePercent: s.cancellationFeePercent ?? 0,
     fiscal: {
       enabled: !!s.fiscalEnabled,
       companyId: pick(s.nfeioCompanyId, "NFEIO_COMPANY_ID") || null,

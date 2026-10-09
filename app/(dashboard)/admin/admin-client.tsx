@@ -40,6 +40,8 @@ interface ConfigResponse {
     stripeAutomaticTax: boolean;
     brlGateway: "stripe" | "mercadopago";
     maxMembers: number;
+    support: { whatsapp: string | null; start: string; end: string; days: number[]; timezone: string; message: string };
+    cancellationFeePercent: number;
     fiscal: { enabled: boolean; companyId: string | null; cityServiceCode: string | null; description: string };
     meta: { loginConfigId: string | null; graphVersion: string };
     elevenLabsVoiceId: string;
@@ -48,7 +50,7 @@ interface ConfigResponse {
 }
 type SettingKey =
   | "companyName" | "companyCnpj" | "companyAddress" | "supportEmail" | "privacyEmail" | "euRepresentative" | "ukRepresentative"
-  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "brlGateway" | "maxMembers" | "fiscalEnabled" | "nfeioCompanyId" | "fiscalCityServiceCode" | "fiscalDescription" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId" | "elevenLabsVoiceIdMale";
+  | "emailFrom" | "gaId" | "metaPixelId" | "stripeAutomaticTax" | "brlGateway" | "maxMembers" | "supportWhatsapp" | "supportStart" | "supportEnd" | "supportDays" | "supportMessage" | "cancellationFeePercent" | "fiscalEnabled" | "nfeioCompanyId" | "fiscalCityServiceCode" | "fiscalDescription" | "metaLoginConfigId" | "metaGraphVersion" | "elevenLabsVoiceId" | "elevenLabsVoiceIdMale";
 
 /** Texto do painel no idioma do admin (o painel acompanha o idioma escolhido em Configurações). */
 function useTr() {
@@ -1239,6 +1241,38 @@ function GeneralTab({ config, onSaved }: { config: ConfigResponse; onSaved: () =
         <div className="max-w-xs">
           <NumberField label={tr("Pessoas por workspace (com o dono)", "People per workspace (incl. owner)")} value={maxMembers} onChange={setMaxMembers} />
         </div>
+      </section>
+
+      <section className="surface space-y-4 p-5 sm:p-6">
+        <div>
+          <h3 className="font-semibold">{tr("Suporte no WhatsApp", "WhatsApp support")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {tr("Aparece para os clientes no menu do painel e no rodapé do site, com o status “online” dentro do horário e a hora em que o atendimento volta fora dele. Horário de Brasília; pode passar da meia-noite (ex.: 07:00 às 02:30).", "Shown to customers in the app menu and the site footer, with an “online” status during hours and when support is back outside them. Brasília time; may cross midnight (e.g. 07:00 to 02:30).")}
+          </p>
+        </div>
+        <SettingInput label={tr("Número do WhatsApp (com DDI e DDD, só números)", "WhatsApp number (country and area code, digits only)")} value={v("supportWhatsapp")} inUse={eff.support.whatsapp} onChange={(val) => set("supportWhatsapp")(val.replace(/\D/g, ""))}
+          help={tr("Ex.: 5511999998888. Vazio = o botão de suporte não aparece.", "E.g. 5511999998888. Empty = the support button doesn't show.")} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SettingInput label={tr("Início do atendimento", "Support opens at")} type="time" value={v("supportStart") || eff.support.start} onChange={set("supportStart")} />
+          <SettingInput label={tr("Fim do atendimento", "Support closes at")} type="time" value={v("supportEnd") || eff.support.end} onChange={set("supportEnd")} />
+        </div>
+        <fieldset className="space-y-2">
+          <legend className="label-base">{tr("Dias em que o atendimento começa", "Days support opens")}</legend>
+          <div className="flex flex-wrap gap-3 text-sm">
+            {[tr("Dom", "Sun"), tr("Seg", "Mon"), tr("Ter", "Tue"), tr("Qua", "Wed"), tr("Qui", "Thu"), tr("Sex", "Fri"), tr("Sáb", "Sat")].map((label, d) => {
+              const days = (v("supportDays") || eff.support.days.join("")).split("").map(Number);
+              return (
+                <label key={d} className="flex items-center gap-1.5">
+                  <input type="checkbox" checked={days.includes(d)}
+                    onChange={(e) => set("supportDays")((e.target.checked ? [...days, d] : days.filter((x) => x !== d)).sort().join(""))} />
+                  {label}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+        <SettingInput label={tr("Mensagem inicial", "Opening message")} value={v("supportMessage")} inUse={eff.support.message} onChange={set("supportMessage")}
+          help={tr("Já vem escrita quando o cliente abre o WhatsApp (o e-mail da conta é adicionado sozinho).", "Prefilled when the customer opens WhatsApp (the account email is added automatically).")} />
       </section>
 
       <section className="surface space-y-4 p-5 sm:p-6">

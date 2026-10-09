@@ -5,6 +5,7 @@ import { getAppConfig, purchasablePlans } from "@/lib/config";
 import { getSessionUser } from "@/lib/auth";
 import LandingPageClient from "./landing-client";
 import { publicShowcase } from "@/lib/showcase";
+import type { SupportConfig } from "@/lib/support";
 
 export default async function Page() {
   const locale = (await getLocale()) === "en" ? "en" : "pt";
@@ -16,11 +17,13 @@ export default async function Page() {
   let costs = { image: 3, video: 10, premiumMultiplier: 2 };
   let supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "suporte@vysify.com";
   let showcase: Awaited<ReturnType<typeof publicShowcase>> = [];
+  let support: SupportConfig | null = null;
   try {
     showcase = await publicShowcase();
     const config = await getAppConfig();
     plans = purchasablePlans(config.plans);
     supportEmail = config.settings.company.supportEmail;
+    support = config.settings.support.whatsapp ? config.settings.support : null;
     signupCredits = config.signupCredits; // 0 quando a oferta grátis está desligada
     freePlanVisible = config.freeTrial.planVisible;
     costs = config.costs;
@@ -29,5 +32,5 @@ export default async function Page() {
   }
   const user = await getSessionUser().catch(() => null);
 
-  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} currency={currency} loggedIn={!!user} supportEmail={supportEmail} showcase={showcase} />;
+  return <LandingPageClient plans={plans} signupCredits={signupCredits} freePlanVisible={freePlanVisible} costs={costs} locale={locale} currency={currency} loggedIn={!!user} supportEmail={supportEmail} showcase={showcase} support={support} />;
 }

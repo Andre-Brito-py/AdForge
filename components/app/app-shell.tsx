@@ -11,6 +11,8 @@ import { LogoMark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MascotCorner } from "@/components/mascot/MascotCorner";
 import { VerifyEmailBanner } from "./verify-email-banner";
+import { SupportButton } from "@/components/support-button";
+import type { SupportConfig } from "@/lib/support";
 import { useFormatter, useTranslations } from "next-intl";
 
 const NAV = [
@@ -33,6 +35,8 @@ export interface ShellUser {
   /** Workspaces da pessoa (o seletor só aparece com mais de um) e o que está em uso. */
   workspaces?: { id: string; name: string }[];
   workspaceId?: string;
+  /** Atendimento pelo WhatsApp (sem número configurado, o cartão não aparece). */
+  support?: SupportConfig;
 }
 
 function WorkspaceSwitcher({ user }: { user: ShellUser }) {
@@ -109,6 +113,7 @@ function SidebarContent({ user, balance, onNavigate }: { user: ShellUser; balanc
       <NavLinks isAdmin={user.isAdmin} onNavigate={onNavigate} />
 
       <div className="mt-auto space-y-3">
+        {user.support?.whatsapp && <SupportButton support={user.support} email={user.email} />}
         <Link href="/credits" onClick={onNavigate} className="surface block p-4 transition hover:border-foreground/20">
           <p className="text-xs font-medium text-muted-foreground">{t("balance")}</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">

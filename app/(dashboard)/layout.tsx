@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { listUserWorkspaces } from "@/lib/workspaces";
+import { getAppConfig } from "@/lib/config";
 
 // Mesmo nome usado em app/invite/[token]/accept-invite.tsx.
 const PENDING_INVITE_COOKIE = "vysify_invite";
@@ -19,13 +20,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Convite aberto antes do login/cadastro: volta para ele.
   const pendingInvite = (await cookies()).get(PENDING_INVITE_COOKIE)?.value;
   if (pendingInvite && /^[A-Za-z0-9_-]{20,100}$/.test(pendingInvite)) redirect(`/invite/${pendingInvite}`);
-  const [balance, workspaces] = await Promise.all([getWorkspaceBalance(user.workspaceId), listUserWorkspaces(user.id)]);
+  const [balance, workspaces, config] = await Promise.all([getWorkspaceBalance(user.workspaceId), listUserWorkspaces(user.id), getAppConfig()]);
 
   return (
     <AppShell
       user={{
         name: user.name, email: user.email, isAdmin: user.isAdmin, emailVerified: !!user.emailVerified,
         workspaces: workspaces.map((w) => ({ id: w.id, name: w.name })), workspaceId: user.workspaceId,
+        support: config.settings.support,
       }}
       balance={balance}
     >

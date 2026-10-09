@@ -950,5 +950,29 @@
       "invalidText": "This invitation was already used, canceled or expired. Ask whoever invited you for a new one.",
       "goDashboard": "Go to dashboard"
     }
+  },
+  "support": {
+    "title": "WhatsApp support",
+    "online": "Online now",
+    "offline": "Offline",
+    "hours": "Hours: {start} to {end} (Brasília time)",
+    "hoursDays": "{days}, {start} to {end} (Brasília time)",
+    "backToday": "Back today at {time}",
+    "backTomorrow": "Back tomorrow at {time}",
+    "backOn": "Back on {day} at {time}",
+    "talk": "Chat on WhatsApp",
+    "leaveMessage": "Leave a message",
+    "offlineNote": "Send your message anyway: we'll reply as soon as support opens.",
+    "accountLine": "My account: {email}",
+    "days": [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday"
+    ],
+    "everyDay": "Every day"
   }
 }
