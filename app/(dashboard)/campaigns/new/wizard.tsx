@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Globe, Image as ImageIcon, Loader2, Plus, Sparkles, Video, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Captions, Check, Globe, Image as ImageIcon, Loader2, Megaphone, Plus, Sparkles, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -18,7 +18,7 @@ import { setMascotMood } from "@/components/mascot/mascot-events";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { UploadError, uploadImage } from "@/components/app/image-dropzone";
 
-interface Product { id: string; name: string; originalImageUrl: string; targetAudience: string | null }
+interface Product { id: string; name: string; originalImageUrl: string; targetAudience: string | null; price: number | null }
 
 export function CampaignWizard({
   products, initialProductId, balance, costs, availability, emailVerified, locale, logoUrl,
@@ -52,6 +52,8 @@ export function CampaignWizard({
   const [duration, setDuration] = useState<VideoDuration>(5);
   const [mediaChoice, setMediaChoice] = useState<MediaKind | null>(null);
   const [applyLogo, setApplyLogo] = useState(!!logoUrl);
+  const [captions, setCaptions] = useState(true);
+  const [endCard, setEndCard] = useState(true);
   const [references, setReferences] = useState<string[]>([]);
   const [uploadingRef, setUploadingRef] = useState(false);
   const [imageRights, setImageRights] = useState(false);
@@ -101,6 +103,7 @@ export function CampaignWizard({
         body: JSON.stringify({
           productId, objective, targetAudience: targetAudience || null, offer: offer || null, platform, style, quality, variations, language,
           briefing: briefing.trim() || null, videoDuration: isVideo ? duration : 5, applyLogo: !!logoUrl && applyLogo,
+          captions: isVideo && captions, endCard: isVideo && endCard,
           references, imageRights: references.length > 0 && imageRights, media,
         }),
       });
@@ -359,6 +362,29 @@ export function CampaignWizard({
                   )}
                 </div>
 
+                {isVideo && (
+                  <div className="mt-3 divide-y divide-border rounded-2xl border border-border">
+                    <label className="flex cursor-pointer items-center gap-4 p-4">
+                      <Captions className="h-5 w-5 shrink-0 text-brand" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">{t("captions")}</span>
+                        <span className="block text-xs text-muted-foreground">{t("captionsHint")}</span>
+                      </span>
+                      <input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--brand)]" />
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-4 p-4">
+                      <Megaphone className="h-5 w-5 shrink-0 text-brand" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">{t("endCard")}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {product?.price ? t("endCardHint") : t("endCardNoPrice")}
+                        </span>
+                      </span>
+                      <input type="checkbox" checked={endCard} onChange={(e) => setEndCard(e.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--brand)]" />
+                    </label>
+                  </div>
+                )}
+
                 <dl className="mt-6 grid gap-x-6 gap-y-3 rounded-2xl bg-muted/50 p-5 text-sm sm:grid-cols-2">
                   <Row k={t("summary.product")} v={product?.name} />
                   <Row k={t("summary.objective")} v={tcat(`objectives.${objective}.label`)} />
@@ -366,6 +392,7 @@ export function CampaignWizard({
                   <Row k={t("summary.style")} v={`${tcat(`styles.${style}`)} · ${tcat(`qualities.${quality}.label`)}`} />
                   <Row k={t("summary.language")} v={language === "auto" ? t("languageAuto") : AD_LANGUAGES[language][locale]} />
                   {isVideo && <Row k={t("summaryDuration")} v={t("durationOption", { s: duration })} />}
+                  {isVideo && <Row k={t("summaryFinish")} v={[captions && t("captions"), endCard && t("endCard")].filter(Boolean).join(" · ") || t("no")} />}
                   {logoUrl && <Row k={t("summaryLogo")} v={applyLogo ? t("yes") : t("no")} />}
                   {references.length > 0 && <Row k={t("summaryReferences")} v={String(references.length)} />}
                 </dl>

@@ -16,16 +16,17 @@ function ffmpegPath(): string {
   return p;
 }
 
-function run(args: string[], timeoutMs = 120_000): Promise<string> {
+/** `cwd` permite caminhos relativos nos filtros (no Windows, "C:\" quebra a sintaxe do filtro `ass`). */
+export function run(args: string[], timeoutMs = 120_000, cwd?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(ffmpegPath(), ["-hide_banner", "-y", ...args], { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024 }, (error, _stdout, stderr) => {
+    execFile(ffmpegPath(), ["-hide_banner", "-y", ...args], { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024, cwd }, (error, _stdout, stderr) => {
       if (error) reject(new Error(`ffmpeg: ${(stderr || error.message).split("\n").filter(Boolean).slice(-3).join(" | ")}`));
       else resolve(stderr);
     });
   });
 }
 
-async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+export async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "vysify-video-"));
   try {
     return await fn(dir);
@@ -35,7 +36,7 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 }
 
 /** Duração (s) lida do cabeçalho que o ffmpeg imprime ao abrir o arquivo. */
-async function probeDuration(file: string): Promise<number> {
+export async function probeDuration(file: string): Promise<number> {
   const out = await run(["-i", file, "-f", "null", "-t", "0", "-"]).catch((e: Error) => e.message);
   const m = /Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/.exec(out);
   return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
@@ -85,7 +86,7 @@ export async function sliceAudio(audio: Buffer, start: number, seconds: number, 
   });
 }
 
-async function hasAudio(file: string): Promise<boolean> {
+export async function hasAudio(file: string): Promise<boolean> {
   const out = await run(["-i", file, "-f", "null", "-t", "0", "-"]).catch((e: Error) => e.message);
   return /Audio:/.test(out);
 }
@@ -121,6 +122,7 @@ async function joinWithSegmentAudio(dir: string, files: string[], logoPng?: Buff
  */
 async function cropAndLogo(dir: string, firstFile: string, inputs: string[], graph: string, logoPng?: Buffer | null, cropAspect?: string | null) {
   let label = "[v]";
+  if (!logoPng && !cropAspect) return { graph, out: label };
   let { width, height } = await probeSize(firstFile);
   const m = /^(\d+):(\d+)$/.exec(cropAspect || "");
   if (m) {
@@ -154,7 +156,7 @@ async function cropAndLogo(dir: string, firstFile: string, inputs: string[], gra
 }
 
 /** Largura e altura do primeiro stream de vídeo. */
-async function probeSize(file: string): Promise<{ width: number; height: number }> {
+export async function probeSize(file: string): Promise<{ width: number; height: number }> {
   const out = await run(["-i", file, "-f", "null", "-t", "0", "-"]).catch((e: Error) => e.message);
   const m = /Video:.*?, (\d{2,5})x(\d{2,5})/.exec(out);
   return m ? { width: Number(m[1]), height: Number(m[2]) } : { width: 720, height: 1280 };

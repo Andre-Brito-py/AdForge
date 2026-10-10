@@ -11,6 +11,9 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
+// Fonte das legendas e da tela final dos vídeos (Geist, que já vem com o Next).
+const VIDEO_FONT = "./node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // ffmpeg-static localiza o binário pelo próprio caminho: não pode ser empacotado pelo bundler.
@@ -18,10 +21,12 @@ const nextConfig: NextConfig = {
   // Rotas que geram/avançam criativos (último quadro, união dos trechos, locução, logo) precisam do binário no deploy.
   outputFileTracingIncludes: {
     // Colchetes escapados: a chave é um glob (picomatch) sobre o caminho da rota.
-    "/api/campaigns": ["./node_modules/ffmpeg-static/ffmpeg*"],
-    "/api/campaigns/\\[id\\]": ["./node_modules/ffmpeg-static/ffmpeg*"],
-    "/api/campaigns/\\[id\\]/creatives": ["./node_modules/ffmpeg-static/ffmpeg*"],
-    "/api/cron/jobs": ["./node_modules/ffmpeg-static/ffmpeg*"],
+    "/api/campaigns": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
+    "/api/campaigns/\\[id\\]": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
+    "/api/campaigns/\\[id\\]/creatives": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
+    "/api/cron/jobs": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
+    "/api/jobs/run": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
+    "/api/creatives/\\[id\\]/format": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
   },
   async headers() {
     return [

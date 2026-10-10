@@ -21,7 +21,7 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
     db.product.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, originalImageUrl: true, targetAudience: true },
+      select: { id: true, name: true, originalImageUrl: true, targetAudience: true, price: true },
     }),
     getWorkspaceBalance(user.workspaceId),
     getAppConfig(),

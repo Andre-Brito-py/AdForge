@@ -85,6 +85,9 @@ export const campaignSchema = z.object({
   language: z.enum(["auto", ...AD_LANGUAGE_KEYS]).default("auto"),
   briefing: optionalText(1000),
   applyLogo: z.boolean().default(false),
+  // Vídeo: legendas sincronizadas e tela final com oferta, preço e chamada.
+  captions: z.boolean().default(true),
+  endCard: z.boolean().default(true),
   // Imagem ou vídeo (quando o formato aceita os dois); ausente = padrão do formato.
   media: z.enum(MEDIA_KINDS).optional(),
   // Imagens extras citadas no pedido como "imagem 2", "imagem 3"... (a foto do produto é a imagem 1).

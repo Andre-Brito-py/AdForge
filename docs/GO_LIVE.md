@@ -143,6 +143,8 @@ Em **Admin › Vitrine da landing**, escolha até 3 anúncios feitos com a sua p
 
 Vídeos acima de 5 s, o recorte para 1:1/4:5 e a locução embutida usam o ffmpeg do pacote `ffmpeg-static`, baixado no `npm install` (já liberado em `allowScripts` no `package.json`). Depois do primeiro deploy, gere um vídeo de 10 s e confira se ele sai com áudio. Se a hospedagem bloquear o binário, defina `FFMPEG_PATH` com o caminho de um ffmpeg disponível. O preço do vídeo em créditos vale **a cada 5 s**.
 
+**Acabamento do anúncio** (`lib/video-finish.ts`): todo vídeo sai com legendas palavra a palavra, sincronizadas com a locução (tempos da ElevenLabs; com a voz da OpenAI, estimados pela duração), e uma tela final com a oferta, o preço do produto e a chamada na cor da marca. As duas opções ficam no último passo do assistente e vêm ligadas. A montagem guarda o vídeo-mestre (`masterUrl`); na galeria, o cliente baixa o mesmo anúncio em 9:16, 4:5, 1:1 ou 16:9, renderizado na primeira vez em poucos segundos (`POST /api/creatives/[id]/format`). As legendas usam a fonte Geist que vem com o Next (incluída no deploy pelo `next.config.ts`); `VIDEO_FONT_PATH` troca a fonte. Depois do deploy, gere um vídeo e confira as legendas e a tela final.
+
 ## 10.1 Login com Google (opcional)
 
 Em **Admin › Integrações › Login com Google**: cole o Client ID e o Client Secret (Google Cloud Console › APIs e serviços › Credenciais › ID do cliente OAuth, tipo "Aplicativo da Web") e cadastre lá a URI de redirecionamento mostrada no painel. O botão "Continuar com Google" pode ser ligado e desligado a qualquer momento, sem redeploy. Antes de abrir ao público, publique a tela de consentimento OAuth no Google (fora do modo "Teste").

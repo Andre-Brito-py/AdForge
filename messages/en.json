@@ -413,7 +413,13 @@
       "mediaImageHint": "Ad photo ready to post.",
       "mediaVideo": "Video with voiceover",
       "mediaVideoHint": "{aspect} video with speech and caption.",
-      "mediaUnavailable": "Video is unavailable right now."
+      "mediaUnavailable": "Video is unavailable right now.",
+      "captions": "Captions on the video",
+      "captionsHint": "Big captions, word by word, in sync with the voiceover. Most people watch with the sound off.",
+      "endCard": "End screen with price and call to action",
+      "endCardHint": "In the last seconds: the offer, the product price and a call-to-action button in your brand color.",
+      "endCardNoPrice": "In the last seconds: the offer and a call-to-action button. Add the price to the product to show it too.",
+      "summaryFinish": "Finishing"
     },
     "generating": {
       "title": "Generating your campaign",
@@ -465,7 +471,11 @@
       "narration": "Separate voiceover (MP3)",
       "copyHashtags": "Copy hashtags only",
       "copyCaption": "Copy caption",
-      "copyCaptionHint": "Ad copy + hashtags, ready to paste into Instagram or TikTok"
+      "copyCaptionHint": "Ad copy + hashtags, ready to paste into Instagram or TikTok",
+      "formats": "Formats",
+      "formatsHint": "Download the same ad in another format (with the same captions and end screen).",
+      "formatPreparing": "Preparing the {aspect} format…",
+      "formatError": "Couldn't create this format. Please try again."
     }
   },
   "publish": {

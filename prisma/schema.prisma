@@ -205,6 +205,9 @@ model Campaign {
   videoDuration          Int       @default(5)
   // Aplica o logo do Brand Kit no canto dos criativos (imagens e vídeos)
   applyLogo              Boolean   @default(false)
+  // Vídeo: legendas sincronizadas com a locução e tela final com oferta, preço e chamada
+  captions               Boolean   @default(true)
+  endCard                Boolean   @default(true)
   // IMAGE ou VIDEO escolhido pelo cliente (null em campanhas antigas = padrão do formato)
   mediaType              String?
   // Imagens de referência enviadas pelo cliente (JSON: lista de URLs). A foto do produto é a "imagem 1".
@@ -242,6 +245,12 @@ model Creative {
   hashtags     String?
   outputUrl    String?
   audioUrl     String?
+  // Vídeo: tempo de cada palavra da locução (JSON [{w,s,e}]) para as legendas
+  captionsJson String?
+  // Vídeo-mestre sem acabamento (formato da geração): base para os outros formatos
+  masterUrl    String?
+  // Formatos já renderizados (JSON {"9:16": url, "1:1": url})
+  formatsJson  String?
   thumbnailUrl String?
   aspectRatio  String?
   width        Int?

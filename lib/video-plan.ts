@@ -16,6 +16,8 @@ export interface VideoSpec {
   productSize?: string | null;
   /** Quem apresenta: define a voz da locução. */
   presenter?: "female" | "male" | "none" | null;
+  /** Oferta curta para a tela final (ex.: "Frete grátis hoje"). */
+  offerLine?: string | null;
 }
 
 export function serializeVideoSpec(spec: Omit<VideoSpec, "v">): string {
@@ -32,6 +34,7 @@ export function parseVideoSpec(prompt: string | null, fallbackVoiceover: string)
           extra: p.extra ? String(p.extra) : null, keyframe: p.keyframe ? String(p.keyframe) : null,
           productSize: p.productSize ? String(p.productSize) : null,
           presenter: ["female", "male", "none"].includes(p.presenter) ? p.presenter : null,
+          offerLine: p.offerLine ? String(p.offerLine) : null,
         };
       }
     } catch {
@@ -63,6 +66,11 @@ export interface VideoProgress {
   lastSourceUri?: string | null;
   /** A pessoa em cena fala a locução (lábios sincronizados) — senão é narração em off. */
   speaking?: boolean;
+  /**
+   * Montagem gera o vídeo-mestre (formato da geração, sem recorte nem logo) e o acabamento (formato, logo,
+   * legendas e tela final) acontece no fim. Ausente nos vídeos iniciados antes disso: já vêm recortados com logo.
+   */
+  master?: boolean;
   /** Etapa final de lip-sync dedicado sobre o vídeo já montado. */
   lipsync?: { request: VideoRequest; startedAt: number; assembledUrl: string; duration?: number } | null;
   /** URLs (no nosso armazenamento) dos trechos já prontos, em ordem. */

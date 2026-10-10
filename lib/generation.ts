@@ -8,6 +8,7 @@ import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
+import { finishGeneratedVideo } from "./video-formats";
 import { generationAspect, planVideo, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
 import { submitLipSync } from "@/services/ai/lipsync";
 import { falReachableUrl } from "@/services/ai/fal-storage";
@@ -201,6 +202,8 @@ export async function createCampaign(
           videoDuration,
           // Só vale se o Brand Kit tiver logo (o cliente pode ter apagado depois de abrir o assistente).
           applyLogo: input.applyLogo && !!brand?.logoUrl,
+          captions: input.captions,
+          endCard: input.endCard,
           mediaType: media,
           referencesJson: references.length ? JSON.stringify(references) : null,
           imageRightsConfirmedAt: references.length ? new Date() : null,
@@ -244,7 +247,7 @@ export async function createCampaign(
             prompt: media === "VIDEO"
               ? serializeVideoSpec({
                   scenes: variant.scenes, voiceover: variant.voiceover, keyframe: variant.keyframe || variant.visualConcept,
-                  productSize: strategy.productSize, presenter: variant.presenter ?? null,
+                  productSize: strategy.productSize, presenter: variant.presenter ?? null, offerLine: variant.offerLine?.trim() || null,
                 })
               : variant.visualConcept,
             aspectRatio,
@@ -628,9 +631,11 @@ async function submitVideoJob(job: LoadedJob) {
   let hasNarration = !!creative.audioUrl;
   if (!creative.audioUrl) {
     try {
-      const audioUrl = await generateNarration(spec.voiceover, config.secrets, campaign.workspaceId, spec.presenter);
-      if (audioUrl) {
-        await db.creative.update({ where: { id: creative.id }, data: { audioUrl } });
+      const narration = await generateNarration(spec.voiceover, config.secrets, campaign.workspaceId, spec.presenter);
+      if (narration) {
+        // Tempo de cada palavra (ElevenLabs): sincroniza as legendas com a fala.
+        const captionsJson = narration.words?.length ? JSON.stringify(narration.words) : null;
+        await db.creative.update({ where: { id: creative.id }, data: { audioUrl: narration.url, captionsJson } });
         hasNarration = true;
       }
     } catch (error) {
@@ -696,6 +701,7 @@ async function submitVideoJob(job: LoadedJob) {
     // Narração em off não vai para o modelo de vídeo (senão ele faz alguém mexer a boca sem motivo).
     audioInSegments: caps.lipSyncAudio && speaking,
     speaking,
+    master: true,
   };
   plan.total = plan.segments.length;
   const request = await submitSegment(job, spec, plan, 0, startImage);
@@ -755,7 +761,7 @@ async function pollVideoJob(job: LoadedJob) {
     const sourceUri = finished?.sourceUri ?? progress.lastSourceUri ?? null;
     const base = {
       v: 2 as const, total: progress.total, segments: progress.segments, audioInSegments: progress.audioInSegments, speaking: progress.speaking,
-      extend: progress.extend, lastSourceUri: sourceUri, genAspect: progress.genAspect, cropTo: progress.cropTo, done,
+      extend: progress.extend, lastSourceUri: sourceUri, genAspect: progress.genAspect, cropTo: progress.cropTo, master: progress.master, done,
     };
     let request: VideoRequest;
     try {
@@ -785,8 +791,10 @@ async function pollVideoJob(job: LoadedJob) {
   const fresh = await db.creative.findUnique({ where: { id: job.creativeId }, select: { audioUrl: true } });
   const narration = fresh?.audioUrl ? await readOwnMedia(fresh.audioUrl).then((m) => m.buffer).catch(() => null) : null;
   const campaign = job.creative.campaign;
+  // Vídeo-mestre: o recorte e o logo entram no acabamento (completeVideo), em cada formato.
+  const cropAspect = progress.master ? null : progress.cropTo;
   let logo: Buffer | null = null;
-  if (campaign.applyLogo) {
+  if (campaign.applyLogo && !progress.master) {
     const brand = await db.brandKit.findUnique({ where: { workspaceId: campaign.workspaceId }, select: { logoUrl: true } });
     logo = await loadLogoPng(brand?.logoUrl).catch((e) => {
       console.warn("[generation] não foi possível carregar o logo para o vídeo", e);
@@ -795,8 +803,8 @@ async function pollVideoJob(job: LoadedJob) {
   }
   // Com lip-sync, a locução já veio dentro de cada trecho; senão, entra agora por cima do vídeo.
   const final = progress.audioInSegments
-    ? await assembleVideo(segments, null, logo, { segmentAudio: true, maxSeconds: campaign.videoDuration, cropAspect: progress.cropTo })
-    : await assembleVideo(segments, narration, logo, { maxSeconds: campaign.videoDuration, cropAspect: progress.cropTo });
+    ? await assembleVideo(segments, null, logo, { segmentAudio: true, maxSeconds: campaign.videoDuration, cropAspect })
+    : await assembleVideo(segments, narration, logo, { maxSeconds: campaign.videoDuration, cropAspect });
 
   // Quando a pessoa fala: passe de lip-sync dedicado no vídeo inteiro, com a própria locução como referência.
   // É o que garante a boca sincronizada desde o primeiro quadro, em qualquer vídeo da plataforma.
@@ -825,16 +833,29 @@ async function pollVideoJob(job: LoadedJob) {
 
 const LIPSYNC_TIMEOUT_MS = 20 * 60_000;
 
-/** Salva o vídeo final, conclui o job e limpa os arquivos intermediários. */
+/** Acabamento (formato, logo, legendas, tela final), salva o vídeo final, conclui o job e limpa os intermediários. */
 async function completeVideo(job: LoadedJob, progress: VideoProgress, buffer: Buffer, duration: number) {
   const campaign = job.creative.campaign;
+  let masterUrl: string | null = null;
+  let finishedAspect: string | null = null;
+  try {
+    const finished = await finishGeneratedVideo(job.creativeId, buffer, !!progress.master);
+    buffer = finished.buffer;
+    duration = finished.duration || duration;
+    masterUrl = finished.masterUrl;
+    finishedAspect = finished.aspect;
+  } catch (error) {
+    // O acabamento é um extra: sem ele, o vídeo montado ainda é entregue.
+    console.error(`[generation] acabamento do vídeo ${job.creativeId} falhou; entregando sem ele`, error);
+  }
   const url = await saveFile(buffer, `creatives/${campaign.workspaceId}/${campaign.id}/${job.creativeId}.mp4`, "video/mp4");
+  const formatsJson = finishedAspect ? JSON.stringify({ [finishedAspect]: url }) : null;
   const completed = await db.generationJob.updateMany({
     where: { id: job.id, status: "PROCESSING" },
     data: { status: "COMPLETED", completedAt: new Date(), externalData: JSON.stringify({ ...progress, claimedAt: undefined }) },
   });
   if (completed.count === 1) {
-    await db.creative.update({ where: { id: job.creativeId }, data: { status: "COMPLETED", outputUrl: url, duration } });
+    await db.creative.update({ where: { id: job.creativeId }, data: { status: "COMPLETED", outputUrl: url, duration, masterUrl, formatsJson } });
     const provider = providerOfCreative(job.creative.provider);
     if (provider) await resolveAlert(provider);
     await deletePrefix(workDir(job)).catch((e) => console.warn("[generation] limpeza dos trechos falhou", e));

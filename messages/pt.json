@@ -413,7 +413,13 @@
       "mediaImageHint": "Foto publicitária pronta para postar.",
       "mediaVideo": "Vídeo com locução",
       "mediaVideoHint": "Vídeo no formato {aspect}, com fala e legenda.",
-      "mediaUnavailable": "Vídeo indisponível no momento."
+      "mediaUnavailable": "Vídeo indisponível no momento.",
+      "captions": "Legendas no vídeo",
+      "captionsHint": "Frases grandes, palavra a palavra, no ritmo da locução. A maioria assiste sem som.",
+      "endCard": "Tela final com preço e chamada",
+      "endCardHint": "Nos últimos segundos: a oferta, o preço do produto e um botão com a chamada, na cor da sua marca.",
+      "endCardNoPrice": "Nos últimos segundos: a oferta e um botão com a chamada. Cadastre o preço no produto para ele aparecer também.",
+      "summaryFinish": "Acabamento"
     },
     "generating": {
       "title": "Gerando sua campanha",
@@ -465,7 +471,11 @@
       "narration": "Locução separada (MP3)",
       "copyHashtags": "Copiar só as hashtags",
       "copyCaption": "Copiar legenda",
-      "copyCaptionHint": "Texto do anúncio + hashtags, pronto para colar no Instagram ou no TikTok"
+      "copyCaptionHint": "Texto do anúncio + hashtags, pronto para colar no Instagram ou no TikTok",
+      "formats": "Formatos",
+      "formatsHint": "Baixe o mesmo anúncio em outro formato (com as mesmas legendas e tela final).",
+      "formatPreparing": "Preparando o formato {aspect}…",
+      "formatError": "Não foi possível gerar esse formato. Tente de novo."
     }
   },
   "publish": {

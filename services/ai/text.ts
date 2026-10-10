@@ -72,6 +72,8 @@ const variantSchema = z.object({
   presenter: z.enum(["female", "male", "none"]).optional(),
   // Hashtags para a legenda (normalizadas em normalizeHashtags).
   hashtags: z.array(z.string().max(60)).max(30).optional(),
+  // Só em vídeo: a oferta em poucas palavras para a tela final (vazio sem oferta).
+  offerLine: z.string().max(120).optional(),
 });
 
 const strategySchema = z.object({
@@ -184,6 +186,7 @@ If the product photo breaks these image rules, reply with violation=true and a p
 - "voiceover": the narration script spoken over the video, in the ad language, about ${words} words (it must fit ${seconds} seconds when read naturally). Plain spoken text: no emojis, hashtags, URLs or stage directions.
 - "keyframe": in ENGLISH, the opening frame as ONE real photograph (not a collage): who/what is in it${refCount ? " (with image numbers)" : ""}, setting, camera angle and lens, framing, light direction. State how the product is held or placed so its size is realistic (e.g. "held in one hand at chest height, about the size of her forearm").
 - "presenter": "female", "male" or "none" — who appears presenting the product (it picks the narrator's voice).
+- "offerLine": the offer for the END SCREEN, in the ad language, max 30 characters (e.g. "Frete grátis hoje", "20% OFF na 1ª compra"). Use ONLY the "offer" in USER_DATA; empty string if there is none. Never invent discounts or prices.
 - "scenes": exactly ${scenes} strings in ENGLISH, one per consecutive 5-second beat. Scene 1 starts from the keyframe; every next scene CONTINUES the same shot (same product, same setting and lighting, smooth camera move — no hard cuts, no new characters appearing from nowhere). Describe natural, physically plausible motion. No on-screen text.`
     : "";
   const productSizeField = isVideo || refCount
@@ -203,7 +206,7 @@ Use local idioms, currency and units of the ad market.
 For each variation:
 - "headline": short, punchy headline (max 60 characters).
 - "copy": ad copy/caption suited to the platform, with line breaks and at most 2 emojis.
-- "cta": short call to action.
+- "cta": short call to action (max 22 characters: it is printed on a button at the end of videos).
 - "hashtags": ${HASHTAG_COUNT[input.platform]} hashtags for the caption, in the ad language and market: mix 1-2 broad tags with niche/product tags${input.brand?.brandName ? " and one branded tag" : ""}. Relevant to the product only (no generic spam like #fyp alone, no banned or misleading tags). Write them with the # sign, no spaces inside a tag.
 - "visualConcept": in ENGLISH, the art direction to ${isVideo ? `animate the product photo into a ${seconds}-second video (camera movement, setting, light; no on-screen text)` : "create an advertising photo of the SAME product shown in the image (setting, lighting, composition, props; no text, no invented logos)"}, consistent with the requested visual style.${videoFields}
 BRAND KIT (when present in USER_DATA)
@@ -217,7 +220,7 @@ USER_DATA
 ${userData}
 
 Reply ONLY with JSON in this format:
-{"violation": false, "outOfScope": false, ${lang.outputField}, ${productSizeField}"analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "hashtags": ["#..."], "visualConcept": "..."${isVideo ? `, "voiceover": "...", "keyframe": "...", "presenter": "female|male|none", "scenes": ["..."]` : ""}}]}
+{"violation": false, "outOfScope": false, ${lang.outputField}, ${productSizeField}"analysis": "brief analysis of the product and audience", "hooks": ["hook 1", "hook 2", "hook 3"], "variants": [{"headline": "...", "copy": "...", "cta": "...", "hashtags": ["#..."], "visualConcept": "..."${isVideo ? `, "voiceover": "...", "offerLine": "...", "keyframe": "...", "presenter": "female|male|none", "scenes": ["..."]` : ""}}]}
 If the request is not an ad, reply: {"outOfScope": true, "scopeReason": "one friendly sentence in ${reasonLanguage} saying what was asked and that Vysify only creates ads"}
 If the request breaks the content rules, reply: {"violation": true, "violationReason": "short reason in ${reasonLanguage}"}`;
 }

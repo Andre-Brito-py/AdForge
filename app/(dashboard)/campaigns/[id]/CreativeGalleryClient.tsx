@@ -12,6 +12,7 @@ import { objectiveLabel, platformLabel, styleLabel } from "@/lib/catalog-i18n";
 import { setMascotMood } from "@/components/mascot/mascot-events";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { AdList, PublicationList, PublishDialog, type AdRow, type PublicationRow, type PublishingInfo } from "./publish-dialog";
+import { VIDEO_ASPECTS } from "@/lib/video-aspects";
 
 interface Creative {
   id: string; type: string; status: string; variantIndex: number; outputUrl: string | null; thumbnailUrl?: string | null; audioUrl: string | null;
@@ -122,6 +123,28 @@ export default function CreativeGalleryClient({
       URL.revokeObjectURL(a.href);
     } catch {
       window.open(url, "_blank", "noopener");
+    }
+  };
+
+  // Outro formato do mesmo vídeo: renderizado no servidor na primeira vez (alguns segundos) e depois só baixado.
+  const [formatBusy, setFormatBusy] = useState<string | null>(null);
+  const downloadFormat = async (visual: Creative, aspect: string, name: string) => {
+    setFormatBusy(`${visual.id}:${aspect}`);
+    const toastId = toast.loading(t("formatPreparing", { aspect }));
+    try {
+      const res = await fetch(`/api/creatives/${visual.id}/format`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aspect }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || t("formatError"));
+      toast.dismiss(toastId);
+      await download(data.url, name);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formatError"), { id: toastId });
+    } finally {
+      setFormatBusy(null);
     }
   };
 
@@ -284,6 +307,18 @@ export default function CreativeGalleryClient({
                   </button>
                 )}
               </div>
+
+              {visual.type === "VIDEO" && visual.status === "COMPLETED" && visual.outputUrl && (
+                <div className="flex flex-wrap items-center gap-1 border-t border-border px-3 py-2" title={t("formatsHint")}>
+                  <span className="mr-1 text-xs text-muted-foreground">{t("formats")}:</span>
+                  {VIDEO_ASPECTS.filter((a) => a !== (visual.aspectRatio || "9:16")).map((a) => (
+                    <button key={a} disabled={!!formatBusy} className={buttonClass("ghost", "sm")}
+                      onClick={() => downloadFormat(visual, a, `vysify-${campaign.id.slice(0, 6)}-${i + 1}-${a.replace(":", "x")}.mp4`)}>
+                      {formatBusy === `${visual.id}:${a}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} {a}
+                    </button>
+                  ))}
+                </div>
+              )}
             </article>
           );
         })}
