@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus, Star } from "lucide-react";
+import { parseProductReviews } from "@/lib/validation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { EmptyState, LinkButton, PageHeader, StatusBadge } from "@/components/app/ui-bits";
@@ -35,6 +36,7 @@ export default async function ProductDetailPage(props: PageProps<"/products/[id]
     [t("audience"), product.targetAudience],
     [t("price"), product.price != null ? format.number(product.price, { style: "currency", currency: product.currency || "BRL" }) : null],
   ].filter(([, v]) => v) as [string, string][];
+  const reviews = parseProductReviews(product.reviewsJson);
 
   return (
     <>
@@ -69,6 +71,31 @@ export default async function ProductDetailPage(props: PageProps<"/products/[id]
                     </div>
                   ))}
                 </dl>
+              )}
+              {product.sourceUrl && (
+                <a href={product.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-brand hover:underline">
+                  <ExternalLink className="h-3 w-3" /> {t("source")}
+                </a>
+              )}
+            </div>
+          )}
+          {reviews && (
+            <div className="surface space-y-3 p-5 text-sm">
+              <p className="flex flex-wrap items-center gap-2 font-medium">
+                {t("reviews")}
+                {reviews.rating && (
+                  <span className="inline-flex items-center gap-1 font-normal text-muted-foreground">
+                    <Star className="h-3.5 w-3.5 fill-current text-warning" /> {t("rating", { value: reviews.rating.value, count: reviews.rating.count })}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">{t("reviewsHint")}</p>
+              {reviews.items.length > 0 && (
+                <ul className="space-y-2">
+                  {reviews.items.slice(0, 5).map((r, i) => (
+                    <li key={i} className="text-muted-foreground">“{r.text}”{r.rating !== null && <span className="ml-1 text-xs">({r.rating}/5)</span>}</li>
+                  ))}
+                </ul>
               )}
             </div>
           )}

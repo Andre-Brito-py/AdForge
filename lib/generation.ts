@@ -8,7 +8,8 @@ import { HttpError } from "./api";
 import { defaultAdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
-import { finishGeneratedVideo } from "./video-formats";
+import { finishGeneratedVideo, formatPrice } from "./video-formats";
+import { parseProductReviews } from "./validation";
 import { generationAspect, planVideo, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
 import { submitLipSync } from "@/services/ai/lipsync";
 import { falReachableUrl } from "@/services/ai/fal-storage";
@@ -139,6 +140,8 @@ export async function createCampaign(
       imageUrl: product.originalImageUrl,
       productName: product.name,
       productDescription: product.description,
+      productPrice: formatPrice(product.price, product.currency, null),
+      customerReviews: parseProductReviews(product.reviewsJson),
       objective: input.objective,
       platform: input.platform,
       media,

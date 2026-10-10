@@ -127,6 +127,11 @@ Em **Admin › Integrações › Lojas virtuais**, cadastre as credenciais do ap
 
 Depois, cada cliente conecta a loja em Integrações e envia as imagens geradas para os anúncios/produtos (como capa ou na galeria) pelo diálogo Publicar › Lojas.
 
+**Importar produto pelo link** (Produtos › Adicionar): o cliente cola o link e o Vysify traz nome, descrição, preço, foto e avaliações dos compradores, que entram no roteiro dos anúncios como prova social.
+- Shopify, Nuvemshop, VTEX, WooCommerce, Tray e a maioria das lojas: lidos pelos dados estruturados da página (os mesmos que o Google usa), sem configuração.
+- Mercado Livre: a API dele só responde com login. Funciona quando o cliente conectou a conta dele em Integrações ou, sem isso, com o token do app Vysify (as credenciais do Mercado Livre acima). Sem nenhum dos dois, o cliente vê o pedido para conectar a conta.
+- A busca da página é protegida contra SSRF (`lib/safe-fetch.ts`: bloqueia rede interna e endereços de metadados) e a foto passa pela mesma validação e moderação do upload.
+
 ## 10.3 Equipes
 
 Cada workspace pode ter várias pessoas (padrão: 5, ajustável em **Admin › Configurações gerais**). Dono e administradores convidam por e-mail, compram créditos e mexem no Brand Kit e nas integrações; membros criam produtos, campanhas e publicam. Os convites dependem do Resend configurado.

@@ -302,7 +302,21 @@
       "photoRequired": "Add the product photo.",
       "nameRequired": "Enter the product name.",
       "created": "Product added!",
-      "error": "Couldn't save the product"
+      "error": "Couldn't save the product",
+      "importTitle": "Import from your store link",
+      "importHint": "Paste the product link from Mercado Livre, Shopify, Nuvemshop, Shopee or your own store. We bring the name, description, price, photo and buyer reviews, which become selling points in the ad script.",
+      "importPlaceholder": "https://yourstore.com/products/...",
+      "importButton": "Import",
+      "importing": "Reading the page…",
+      "imported": "Product imported. Check the details and save.",
+      "importedFrom": "Imported from {source}.",
+      "importedPage": "Imported from the store page.",
+      "importRating": "{value} ({count, plural, one {# review} other {# reviews}})",
+      "importReviews": "{count, plural, one {# buyer review goes} other {# buyer reviews go}} into the ad script:",
+      "importNoReviews": "The page had no reviews; ads will use the product description.",
+      "importError": "Couldn't import this link.",
+      "changePhoto": "Change photo",
+      "importRatingOnly": "The rating and review count go into the script as social proof (the page doesn't show the comments)."
     },
     "detail": {
       "deleteConfirm": "Delete this product and all of its campaigns? This can't be undone.",
@@ -313,7 +327,11 @@
       "campaigns": "Campaigns for this product",
       "creatives": "{count, plural, one {# creative} other {# creatives}}",
       "emptyTitle": "No campaigns yet",
-      "emptyText": "Generate the first campaign for this product in a few clicks."
+      "emptyText": "Generate the first campaign for this product in a few clicks.",
+      "source": "View in store",
+      "reviews": "Buyer reviews",
+      "rating": "{value} ({count, plural, one {# review} other {# reviews}})",
+      "reviewsHint": "Imported from the store. The AI uses real praise and doubts as selling points in the ads."
     }
   },
   "dropzone": {
@@ -911,7 +929,12 @@
     "storeImagesOnly": "Stores only take images.",
     "adsPermission": "Your Meta connection has no ads permission. Reconnect in Integrations and allow access to ad accounts.",
     "adAccountNotFound": "Ad account not found.",
-    "cannotResume": "This subscription can't be reactivated. Subscribe to the plan again."
+    "cannotResume": "This subscription can't be reactivated. Subscribe to the plan again.",
+    "importInvalidUrl": "This link isn't valid. Paste the full address of the product page.",
+    "importUnreadable": "We couldn't open this page (the store may block access). Fill in the details below.",
+    "importNotFound": "We couldn't find the product details on this page. Check that it's a product page or fill in below.",
+    "importNoImage": "We found the product but couldn't download its photo. Upload the photo below.",
+    "importMercadoLivreAuth": "Mercado Livre only shares listing data with connected accounts. Connect your account in Integrations and import again, or fill in below."
   },
   "validation": {
     "emailInvalid": "Invalid email.",

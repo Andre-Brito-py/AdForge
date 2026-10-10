@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_REFERENCES, MAX_VARIATIONS, MEDIA_KINDS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS, VIDEO_DURATIONS } from "./catalog";
-import { AD_LANGUAGE_KEYS, LOCALES } from "./locale";
+import { AD_LANGUAGE_KEYS, CURRENCIES, LOCALES } from "./locale";
 
 // Mensagens padrão do Zod: o idioma é escolhido por requisição em lib/api.ts (parseBody).
 
@@ -62,6 +62,23 @@ export const twoFactorTokenSchema = z.object({
   token: z.string().regex(/^\d{6}$/, "validation.otpFormat"),
 });
 
+export const productReviewsSchema = z.object({
+  rating: z.object({ value: z.number().min(0).max(5), count: z.number().int().min(0) }).nullable(),
+  items: z.array(z.object({ rating: z.number().min(0).max(5).nullable(), text: z.string().trim().min(1).max(300) })).max(12),
+});
+export type ProductReviews = z.infer<typeof productReviewsSchema>;
+
+/** Avaliações guardadas no produto (null se ausentes ou inválidas). */
+export function parseProductReviews(json: string | null | undefined): ProductReviews | null {
+  if (!json) return null;
+  try {
+    const parsed = productReviewsSchema.safeParse(JSON.parse(json));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
 export const productSchema = z.object({
   name: trimmed(120).min(1, "validation.productNameRequired"),
   description: optionalText(2000),
@@ -70,6 +87,10 @@ export const productSchema = z.object({
   brandName: optionalText(80),
   targetAudience: optionalText(300),
   price: z.number().nonnegative().max(10_000_000).optional().nullable(),
+  // Importado pelo link da loja: moeda do preço, link de origem e avaliações dos compradores.
+  currency: z.enum(CURRENCIES).optional(),
+  sourceUrl: z.url({ protocol: /^https?$/ }).max(2000).optional().nullable(),
+  reviews: productReviewsSchema.optional().nullable(),
 });
 
 export const campaignSchema = z.object({

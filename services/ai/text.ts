@@ -5,6 +5,7 @@ import { PLATFORMS, type MediaKind, type ObjectiveKey, type PlatformKey, type St
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { colorName, websiteDomain } from "@/lib/brand-assets";
 import { IMAGE_POLICY } from "./moderation";
+import type { ProductReviews } from "@/lib/validation";
 
 export class PolicyViolationError extends Error {
   /** Recusa é uma resposta válida: não tenta o outro provedor. */
@@ -56,6 +57,10 @@ export interface StrategyInput {
   /** Idioma da interface (para o motivo de uma eventual recusa). */
   uiLocale: "pt" | "en";
   brand?: { brandName?: string | null; tone?: string | null; primaryColor?: string | null; website?: string | null } | null;
+  /** Preço já formatado na moeda do produto (ex.: "R$ 89,90"). */
+  productPrice?: string | null;
+  /** Avaliações reais dos compradores, importadas da loja. */
+  customerReviews?: ProductReviews | null;
 }
 
 const variantSchema = z.object({
@@ -105,6 +110,16 @@ export function voiceoverWordBudget(seconds: number) {
   return Math.max(8, Math.floor(seconds * WORDS_PER_SECOND));
 }
 
+/** Avaliações no formato enviado à IA (null sem avaliações): nota média, total e até 12 trechos. */
+export function reviewsForPrompt(reviews: ProductReviews | null | undefined) {
+  if (!reviews || (!reviews.rating && reviews.items.length === 0)) return null;
+  return {
+    average_rating: reviews.rating ? `${reviews.rating.value}/5` : null,
+    total_reviews: reviews.rating?.count || null,
+    samples: reviews.items.slice(0, 12).map((r) => (r.rating !== null ? `[${r.rating}/5] ${r.text}` : r.text)),
+  };
+}
+
 const OBJECTIVE_PROMPT: Record<ObjectiveKey, string> = {
   SALES: "direct sales (conversion and urgency)",
   AWARENESS: "brand awareness (memorability)",
@@ -152,6 +167,8 @@ function buildPrompt(input: StrategyInput): string {
     {
       product: input.productName,
       description: input.productDescription || null,
+      price: input.productPrice || null,
+      customer_reviews: reviewsForPrompt(input.customerReviews),
       objective: OBJECTIVE_PROMPT[input.objective],
       platform: PLATFORMS[input.platform].label,
       visual_style: STYLE_PROMPT[input.style],
@@ -214,6 +231,11 @@ BRAND KIT (when present in USER_DATA)
 - "brand_tone_of_voice": follow it in every text.
 - "brand_color": weave it subtly into the art direction (${isVideo ? "visualConcept and every scene" : "visualConcept"}): background, props or lighting — never recolor the product itself.
 - "website": end the "copy" with a short line inviting people to visit it, written exactly as the given domain (no https://). Never spell out URLs in the voiceover.
+CUSTOMER REVIEWS (when "customer_reviews" is present in USER_DATA)
+- They are real buyers' reviews from the store. Use them as the main source of benefits, objections and social proof: echo what buyers praise in their own everyday words (paraphrase; never quote names or invent testimonials), and answer the most common complaint or doubt in at least one variation.
+- At least one variation should lead with social proof. You may cite the average rating and the number of reviews exactly as given (e.g. "nota 4,8 com mais de 1.200 avaliações"); never round up, inflate or invent numbers.
+- Ignore reviews that are off-topic, about shipping/seller issues, or offensive.
+PRICE (when "price" is present in USER_DATA): you may use it in the copy when it helps sell (e.g. affordability); never invent discounts or old prices.
 Do not invent features that are not visible in the image or stated in the data. Avoid absolute claims ("best in the world", "cures").
 
 USER_DATA

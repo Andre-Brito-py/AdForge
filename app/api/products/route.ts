@@ -27,8 +27,10 @@ export const POST = handler(async (request: Request) => {
       brandName: data.brandName,
       targetAudience: data.targetAudience,
       price: data.price ?? null,
-      // Moeda escolhida pelo cliente (cookie definido pela geolocalização ou nas Configurações).
-      currency: isCurrency(currency) ? currency : user.locale === "en" ? "USD" : "BRL",
+      // Moeda do produto importado; senão, a escolhida pelo cliente (cookie da geolocalização ou Configurações).
+      currency: data.currency ?? (isCurrency(currency) ? currency : user.locale === "en" ? "USD" : "BRL"),
+      sourceUrl: data.sourceUrl ?? null,
+      reviewsJson: data.reviews && (data.reviews.rating || data.reviews.items.length) ? JSON.stringify(data.reviews) : null,
     },
   });
   return NextResponse.json(product, { status: 201 });

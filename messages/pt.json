@@ -302,7 +302,21 @@
       "photoRequired": "Adicione a foto do produto.",
       "nameRequired": "Informe o nome do produto.",
       "created": "Produto cadastrado!",
-      "error": "Não foi possível salvar o produto"
+      "error": "Não foi possível salvar o produto",
+      "importTitle": "Importar pelo link da loja",
+      "importHint": "Cole o link do produto no Mercado Livre, Shopify, Nuvemshop, Shopee ou na sua loja. Trazemos nome, descrição, preço, foto e as avaliações dos compradores, que viram argumento de venda no roteiro.",
+      "importPlaceholder": "https://produto.mercadolivre.com.br/MLB-...",
+      "importButton": "Importar",
+      "importing": "Lendo a página…",
+      "imported": "Produto importado. Confira os dados e salve.",
+      "importedFrom": "Importado do {source}.",
+      "importedPage": "Importado da página da loja.",
+      "importRating": "{value} ({count, plural, one {# avaliação} other {# avaliações}})",
+      "importReviews": "{count, plural, one {# avaliação de comprador vai} other {# avaliações de compradores vão}} para o roteiro dos anúncios:",
+      "importNoReviews": "A página não trouxe avaliações; os anúncios usam a descrição do produto.",
+      "importError": "Não foi possível importar este link.",
+      "changePhoto": "Trocar foto",
+      "importRatingOnly": "A nota e o total de avaliações entram no roteiro como prova social (a página não mostra os comentários)."
     },
     "detail": {
       "deleteConfirm": "Excluir este produto e todas as campanhas dele? Esta ação não pode ser desfeita.",
@@ -313,7 +327,11 @@
       "campaigns": "Campanhas deste produto",
       "creatives": "{count, plural, one {# criativo} other {# criativos}}",
       "emptyTitle": "Nenhuma campanha ainda",
-      "emptyText": "Gere a primeira campanha para este produto em poucos cliques."
+      "emptyText": "Gere a primeira campanha para este produto em poucos cliques.",
+      "source": "Ver na loja",
+      "reviews": "Avaliações dos compradores",
+      "rating": "{value} ({count, plural, one {# avaliação} other {# avaliações}})",
+      "reviewsHint": "Importadas da loja. A IA usa elogios e dúvidas reais como argumento de venda nos anúncios."
     }
   },
   "dropzone": {
@@ -911,7 +929,12 @@
     "storeImagesOnly": "As lojas recebem só imagens.",
     "adsPermission": "Sua conexão com a Meta não tem permissão para anúncios. Reconecte em Integrações e autorize o acesso às contas de anúncio.",
     "adAccountNotFound": "Conta de anúncios não encontrada.",
-    "cannotResume": "Esta assinatura não pode ser reativada. Assine novamente o plano desejado."
+    "cannotResume": "Esta assinatura não pode ser reativada. Assine novamente o plano desejado.",
+    "importInvalidUrl": "Esse link não é válido. Cole o endereço completo da página do produto.",
+    "importUnreadable": "Não conseguimos abrir essa página (a loja pode bloquear o acesso). Preencha os dados abaixo.",
+    "importNotFound": "Não encontramos os dados do produto nessa página. Confira se é a página de um produto ou preencha abaixo.",
+    "importNoImage": "Encontramos o produto, mas não conseguimos baixar a foto. Envie a foto abaixo.",
+    "importMercadoLivreAuth": "O Mercado Livre só libera os dados do anúncio para contas conectadas. Conecte sua conta em Integrações e importe de novo, ou preencha abaixo."
   },
   "validation": {
     "emailInvalid": "E-mail inválido.",
