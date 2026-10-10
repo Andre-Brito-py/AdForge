@@ -19,6 +19,8 @@ export const META_SCOPES = [
   "pages_manage_posts",
   "instagram_basic",
   "instagram_content_publish",
+  // Resultados dos posts publicados pelo Vysify (alcance, curtidas, salvos...): ranking de campeões.
+  "instagram_manage_insights",
   "business_management",
   // Anúncios pagos (criados sempre pausados): exigem o App Review dessas permissões.
   "ads_management",

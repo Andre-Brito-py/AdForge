@@ -20,7 +20,7 @@ const POLL_THROTTLE_MS = 4_000;
 const STALE_PENDING_MS = 90_000;
 const DUPLICATE_WINDOW_MS = 2 * 60_000;
 
-function findAccount(assets: MetaPageAsset[], target: PublishTarget, accountId: string) {
+export function findAccount(assets: MetaPageAsset[], target: PublishTarget, accountId: string) {
   if (PUBLISH_TARGETS[target].network === "facebook") {
     const page = assets.find((a) => a.pageId === accountId);
     return page ? { pageId: page.pageId, name: page.pageName } : null;

@@ -493,7 +493,44 @@
       "formats": "Formatos",
       "formatsHint": "Baixe o mesmo anúncio em outro formato (com as mesmas legendas e tela final).",
       "formatPreparing": "Preparando o formato {aspect}…",
-      "formatError": "Não foi possível gerar esse formato. Tente de novo."
+      "formatError": "Não foi possível gerar esse formato. Tente de novo.",
+      "moreLikeThis": "Gerar mais como este"
+    },
+    "results": {
+      "title": "Resultados",
+      "empty": "Assim que os anúncios rodarem, os números aparecem aqui e apontamos o criativo campeão.",
+      "notEnough": "Para apontar o campeão, pelo menos 2 criativos precisam de {min}+ impressões. Os números são atualizados a cada 6 horas.",
+      "basis": {
+        "roas": "Campeão: maior retorno sobre o investimento (vendas ÷ gasto).",
+        "cpa": "Campeão: menor custo por venda.",
+        "ctr": "Campeão: maior taxa de cliques no link. Ainda sem vendas registradas pelo pixel.",
+        "engagement": "Campeão: maior engajamento por pessoa alcançada no Instagram."
+      },
+      "needsPermission": "Para ler os resultados dos posts, reconecte a Meta em Integrações (nova permissão).",
+      "updated": "Atualizado {when}",
+      "sync": "Atualizar resultados",
+      "synced": "Resultados atualizados.",
+      "syncError": "Não foi possível atualizar os resultados.",
+      "winner": "Campeão",
+      "active": "Rodando",
+      "ads": "{count, plural, one {# anúncio} other {# anúncios}}",
+      "posts": "{count, plural, one {# post} other {# posts}}",
+      "impressions": "Impressões",
+      "ctr": "CTR",
+      "purchases": "Vendas",
+      "roas": "Retorno",
+      "cpa": "Custo/venda",
+      "spend": "Investido",
+      "engagement": "Engajamento",
+      "waiting": "Aguardando os primeiros números.",
+      "winnerTitle": "Gerar mais como este",
+      "winnerDescription": "A IA mantém o ângulo e a oferta que venceram e testa, em cada nova variação, um gancho, uma cena de abertura ou uma prova diferente.",
+      "winnerCount": "Quantas variações?",
+      "winnerCost": "Custo: {count, plural, one {# crédito} other {# créditos}}. Variação que falhar é estornada.",
+      "winnerConfirm": "Gerar variações",
+      "winnerStarted": "{count, plural, one {Gerando # variação} other {Gerando # variações}} a partir do campeão.",
+      "winnerError": "Não foi possível gerar as variações.",
+      "cancel": "Cancelar"
     }
   },
   "publish": {

@@ -493,7 +493,44 @@
       "formats": "Formats",
       "formatsHint": "Download the same ad in another format (with the same captions and end screen).",
       "formatPreparing": "Preparing the {aspect} format…",
-      "formatError": "Couldn't create this format. Please try again."
+      "formatError": "Couldn't create this format. Please try again.",
+      "moreLikeThis": "Make more like this"
+    },
+    "results": {
+      "title": "Results",
+      "empty": "Once your ads run, the numbers show up here and we point out the winning creative.",
+      "notEnough": "To pick a winner, at least 2 creatives need {min}+ impressions. Numbers refresh every 6 hours.",
+      "basis": {
+        "roas": "Winner: highest return on ad spend (sales ÷ spend).",
+        "cpa": "Winner: lowest cost per purchase.",
+        "ctr": "Winner: highest link click-through rate. No purchases tracked by the pixel yet.",
+        "engagement": "Winner: highest engagement per person reached on Instagram."
+      },
+      "needsPermission": "To read post results, reconnect Meta in Integrations (new permission).",
+      "updated": "Updated {when}",
+      "sync": "Refresh results",
+      "synced": "Results refreshed.",
+      "syncError": "Couldn't refresh the results.",
+      "winner": "Winner",
+      "active": "Running",
+      "ads": "{count, plural, one {# ad} other {# ads}}",
+      "posts": "{count, plural, one {# post} other {# posts}}",
+      "impressions": "Impressions",
+      "ctr": "CTR",
+      "purchases": "Purchases",
+      "roas": "ROAS",
+      "cpa": "Cost/purchase",
+      "spend": "Spent",
+      "engagement": "Engagement",
+      "waiting": "Waiting for the first numbers.",
+      "winnerTitle": "Make more like this",
+      "winnerDescription": "The AI keeps the angle and offer that won and tests, in each new variation, a different hook, opening scene or proof point.",
+      "winnerCount": "How many variations?",
+      "winnerCost": "Cost: {count, plural, one {# credit} other {# credits}}. Failed variations are refunded.",
+      "winnerConfirm": "Generate variations",
+      "winnerStarted": "{count, plural, one {Generating # variation} other {Generating # variations}} from the winner.",
+      "winnerError": "Couldn't generate the variations.",
+      "cancel": "Cancel"
     }
   },
   "publish": {

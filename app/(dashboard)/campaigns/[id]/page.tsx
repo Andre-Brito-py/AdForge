@@ -6,6 +6,7 @@ import { PLATFORMS, costPerVariation, type PlatformKey, type QualityKey } from "
 import { getMetaApp, getMetaConnection } from "@/lib/meta/connection";
 import { listStoreConnections } from "@/lib/stores";
 import { canManageSettings } from "@/lib/workspaces";
+import { campaignRanking } from "@/lib/performance";
 import CreativeGalleryClient from "./CreativeGalleryClient";
 
 export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) {
@@ -31,7 +32,7 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
   const platform = campaign.platform && campaign.platform in PLATFORMS ? (campaign.platform as PlatformKey) : null;
   const unitCost = platform ? costPerVariation(config.costs, platform, (campaign.quality as QualityKey) || "standard", campaign.videoDuration, campaign.mediaType) : null;
 
-  const [metaApp, metaConn, stores, brand, publications] = await Promise.all([
+  const [metaApp, metaConn, stores, brand, publications, ranking, liveAds] = await Promise.all([
     getMetaApp(),
     getMetaConnection(user.workspaceId),
     listStoreConnections(user.workspaceId),
@@ -41,7 +42,11 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
       orderBy: { createdAt: "desc" },
       select: { id: true, creativeId: true, target: true, accountName: true, status: true, permalink: true, error: true, createdAt: true },
     }),
+    campaignRanking(id),
+    db.metaAd.count({ where: { workspaceId: user.workspaceId, status: "CREATED", creativeId: { in: campaign.creatives.map((c) => c.id) } } }),
   ]);
+  // O painel de resultados aparece quando há algo para medir: anúncio pago criado ou post no Instagram.
+  const measurable = ranking.results.length > 0 || liveAds > 0 || publications.some((p) => p.status === "PUBLISHED" && p.target.startsWith("INSTAGRAM_") && p.target !== "INSTAGRAM_STORY");
   // Só dados públicos dos destinos (nada de token) vão para o navegador.
   const publishing = {
     available: !!metaApp,
@@ -78,6 +83,7 @@ export default async function CampaignPage(props: PageProps<"/campaigns/[id]">) 
       emailVerified={!!user.emailVerified}
       publishing={publishing}
       initialPublications={publications.map((p) => ({ ...p, createdAt: p.createdAt.toISOString() }))}
+      initialRanking={measurable && publishing.connected ? ranking : null}
     />
   );
 }

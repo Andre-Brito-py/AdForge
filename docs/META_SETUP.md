@@ -29,6 +29,7 @@ Permissões usadas:
 | `pages_manage_posts` | Publicar fotos e vídeos na Página |
 | `instagram_basic` | Ler o @ e o ID da conta do Instagram |
 | `instagram_content_publish` | Publicar no Feed, Reels e Stories |
+| `instagram_manage_insights` | Ler os resultados dos posts publicados (alcance, curtidas, salvos) para apontar o criativo campeão |
 | `business_management` | Acessar Páginas e contas que estão dentro de um portfólio empresarial |
 
 ## 2. Preencher as URLs

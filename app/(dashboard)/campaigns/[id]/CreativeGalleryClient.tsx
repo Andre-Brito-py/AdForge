@@ -13,6 +13,7 @@ import { setMascotMood } from "@/components/mascot/mascot-events";
 import { PixelMascot } from "@/components/mascot/PixelMascot";
 import { AdList, PublicationList, PublishDialog, type AdRow, type PublicationRow, type PublishingInfo } from "./publish-dialog";
 import { VIDEO_ASPECTS } from "@/lib/video-aspects";
+import { ResultStrip, ResultsPanel, WinnerDialog, type Ranking } from "./results-panel";
 
 interface Creative {
   id: string; type: string; status: string; variantIndex: number; outputUrl: string | null; thumbnailUrl?: string | null; audioUrl: string | null;
@@ -38,7 +39,7 @@ function captionText(c: Creative | undefined) {
 }
 
 export default function CreativeGalleryClient({
-  campaign, strategy, unitCost, emailVerified, publishing, initialPublications,
+  campaign, strategy, unitCost, emailVerified, publishing, initialPublications, initialRanking,
 }: {
   campaign: Campaign;
   strategy: { analysis: string; hooks: string[] } | null;
@@ -46,7 +47,11 @@ export default function CreativeGalleryClient({
   emailVerified: boolean;
   publishing: PublishingInfo;
   initialPublications: PublicationRow[];
+  /** Resultados dos anúncios/posts (null quando ainda não há nada publicado para medir). */
+  initialRanking: Ranking | null;
 }) {
+  const [ranking, setRanking] = useState<Ranking | null>(initialRanking);
+  const [winnerFor, setWinnerFor] = useState<string | null>(null);
   const router = useRouter();
   const t = useTranslations("campaigns.gallery");
   const tn = useTranslations("nav");
@@ -209,6 +214,8 @@ export default function CreativeGalleryClient({
         </div>
       )}
 
+      {ranking && <ResultsPanel campaignId={campaign.id} ranking={ranking} onRanking={setRanking} />}
+
       {strategy && (strategy.analysis || strategy.hooks.length > 0) && (
         <details className="surface group mb-6 p-5">
           <summary className="flex cursor-pointer list-none items-center gap-2 font-medium">
@@ -277,6 +284,24 @@ export default function CreativeGalleryClient({
                 </div>
               )}
 
+              {(() => {
+                const result = ranking?.results.find((r) => r.creativeId === visual.id);
+                if (!result) return null;
+                const winner = ranking?.winnerId === visual.id;
+                return (
+                  <>
+                    <ResultStrip result={result} winner={winner} />
+                    {winner && unitCost !== null && (
+                      <div className="border-t border-border bg-brand/5 px-3 pb-3">
+                        <button onClick={() => setWinnerFor(visual.id)} disabled={!emailVerified} className={`${buttonClass("brand", "sm")} w-full`}>
+                          <Sparkles className="h-3.5 w-3.5" /> {t("moreLikeThis")}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
               <PublicationList items={publications.filter((p) => p.creativeId === visual.id)} />
               <AdList items={ads.filter((a) => a.creativeId === visual.id)} />
 
@@ -323,6 +348,8 @@ export default function CreativeGalleryClient({
           );
         })}
       </div>
+
+      {unitCost !== null && <WinnerDialog campaignId={campaign.id} creativeId={winnerFor} unitCost={unitCost} onClose={() => setWinnerFor(null)} />}
 
       <PublishDialog
         key={publishFor?.visual.id || "none"}

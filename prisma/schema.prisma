@@ -73,6 +73,7 @@ model Workspace {
   invites       WorkspaceInvite[]
   subscriptions Subscription[]
   metaAds       MetaAd[]
+  adInsights    AdInsight[]
   products      Product[]
   campaigns     Campaign[]
   creditBalance CreditBalance?
@@ -104,6 +105,42 @@ model Connection {
 
   @@unique([workspaceId, provider])
   @@index([provider, externalUserId])
+}
+
+// Resultados de um criativo no mundo real: anúncio pago (Meta Ads) ou post orgânico (Instagram) criados pelo Vysify.
+// Totais acumulados desde o início (date_preset=maximum), atualizados pelo cron e pelo botão "Atualizar resultados".
+model AdInsight {
+  id          String   @id @default(uuid())
+  workspaceId String
+  creativeId  String
+  source      String // META_AD, INSTAGRAM_POST
+  sourceId    String // MetaAd.id ou Publication.id
+  // Situação do anúncio na Meta (ACTIVE, PAUSED, ...)
+  status      String?
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  // Cliques no link
+  clicks      Int      @default(0)
+  // Investimento, na moeda da conta de anúncios
+  spend       Float    @default(0)
+  currency    String?
+  // Compras e receita atribuídas (pixel/API de conversões da conta)
+  purchases   Int      @default(0)
+  revenue     Float    @default(0)
+  // Curtidas + comentários + salvos + compartilhamentos
+  engagement  Int      @default(0)
+  videoViews  Int      @default(0)
+  error       String?
+  syncedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creative  Creative  @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  @@unique([source, sourceId])
+  @@index([creativeId])
+  @@index([workspaceId, syncedAt])
 }
 
 model Publication {
@@ -268,6 +305,7 @@ model Creative {
   campaign     Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   job          GenerationJob?
   publications Publication[]
+  insights     AdInsight[]
 
   @@index([campaignId])
 }

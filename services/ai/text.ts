@@ -61,6 +61,8 @@ export interface StrategyInput {
   productPrice?: string | null;
   /** Avaliações reais dos compradores, importadas da loja. */
   customerReviews?: ProductReviews | null;
+  /** "Gerar mais como este": o anúncio que teve o melhor resultado real e os números dele. */
+  winner?: { headline: string | null; copy: string | null; cta: string | null; voiceover?: string | null; results: string } | null;
 }
 
 const variantSchema = z.object({
@@ -169,6 +171,9 @@ function buildPrompt(input: StrategyInput): string {
       description: input.productDescription || null,
       price: input.productPrice || null,
       customer_reviews: reviewsForPrompt(input.customerReviews),
+      winning_ad: input.winner
+        ? { headline: input.winner.headline, copy: input.winner.copy, cta: input.winner.cta, voiceover: input.winner.voiceover || null, results: input.winner.results }
+        : null,
       objective: OBJECTIVE_PROMPT[input.objective],
       platform: PLATFORMS[input.platform].label,
       visual_style: STYLE_PROMPT[input.style],
@@ -235,6 +240,9 @@ CUSTOMER REVIEWS (when "customer_reviews" is present in USER_DATA)
 - They are real buyers' reviews from the store. Use them as the main source of benefits, objections and social proof: echo what buyers praise in their own everyday words (paraphrase; never quote names or invent testimonials), and answer the most common complaint or doubt in at least one variation.
 - At least one variation should lead with social proof. You may cite the average rating and the number of reviews exactly as given (e.g. "nota 4,8 com mais de 1.200 avaliações"); never round up, inflate or invent numbers.
 - Ignore reviews that are off-topic, about shipping/seller issues, or offensive.
+WINNING AD (when "winning_ad" is present in USER_DATA)
+- It is the variation of this campaign that performed best with real people (its "results" are real metrics). Keep what made it win: the same core angle, promise, offer and tone.
+- Each new variation must test ONE clear change against it: a different hook (first line of the copy / first 3 seconds of the video), a different opening scene, or a different proof point. Name nothing as "winner" in the ad itself and never copy it verbatim.
 PRICE (when "price" is present in USER_DATA): you may use it in the copy when it helps sell (e.g. affordability); never invent discounts or old prices.
 Do not invent features that are not visible in the image or stated in the data. Avoid absolute claims ("best in the world", "cures").
 

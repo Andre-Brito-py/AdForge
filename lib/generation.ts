@@ -2,14 +2,15 @@ import { waitUntil } from "@vercel/functions";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { getAppConfig } from "./config";
-import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, resolveMedia, type MediaKind, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
+import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, resolveMedia, type MediaKind, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
 import { deletePrefix, fetchMedia, IMAGE_TYPES, isOwnStorageUrl, readOwnMedia, saveFile, type ImageMime } from "./storage";
 import { HttpError } from "./api";
-import { defaultAdLanguage } from "./locale";
+import { AD_LANGUAGES, defaultAdLanguage, type AdLanguage } from "./locale";
 import { isClaimed, parseReferences, parseVideoProgress, parseVideoSpec, serializeVideoSpec, type VideoProgress, type VideoSpec } from "./video-plan";
 import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
 import { finishGeneratedVideo, formatPrice } from "./video-formats";
 import { parseProductReviews } from "./validation";
+import { campaignRanking, describeResults } from "./performance";
 import { generationAspect, planVideo, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
 import { submitLipSync } from "@/services/ai/lipsync";
 import { falReachableUrl } from "@/services/ai/fal-storage";
@@ -22,7 +23,7 @@ import { assertCurrentTerms } from "./terms";
 import { defaultProviderPrices, estimateVariationUsd, resolveProviderPrices } from "./provider-pricing";
 import { isBillingMessage, pausedProviders, providerOfCreative, reportIfBillingProblem, resolveAlert } from "./admin-alerts";
 import { consumeCredits, getWorkspaceBalance, grantCredits, InsufficientCreditsError } from "@/services/credits";
-import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError } from "@/services/ai/text";
+import { generateCampaignStrategy, checkInstructionsScope, AiUnavailableError, OutOfScopeError, PolicyViolationError, type StrategyVariant } from "@/services/ai/text";
 import { generateAdImage } from "@/services/ai/image";
 import {
   buildVideoPrompt, cancelVideo, checkVideo, describeVideoError, isPermanentVideoError, submitVideo, type VideoKeys, type VideoRequest,
@@ -224,44 +225,12 @@ export async function createCampaign(
         });
       }
 
-      for (let i = 0; i < input.variations; i++) {
-        const variant = strategy.variants[i];
-        await tx.creative.create({
-          data: {
-            campaignId,
-            type: "COPY",
-            variantIndex: i,
-            provider: "llm",
-            model: config.models.text,
-            headline: variant.headline,
-            text: variant.copy,
-            cta: variant.cta,
-            hashtags: variant.hashtags.join(" ") || null,
-            status: "COMPLETED",
-          },
-        });
-        const visual = await tx.creative.create({
-          data: {
-            campaignId,
-            type: media,
-            variantIndex: i,
-            provider: media === "VIDEO" ? (videoModelCaps(config.models.video).provider === "veo" ? "google-veo" : "fal.ai") : imageEngine(config, input.quality === "premium").provider,
-            model: media === "VIDEO" ? (input.quality === "premium" ? config.models.videoPremium : config.models.video) : imageEngine(config, input.quality === "premium").label,
-            prompt: media === "VIDEO"
-              ? serializeVideoSpec({
-                  scenes: variant.scenes, voiceover: variant.voiceover, keyframe: variant.keyframe || variant.visualConcept,
-                  productSize: strategy.productSize, presenter: variant.presenter ?? null, offerLine: variant.offerLine?.trim() || null,
-                })
-              : variant.visualConcept,
-            aspectRatio,
-            creditsUsed: unitCost,
-            status: "QUEUED",
-            job: { create: { status: "PENDING" } },
-          },
-          include: { job: true },
-        });
-        jobIds.push(visual.job!.id);
-      }
+      jobIds.push(
+        ...(await createVariantCreatives(tx, {
+          campaignId, variants: strategy.variants.slice(0, input.variations), firstIndex: 0, media, quality: input.quality,
+          aspectRatio, unitCost, productSize: strategy.productSize, config,
+        }))
+      );
     });
   } catch (error) {
     if (error instanceof InsufficientCreditsError) throw new HttpError(402, "errors.insufficientCredits", "INSUFFICIENT_CREDITS");
@@ -270,6 +239,155 @@ export async function createCampaign(
 
   startJobs(jobIds);
   return { id: campaignId, cost: totalCost };
+}
+
+type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+
+/** Cria o texto (COPY) e o visual (na fila) de cada variação da estratégia. Devolve os jobs a iniciar. */
+async function createVariantCreatives(
+  tx: Tx,
+  opts: {
+    campaignId: string; variants: StrategyVariant[]; firstIndex: number; media: MediaKind; quality: QualityKey; aspectRatio: string;
+    unitCost: number; productSize: string | null; config: Awaited<ReturnType<typeof getAppConfig>>;
+  }
+): Promise<string[]> {
+  const { campaignId, media, config } = opts;
+  const premium = opts.quality === "premium";
+  const jobIds: string[] = [];
+  for (const [n, variant] of opts.variants.entries()) {
+    const variantIndex = opts.firstIndex + n;
+    await tx.creative.create({
+      data: {
+        campaignId, type: "COPY", variantIndex, provider: "llm", model: config.models.text,
+        headline: variant.headline, text: variant.copy, cta: variant.cta, hashtags: variant.hashtags.join(" ") || null, status: "COMPLETED",
+      },
+    });
+    const visual = await tx.creative.create({
+      data: {
+        campaignId,
+        type: media,
+        variantIndex,
+        ...(media === "VIDEO" ? videoEngine(config, premium) : { provider: imageEngine(config, premium).provider, model: imageEngine(config, premium).label }),
+        prompt: media === "VIDEO"
+          ? serializeVideoSpec({
+              scenes: variant.scenes, voiceover: variant.voiceover, keyframe: variant.keyframe || variant.visualConcept,
+              productSize: opts.productSize, presenter: variant.presenter ?? null, offerLine: variant.offerLine?.trim() || null,
+            })
+          : variant.visualConcept,
+        aspectRatio: opts.aspectRatio,
+        creditsUsed: opts.unitCost,
+        status: "QUEUED",
+        job: { create: { status: "PENDING" } },
+      },
+      include: { job: true },
+    });
+    jobIds.push(visual.job!.id);
+  }
+  return jobIds;
+}
+
+export const MAX_WINNER_VARIATIONS = 4;
+
+/**
+ * "Gerar mais como este": novas variações (texto + visual) a partir do criativo que teve o melhor resultado real.
+ * A IA mantém o ângulo que venceu e testa um gancho, uma cena de abertura ou uma prova diferente em cada uma.
+ */
+export async function generateFromWinner(user: SessionUser, campaignId: string, baseCreativeId: string, count: number) {
+  assertCurrentTerms(user);
+  const campaign = await db.campaign.findFirst({
+    where: { id: campaignId, workspaceId: user.workspaceId },
+    include: { creatives: true, product: true },
+  });
+  if (!campaign) throw new HttpError(404, "errors.campaignNotFound");
+  const platform = (campaign.platform && campaign.platform in PLATFORMS ? campaign.platform : null) as PlatformKey | null;
+  if (!platform) throw new HttpError(400, "errors.legacyCampaign");
+  const media = resolveMedia(platform, campaign.mediaType);
+  const base = campaign.creatives.find((c) => c.id === baseCreativeId && c.type === media && c.status === "COMPLETED");
+  if (!base) throw new HttpError(404, "errors.creativeNotFound");
+  await assertProviderAvailable(platform, media);
+
+  const n = Math.min(MAX_WINNER_VARIATIONS, Math.max(1, Math.round(count)));
+  const config = await getAppConfig();
+  const quality = (campaign.quality === "premium" ? "premium" : "standard") as QualityKey;
+  const unitCost = costPerVariation(config.costs, platform, quality, campaign.videoDuration, media);
+  const totalCost = unitCost * n;
+  if ((await getWorkspaceBalance(user.workspaceId)) < totalCost) throw new HttpError(402, "errors.insufficientCredits", "INSUFFICIENT_CREDITS");
+
+  const baseCopy = campaign.creatives.find((c) => c.type === "COPY" && c.variantIndex === base.variantIndex);
+  const spec = media === "VIDEO" ? parseVideoSpec(base.prompt, baseCopy?.text || "") : null;
+  const ranking = await campaignRanking(campaign.id);
+  const product = campaign.product;
+  const brand = await db.brandKit.findUnique({ where: { workspaceId: user.workspaceId } });
+  const language = (campaign.language in AD_LANGUAGES ? campaign.language : defaultAdLanguage(user.locale === "en" ? "en" : "pt", user.country)) as AdLanguage;
+
+  let strategy;
+  try {
+    strategy = await generateCampaignStrategy({
+      imageUrl: product.originalImageUrl,
+      productName: product.name,
+      productDescription: product.description,
+      productPrice: formatPrice(product.price, product.currency, null),
+      customerReviews: parseProductReviews(product.reviewsJson),
+      objective: campaign.objective as ObjectiveKey,
+      platform,
+      media,
+      style: (campaign.style || "STUDIO") as StyleKey,
+      targetAudience: campaign.targetAudience || product.targetAudience,
+      offer: campaign.offer,
+      variations: n,
+      language,
+      fallbackLanguage: language,
+      briefing: campaign.briefing,
+      referenceUrls: parseReferences(campaign.referencesJson),
+      videoDuration: campaign.videoDuration,
+      uiLocale: user.locale === "en" ? "en" : "pt",
+      brand,
+      winner: {
+        headline: baseCopy?.headline ?? null,
+        copy: baseCopy?.text ?? null,
+        cta: baseCopy?.cta ?? null,
+        voiceover: spec?.voiceover ?? null,
+        results: describeResults(ranking.results.find((r) => r.creativeId === base.id), ranking.winnerId === base.id ? ranking.basis : null),
+      },
+    });
+  } catch (error) {
+    throw toHttpAiError(error);
+  }
+
+  const firstIndex = Math.max(...campaign.creatives.map((c) => c.variantIndex), 0) + 1;
+  const jobIds: string[] = [];
+  try {
+    await db.$transaction(async (tx) => {
+      await consumeCredits(
+        {
+          workspaceId: user.workspaceId,
+          userId: user.id,
+          amount: totalCost,
+          description: txDescription(user.locale, "winner", { n, media }),
+          referenceId: campaign.id,
+          usage: {
+            operation: `WINNER_${media}`,
+            ...(media === "VIDEO" ? videoEngine(config, quality === "premium") : { provider: imageEngine(config, quality === "premium").provider, model: imageEngine(config, quality === "premium").label }),
+            estimatedCostUsd: n * variationCostUsd(config, media, quality === "premium", campaign.videoDuration),
+          },
+        },
+        tx
+      );
+      jobIds.push(
+        ...(await createVariantCreatives(tx, {
+          campaignId: campaign.id, variants: strategy.variants.slice(0, n), firstIndex, media, quality,
+          aspectRatio: base.aspectRatio || PLATFORMS[platform].aspectRatio, unitCost, productSize: strategy.productSize ?? spec?.productSize ?? null, config,
+        }))
+      );
+      await tx.campaign.update({ where: { id: campaign.id }, data: { status: "GENERATING", creditsCharged: { increment: totalCost } } });
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) throw new HttpError(402, "errors.insufficientCredits", "INSUFFICIENT_CREDITS");
+    throw error;
+  }
+
+  startJobs(jobIds);
+  return { cost: totalCost, count: n };
 }
 
 /** Gera mais uma variação visual para uma campanha existente. */
