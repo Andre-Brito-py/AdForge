@@ -97,7 +97,9 @@ test("comprar créditos: cupom inválido explica o motivo", async ({ page }) => 
   await signIn(page);
   await page.goto("/billing?coupon=NAOEXISTE");
   await expect(page.getByText("Cupom inválido ou desativado.")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Comprar Starter/ })).toBeVisible();
+  // Planos padrão: pacotes avulsos ("Comprar") e assinaturas mensais ("Assinar").
+  await expect(page.getByRole("button", { name: /Comprar Teste/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Assinar Starter/ })).toBeVisible();
 });
 
 test("equipe: convite fica pendente na lista", async ({ page }) => {
@@ -106,6 +108,7 @@ test("equipe: convite fica pendente na lista", async ({ page }) => {
   const guest = `convidado-${stamp}@exemplo.com`;
   await page.locator("#invite-email").fill(guest);
   await page.getByRole("button", { name: "Enviar convite" }).click();
-  await expect(page.getByText(guest)).toBeVisible();
+  // Exato: o aviso "Convite enviado para ..." também contém o e-mail.
+  await expect(page.getByText(guest, { exact: true })).toBeVisible();
   await expect(page.getByText(/Convite pendente/)).toBeVisible();
 });
