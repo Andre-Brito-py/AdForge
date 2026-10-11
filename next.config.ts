@@ -27,6 +27,9 @@ const nextConfig: NextConfig = {
     "/api/cron/jobs": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
     "/api/jobs/run": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
     "/api/creatives/\\[id\\]/format": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
+    // Reels/Stories geram a versão 9:16 na hora; "gerar mais como este" pode rodar a geração na mesma chamada.
+    "/api/publications": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
+    "/api/campaigns/\\[id\\]/winner": ["./node_modules/ffmpeg-static/ffmpeg*", VIDEO_FONT],
   },
   async headers() {
     return [

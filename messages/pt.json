@@ -401,7 +401,7 @@
       "briefingPlaceholder": "Ex.: vídeo mostrando a garrafa na academia, tom animado, destacar que mantém gelado por 24h. Se quiser outro idioma, é só pedir: \"dublado em espanhol\".",
       "briefingHint": "Escreva do seu jeito. A IA usa o idioma em que você escrever (ou o que você pedir) nos textos e na locução.",
       "duration": "Duração do vídeo",
-      "durationHint": "Vídeos acima de 5 s são feitos em cenas de 5 s que continuam exatamente do último quadro da anterior, já com a locução dentro.",
+      "durationHint": "Cada cena continua exatamente do último quadro da anterior, já com a locução dentro. As durações são as que o modelo de vídeo gera por inteiro: você não paga por segundos descartados.",
       "durationOption": "{s} s",
       "languageAuto": "Automático (pelo seu pedido)",
       "vyOutOfScopeTitle": "Isso não é comigo…",

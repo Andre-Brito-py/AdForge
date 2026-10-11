@@ -5,7 +5,8 @@ import { enforceRateLimit, handler, HttpError, parseBody } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth";
 import { advancePublication, createPublication, IG_CAPTION_LIMIT, PUBLISH_TARGET_KEYS } from "@/lib/publishing";
 
-export const maxDuration = 120;
+// Folga para gerar a versão 9:16 do vídeo (Reels/Stories) antes de enviar.
+export const maxDuration = 300;
 
 const bodySchema = z.object({
   creativeId: z.uuid(),

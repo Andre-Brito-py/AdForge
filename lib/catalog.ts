@@ -63,12 +63,25 @@ export function isSpeakingOnCamera(presenter: string | null | undefined): boolea
  * (continuidade) e no fim tudo é unido com a locução. O custo em créditos é por trecho.
  */
 export const VIDEO_SEGMENT_SECONDS = 5;
+/** Durações oferecidas para modelos que geram cada pedido do zero (Wan, Kling, Veo Lite). */
 export const VIDEO_DURATIONS = [5, 10, 15, 20, 30] as const;
-export type VideoDuration = (typeof VIDEO_DURATIONS)[number];
+/**
+ * Para modelos que ESTENDEM o próprio vídeo (Veo 3.1 / Fast): 8 s + blocos de 7 s. São exatamente os segundos que o
+ * provedor cobra; um vídeo de 10 s custaria 15 s gerados (e o excedente seria cortado).
+ */
+export const EXTENSION_DURATIONS = [8, 15, 22, 29] as const;
+export const ALL_VIDEO_DURATIONS: readonly number[] = [...new Set<number>([...VIDEO_DURATIONS, ...EXTENSION_DURATIONS])].sort((a, b) => a - b);
+export type VideoDuration = number;
 
+/** Blocos de 5 s cobrados (arredonda para cima: 8 s = 2 blocos, 22 s = 5). */
 export function videoSegments(duration: number | null | undefined): number {
-  const d = VIDEO_DURATIONS.includes(duration as VideoDuration) ? (duration as number) : VIDEO_SEGMENT_SECONDS;
-  return Math.round(d / VIDEO_SEGMENT_SECONDS);
+  const d = typeof duration === "number" && duration > 0 && duration <= 60 ? duration : VIDEO_SEGMENT_SECONDS;
+  return Math.max(1, Math.ceil(d / VIDEO_SEGMENT_SECONDS));
+}
+
+/** A duração aceita mais próxima (a menor que cobre o pedido; senão a maior). */
+export function snapDuration(requested: number, allowed: readonly number[]): number {
+  return allowed.find((d) => d >= requested) ?? allowed[allowed.length - 1];
 }
 
 export type ObjectiveKey = keyof typeof OBJECTIVES;
@@ -84,7 +97,11 @@ export interface AiCosts {
   usd?: Partial<Record<string, number>>;
 }
 
-export const DEFAULT_COSTS: AiCosts = { image: 3, video: 10, premiumMultiplier: 2 };
+/**
+ * Créditos padrão (o Admin substitui): vídeo de 15 s = 75 créditos, imagem = 2. O Premium ×1,5 cobre o Veo Fast;
+ * com o Veo 3.1 normal (~2,7× mais caro por segundo) no Premium, use ×2,5 em Admin › IA e custos.
+ */
+export const DEFAULT_COSTS: AiCosts = { image: 2, video: 25, premiumMultiplier: 1.5 };
 
 /** Créditos por variação. Para vídeo, `costs.video` é o preço de cada trecho de 5 s. */
 export function costPerVariation(costs: AiCosts, platform: PlatformKey, quality: QualityKey, videoDuration?: number | null, media?: string | null): number {

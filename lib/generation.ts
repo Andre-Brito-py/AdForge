@@ -2,7 +2,7 @@ import { waitUntil } from "@vercel/functions";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { getAppConfig } from "./config";
-import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, isSpeakingOnCamera, resolveMedia, type MediaKind, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
+import { PLATFORMS, STYLES, VIDEO_SEGMENT_SECONDS, costPerVariation, snapDuration, isSpeakingOnCamera, resolveMedia, type MediaKind, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey } from "./catalog";
 import { deletePrefix, fetchMedia, IMAGE_TYPES, isOwnStorageUrl, readOwnMedia, saveFile, type ImageMime } from "./storage";
 import { HttpError } from "./api";
 import { AD_LANGUAGES, defaultAdLanguage, type AdLanguage } from "./locale";
@@ -11,7 +11,7 @@ import { assembleVideo, lastFrame, sliceAudio } from "./video-assembly";
 import { finishGeneratedVideo, formatPrice } from "./video-formats";
 import { parseProductReviews } from "./validation";
 import { campaignRanking, describeResults } from "./performance";
-import { generationAspect, planVideo, segmentPrompt, videoModelCaps, voiceoverSlice } from "./video-models";
+import { generationAspect, planVideo, segmentPrompt, videoDurationsFor, videoModelCaps, voiceoverSlice } from "./video-models";
 import { submitLipSync } from "@/services/ai/lipsync";
 import { falReachableUrl } from "@/services/ai/fal-storage";
 import { createKeyframe } from "@/services/ai/keyframe";
@@ -124,7 +124,9 @@ export async function createCampaign(
   }
 
   const config = await getAppConfig();
-  const videoDuration = media === "VIDEO" ? input.videoDuration : VIDEO_SEGMENT_SECONDS;
+  // Duração aceita pelo modelo de hoje (o admin pode ter trocado o modelo com o assistente aberto).
+  const videoModel = input.quality === "premium" ? config.models.videoPremium : config.models.video;
+  const videoDuration = media === "VIDEO" ? snapDuration(input.videoDuration, videoDurationsFor(videoModel)) : VIDEO_SEGMENT_SECONDS;
   const unitCost = costPerVariation(config.costs, input.platform, input.quality, videoDuration, media);
   const totalCost = unitCost * input.variations;
 

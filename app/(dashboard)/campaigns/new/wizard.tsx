@@ -9,8 +9,8 @@ import { ArrowLeft, ArrowRight, Captions, Check, Globe, Image as ImageIcon, Load
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
-  MAX_REFERENCES, OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, VIDEO_DURATIONS, campaignCost, costPerVariation, resolveMedia,
-  type AiCosts, type MediaKind, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey, type VideoDuration,
+  MAX_REFERENCES, OBJECTIVES, PLATFORMS, QUALITIES, STYLES, VARIATION_OPTIONS, campaignCost, costPerVariation, resolveMedia, snapDuration,
+  type AiCosts, type MediaKind, type ObjectiveKey, type PlatformKey, type QualityKey, type StyleKey,
 } from "@/lib/catalog";
 import { AD_LANGUAGES, type AdLanguage } from "@/lib/locale";
 import { buttonClass } from "@/components/app/ui-bits";
@@ -21,8 +21,10 @@ import { UploadError, uploadImage } from "@/components/app/image-dropzone";
 interface Product { id: string; name: string; originalImageUrl: string; targetAudience: string | null; price: number | null }
 
 export function CampaignWizard({
-  products, initialProductId, balance, costs, availability, emailVerified, locale, logoUrl,
+  products, initialProductId, balance, costs, availability, emailVerified, locale, logoUrl, videoDurations,
 }: {
+  /** Durações que o modelo de vídeo de cada qualidade gera sem desperdício (Veo: 8, 15, 22, 29 s). */
+  videoDurations: Record<QualityKey, number[]>;
   logoUrl: string | null;
   products: Product[];
   initialProductId: string;
@@ -49,7 +51,7 @@ export function CampaignWizard({
   const [variations, setVariations] = useState<number>(3);
   const [language, setLanguage] = useState<AdLanguage | "auto">("auto");
   const [briefing, setBriefing] = useState("");
-  const [duration, setDuration] = useState<VideoDuration>(5);
+  const [chosenDuration, setDuration] = useState<number>(videoDurations.standard[0]);
   const [mediaChoice, setMediaChoice] = useState<MediaKind | null>(null);
   const [applyLogo, setApplyLogo] = useState(!!logoUrl);
   const [captions, setCaptions] = useState(true);
@@ -84,6 +86,8 @@ export function CampaignWizard({
   // Imagem ou vídeo: Feed, Facebook e Stories aceitam os dois; Reels/TikTok é sempre vídeo.
   const media: MediaKind | null = platform ? resolveMedia(platform, mediaChoice) : null;
   const isVideo = media === "VIDEO";
+  // Trocar a qualidade pode trocar o modelo (e as durações): fica na mais próxima da escolhida.
+  const duration = snapDuration(chosenDuration, videoDurations[quality]);
   const total = platform ? campaignCost(costs, platform, quality, variations, isVideo ? duration : null, media) : 0;
   const enough = balance >= total;
 
@@ -284,8 +288,8 @@ export function CampaignWizard({
                   <>
                     <h3 className="mb-1 mt-7 text-sm font-medium">{t("duration")}</h3>
                     <p className="mb-3 text-xs text-muted-foreground">{t("durationHint")}</p>
-                    <div className="grid grid-cols-5 gap-2">
-                      {VIDEO_DURATIONS.map((s) => (
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))] gap-2">
+                      {videoDurations[quality].map((s) => (
                         <button key={s} type="button" onClick={() => setDuration(s)} data-selected={duration === s} className="choice py-2.5 text-center">
                           <span className="block font-semibold tabular-nums">{t("durationOption", { s })}</span>
                           <span className="block text-xs text-muted-foreground">{tc("credits", { count: costPerVariation(costs, platform as PlatformKey, quality, s, "VIDEO") })}</span>
@@ -314,7 +318,7 @@ export function CampaignWizard({
                       </span>
                       <span className="mt-0.5 block text-sm text-muted-foreground">
                         {tcat(`qualities.${key}.description`)}
-                        {platform ? ` · ${t("perVariation", { count: costPerVariation(costs, platform, key, isVideo ? duration : null, media) })}` : ""}
+                        {platform ? ` · ${t("perVariation", { count: costPerVariation(costs, platform, key, isVideo ? snapDuration(chosenDuration, videoDurations[key]) : null, media) })}` : ""}
                       </span>
                     </button>
                   ))}

@@ -401,7 +401,7 @@
       "briefingPlaceholder": "E.g. video showing the bottle at the gym, upbeat tone, highlight that it keeps drinks cold for 24h. Want another language? Just ask: \"dubbed in Spanish\".",
       "briefingHint": "Write it your way. The AI uses the language you write in (or the one you ask for) for the copy and the voiceover.",
       "duration": "Video length",
-      "durationHint": "Videos longer than 5 s are made of 5-second scenes that continue exactly from the previous scene's last frame, with the voiceover already inside.",
+      "durationHint": "Each scene continues exactly from the previous one's last frame, with the voiceover inside. Durations match what the video model generates in full: you never pay for discarded seconds.",
       "durationOption": "{s} s",
       "languageAuto": "Automatic (from your request)",
       "vyOutOfScopeTitle": "That's not my thing…",

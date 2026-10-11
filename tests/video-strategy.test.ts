@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { OutOfScopeError, PolicyViolationError, normalizeScenes, parseStrategy, voiceoverWordBudget, type StrategyInput } from "@/services/ai/text";
 import { parseVideoProgress, parseVideoSpec, serializeVideoSpec, isClaimed } from "@/lib/video-plan";
-import { costPerVariation, videoSegments, DEFAULT_COSTS } from "@/lib/catalog";
+import { costPerVariation, videoSegments, snapDuration, DEFAULT_COSTS, EXTENSION_DURATIONS } from "@/lib/catalog";
+import { videoDurationsFor } from "@/lib/video-models";
 import { campaignSchema } from "@/lib/validation";
 
 const input = (over: Partial<StrategyInput> = {}): StrategyInput => ({
@@ -78,7 +79,16 @@ describe("custo e validação", () => {
   it("vídeo cobra por trecho de 5 s; imagem não muda", () => {
     expect(videoSegments(5)).toBe(1);
     expect(videoSegments(30)).toBe(6);
-    expect(videoSegments(7)).toBe(1); // valor fora da lista cai para 5 s
+    // Blocos de 5 s arredondados para cima (durações do Veo: 8 s = 2 blocos, 22 s = 5).
+    expect(videoSegments(8)).toBe(2);
+    expect(videoSegments(22)).toBe(5);
+    expect(videoSegments(null)).toBe(1);
+    expect(videoSegments(500)).toBe(1); // valor absurdo cai para 5 s
+    expect(snapDuration(10, EXTENSION_DURATIONS)).toBe(15);
+    expect(snapDuration(40, EXTENSION_DURATIONS)).toBe(29);
+    expect(videoDurationsFor("veo-3.1-fast-generate-preview")).toEqual([8, 15, 22, 29]);
+    expect(videoDurationsFor("wan/v2.6/image-to-video")).toEqual([5, 10, 15, 20, 30]);
+    expect(videoDurationsFor("veo-3.1-lite-generate-preview")).toEqual([5, 10, 15, 20, 30]);
     expect(costPerVariation(DEFAULT_COSTS, "REELS_TIKTOK", "standard", 15)).toBe(DEFAULT_COSTS.video * 3);
     expect(costPerVariation(DEFAULT_COSTS, "REELS_TIKTOK", "premium", 10)).toBe(Math.ceil(DEFAULT_COSTS.video * 2 * DEFAULT_COSTS.premiumMultiplier));
     expect(costPerVariation(DEFAULT_COSTS, "INSTAGRAM_FEED", "standard", 30)).toBe(DEFAULT_COSTS.image);

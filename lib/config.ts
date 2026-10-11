@@ -72,27 +72,46 @@ export const DEFAULT_MODELS: AiModels = {
   lipsync: "fal-ai/sync-lipsync/v2",
 };
 
+/**
+ * Planos padrão (instalação nova; o Admin substitui). Calculados para o Veo 3.1 Fast com lip-sync (~R$ 17,80 por
+ * vídeo de 15 s) e os créditos padrão (vídeo de 15 s = 75 créditos, imagem = 2): margem de ~30% a ~50% mesmo se o
+ * cliente gastar tudo em vídeo. Revise em Admin › IA e custos › Custo real e margem.
+ */
 export const DEFAULT_PLANS: Plan[] = [
   {
-    id: "starter", name: "Starter", description: "Para começar a testar anúncios com IA.", description_en: "To start testing AI ads.",
-    price_brl: 49, price_usd: 10, price_eur: null, credits: 200, interval: "once",
+    id: "pack", name: "Teste", description: "Um vídeo para conhecer o Vysify.", description_en: "One video to try Vysify.",
+    price_brl: 45, price_usd: 9, price_eur: null, credits: 75, interval: "once",
     isFeatured: false, isFree: false, isHidden: false,
-    features_pt: ["~65 imagens ou ~20 vídeos", "Copy e estratégia inclusas", "Download em alta resolução"],
-    features_en: ["~65 images or ~20 videos", "Copy and strategy included", "High-resolution downloads"],
+    features_pt: ["1 vídeo de 15 s ou ~37 imagens", "Copy, legendas e tela final inclusas", "Créditos não expiram"],
+    features_en: ["1 15-second video or ~37 images", "Copy, captions and end screen included", "Credits never expire"],
+  },
+  {
+    id: "pack-plus", name: "Avulso", description: "Créditos para usar quando quiser, sem assinatura.", description_en: "Credits to use anytime, no subscription.",
+    price_brl: 119, price_usd: 24, price_eur: null, credits: 225, interval: "once",
+    isFeatured: false, isFree: false, isHidden: false,
+    features_pt: ["3 vídeos de 15 s ou ~110 imagens", "Todos os formatos (9:16, 4:5, 1:1)", "Créditos não expiram"],
+    features_en: ["3 15-second videos or ~110 images", "All formats (9:16, 4:5, 1:1)", "Credits never expire"],
+  },
+  {
+    id: "starter", name: "Starter", description: "Para começar a anunciar todo mês.", description_en: "To start advertising every month.",
+    price_brl: 79, price_usd: 16, price_eur: null, credits: 150, interval: "month",
+    isFeatured: false, isFree: false, isHidden: false,
+    features_pt: ["2 vídeos de 15 s ou 75 imagens por mês", "Importar produto pelo link da loja", "Cancele quando quiser"],
+    features_en: ["2 15-second videos or 75 images a month", "Import products from your store link", "Cancel anytime"],
   },
   {
     id: "pro", name: "Pro", description: "Para quem anuncia toda semana.", description_en: "For brands that advertise every week.",
-    price_brl: 99, price_usd: 20, price_eur: null, credits: 500, interval: "once",
+    price_brl: 179, price_usd: 36, price_eur: null, credits: 375, interval: "month",
     isFeatured: true, isFree: false, isHidden: false,
-    features_pt: ["~165 imagens ou ~50 vídeos", "Qualidade Premium disponível", "Brand Kit aplicado nas gerações"],
-    features_en: ["~165 images or ~50 videos", "Premium quality available", "Brand Kit applied to generations"],
+    features_pt: ["5 vídeos de 15 s ou ~187 imagens por mês", "Ranking de campeões e \"gerar mais como este\"", "Qualidade Premium disponível"],
+    features_en: ["5 15-second videos or ~187 images a month", "Winner ranking and \"make more like this\"", "Premium quality available"],
   },
   {
-    id: "scale", name: "Scale", description: "Para agências e alto volume.", description_en: "For agencies and high volume.",
-    price_brl: 249, price_usd: 50, price_eur: null, credits: 1500, interval: "once",
+    id: "scale", name: "Agência", description: "Para agências e alto volume.", description_en: "For agencies and high volume.",
+    price_brl: 399, price_usd: 79, price_eur: null, credits: 900, interval: "month",
     isFeatured: false, isFree: false, isHidden: false,
-    features_pt: ["~500 imagens ou ~150 vídeos", "Melhor custo por crédito", "Suporte prioritário por e-mail"],
-    features_en: ["~500 images or ~150 videos", "Best price per credit", "Priority email support"],
+    features_pt: ["12 vídeos de 15 s ou 450 imagens por mês", "Equipe com vários usuários", "Melhor custo por crédito"],
+    features_en: ["12 15-second videos or 450 images a month", "Team with multiple users", "Best price per credit"],
   },
 ];
 

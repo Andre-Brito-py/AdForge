@@ -5,14 +5,16 @@ Os créditos abstraem a variação de preço (em dólar) dos provedores de IA. O
 | Operação | Créditos (padrão) | Observação |
 | --- | --- | --- |
 | Estratégia e textos | 0 | Inclusos em toda campanha |
-| Imagem | 3 | Por variação |
-| Vídeo | 10 | **A cada 5 s** de vídeo, por variação (um vídeo de 20 s = 40) |
-| Qualidade Premium | ×2 | Multiplicador sobre imagem ou vídeo |
+| Imagem | 2 | Por variação |
+| Vídeo | 25 | **A cada 5 s** (arredondado para cima), por variação: 15 s = 75; 8 s = 50; 22 s = 125 |
+| Qualidade Premium | ×1,5 | Multiplicador sobre imagem ou vídeo (use ×2,5 se o Premium for o Veo 3.1 normal) |
 | Cadastro | 0 | Só dá créditos se o admin ativar **Admin › Teste grátis** (quantidade configurável) |
 
 ## Custo real e margem (revise antes de lançar)
 
-Os padrões acima foram definidos antes do vídeo com quadro de abertura, lip-sync e Veo. Com eles, **o vídeo dá prejuízo**: um vídeo de 20 s custa cerca de US$ 3–4 nos provedores, e 40 créditos valem cerca de US$ 1,20–2,00 conforme o pacote.
+Os padrões acima e os planos padrão (`DEFAULT_PLANS` em `lib/config.ts`: Teste R$ 45, Avulso R$ 119, Starter R$ 79/mês, Pro R$ 179/mês, Agência R$ 399/mês) foram calculados para o Veo 3.1 Fast com lip-sync: ~R$ 17,80 por vídeo de 15 s. No plano mais barato por crédito, a margem fica em ~30% mesmo se o cliente gastar tudo em vídeo, já descontando taxa da Stripe, imposto do Simples e 10% de falhas. Eles só valem numa instalação nova: o que estiver salvo no Admin tem prioridade.
+
+**Durações do vídeo:** com o Veo 3.1 / Fast (que estende o próprio vídeo: 8 s + blocos de 7 s), o assistente oferece 8, 15, 22 e 29 s, exatamente o que o Veo gera; com os outros modelos, 5, 10, 15, 20 e 30 s. Assim o cliente nunca paga por segundos que seriam descartados.
 
 Em **Admin › IA e custos › Custo real e margem**:
 

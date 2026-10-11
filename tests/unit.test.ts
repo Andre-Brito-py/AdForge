@@ -27,8 +27,9 @@ describe("idioma", () => {
 
 describe("custos", () => {
   it("vídeo premium usa o multiplicador", () => {
-    expect(costPerVariation(DEFAULT_COSTS, "REELS_TIKTOK", "premium")).toBe(20);
-    expect(campaignCost(DEFAULT_COSTS, "INSTAGRAM_FEED", "standard", 4)).toBe(12);
+    // Padrão: vídeo 25 créditos por bloco de 5 s, Premium ×1,5 (arredondado para cima); imagem 2.
+    expect(costPerVariation(DEFAULT_COSTS, "REELS_TIKTOK", "premium")).toBe(38);
+    expect(campaignCost(DEFAULT_COSTS, "INSTAGRAM_FEED", "standard", 4)).toBe(8);
   });
 });
 

@@ -27,7 +27,7 @@ describe.skipIf(!url)("cupons e estornos", async () => {
   const { pausedProviders, reportProviderProblem, resolveAlert } = await import("@/lib/admin-alerts");
   const { DEFAULT_PLANS } = await import("@/lib/config");
 
-  const starter = DEFAULT_PLANS[0];
+  const starter = DEFAULT_PLANS.find((p) => p.id === "starter")!;
   let userId = "";
   let workspaceId = "";
   const suffix = Date.now().toString(36).toUpperCase();
@@ -68,7 +68,7 @@ describe.skipIf(!url)("cupons e estornos", async () => {
 
   it("valor fixo vale só na moeda dele e só nos pacotes escolhidos", async () => {
     await createCoupon({ code: `FIXO${suffix}`, kind: "amount", amountOff: 5, currency: "USD", planIds: ["pro"] }, DEFAULT_PLANS, null);
-    const pro = DEFAULT_PLANS[1];
+    const pro = DEFAULT_PLANS.find((p) => p.id === "pro")!;
     expect((await applyCoupon(`FIXO${suffix}`, pro, "USD", 20, null)).finalPrice).toBe(15);
     await expect(applyCoupon(`FIXO${suffix}`, pro, "BRL", 99, null)).rejects.toBeInstanceOf(CouponError);
     await expect(applyCoupon(`FIXO${suffix}`, starter, "USD", 10, null)).rejects.toMatchObject({ key: "plan" });
@@ -97,7 +97,7 @@ describe.skipIf(!url)("cupons e estornos", async () => {
     const balance = await getWorkspaceBalance(workspaceId);
     await consumeCredits({ workspaceId, userId, amount: balance, description: "gasto" });
     const result = await recordRefund({ provider: "MERCADOPAGO", externalId: `mp-${suffix}`, refundedTotal: 44.1 });
-    expect(result).toEqual({ removed: 0, shortfall: 200 });
+    expect(result).toEqual({ removed: 0, shortfall: starter.credits });
     expect(await getWorkspaceBalance(workspaceId)).toBe(0);
     expect(adminEmails.some((s) => s.includes("Estorno"))).toBe(true);
   });

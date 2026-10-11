@@ -71,6 +71,15 @@ describe("modelos de vídeo e plano de pedidos", () => {
     expect(p).toBe("One continuous shot, no cuts. 0-5s: d 5-10s: e 10-15s: f");
     expect(segmentPrompt(["a", "b"], 5, 5)).toBe("b");
   });
+
+  it("com extensões do Veo (8 + 7 + 7 s), cada cena entra uma vez, no trecho certo", () => {
+    const scenes = ["a", "b", "c", "d"];
+    expect(segmentPrompt(scenes, 0, 8)).toBe("One continuous shot, no cuts. 0-5s: a 5-8s: b");
+    expect(segmentPrompt(scenes, 8, 7)).toBe("c");
+    expect(segmentPrompt(scenes, 15, 7)).toBe("d");
+    // Trecho além do roteiro: repete a última cena em vez de ficar vazio.
+    expect(segmentPrompt(["a", "b"], 15, 7)).toBe("b");
+  });
 });
 
 describe("revisão do quadro de abertura", () => {

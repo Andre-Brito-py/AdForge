@@ -11,7 +11,8 @@ import {
 } from "./meta/graph";
 import type { SessionUser } from "./auth";
 
-import { allowedTargets, IG_CAPTION_LIMIT, PUBLISH_TARGETS, type PublishTarget } from "./publish-targets";
+import { allowedTargets, IG_CAPTION_LIMIT, PUBLISH_TARGETS, videoAspectFor, type PublishTarget } from "./publish-targets";
+import { videoFormatUrl } from "./video-formats";
 
 export { allowedTargets, IG_CAPTION_LIMIT, PUBLISH_TARGET_KEYS, PUBLISH_TARGETS, type PublishTarget } from "./publish-targets";
 
@@ -137,8 +138,13 @@ export async function runPublication(id: string): Promise<void> {
 
     const pageToken = await getPageAccessToken(conn.token, account.pageId);
     const isVideo = pub.creative.type === "VIDEO";
+    // Reels/Stories: a versão 9:16 do vídeo (mesmas legendas e tela final), gerada na primeira vez.
+    const wantAspect = isVideo ? videoAspectFor(target) : null;
+    const videoUrl = wantAspect && pub.creative.aspectRatio !== wantAspect
+      ? await videoFormatUrl(pub.workspaceId, pub.creativeId, wantAspect)
+      : pub.creative.outputUrl!;
     const mediaUrl = isVideo
-      ? absoluteUrl(pub.creative.outputUrl!)
+      ? absoluteUrl(videoUrl)
       : await jpegUrlFor(pub.workspaceId, pub.creativeId, pub.creative.outputUrl!);
 
     if (target === "FACEBOOK_PAGE") {

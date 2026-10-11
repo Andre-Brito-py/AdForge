@@ -1,4 +1,5 @@
 import { hasVideoProvider } from "@/lib/ai-engine";
+import { videoDurationsFor } from "@/lib/video-models";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -41,6 +42,7 @@ export default async function NewCampaignPage(props: PageProps<"/campaigns/new">
         emailVerified={!!user.emailVerified}
         locale={locale}
         logoUrl={brand?.logoUrl || null}
+        videoDurations={{ standard: [...videoDurationsFor(config.models.video)], premium: [...videoDurationsFor(config.models.videoPremium)] }}
       />
     </>
   );

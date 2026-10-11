@@ -1,3 +1,5 @@
+import { EXTENSION_DURATIONS, VIDEO_DURATIONS } from "./catalog";
+
 /**
  * O que cada modelo de vídeo da fal.ai sabe fazer. O modelo é escolhido no Admin (sem deploy);
  * aqui ficam só as diferenças que mudam o pedido e a montagem.
@@ -46,6 +48,11 @@ export function videoModelCaps(model: string): VideoModelCaps {
   }
   // Wan 2.1 / 2.2: trechos de ~5 s, sem áudio.
   return { provider: "fal", durations: [5], lipSyncAudio: false, resolution: { standard: "480p", premium: "720p" }, aspectFromImage: false };
+}
+
+/** Durações que o assistente oferece para este modelo (ver EXTENSION_DURATIONS). */
+export function videoDurationsFor(model: string): readonly number[] {
+  return videoModelCaps(model).extensionSeconds ? EXTENSION_DURATIONS : VIDEO_DURATIONS;
 }
 
 /** Modelos de vídeo prontos para escolher no Admin (o campo continua livre para versões novas). */
@@ -131,11 +138,20 @@ export function planVideo(total: number, caps: VideoModelCaps): { segments: numb
  * num plano contínuo, para o modelo não cortar nem trocar de cenário.
  */
 export function segmentPrompt(scenes: string[], startSecond: number, seconds: number): string {
-  const first = Math.floor(startSecond / 5);
-  const count = Math.max(1, Math.round(seconds / 5));
-  const slice = scenes.slice(first, first + count);
-  const parts = slice.length ? slice : [scenes[scenes.length - 1]];
-  if (parts.length === 1) return parts[0];
-  // Tempos relativos ao próprio pedido (cada pedido começa em 0 s).
-  return `One continuous shot, no cuts. ${parts.map((s, i) => `${i * 5}-${(i + 1) * 5}s: ${s}`).join(" ")}`;
+  if (scenes.length === 0) return "";
+  const end = startSecond + seconds;
+  // Cada cena vai para o pedido que contém o MEIO dela (com extensões de 7 s, nenhuma cena se repete ou some).
+  let picked = scenes.map((s, i) => ({ s, i })).filter(({ i }) => i * 5 + 2.5 >= startSecond && i * 5 + 2.5 < end);
+  if (picked.length === 0) {
+    const i = Math.min(scenes.length - 1, Math.floor(startSecond / 5));
+    picked = [{ s: scenes[i], i }];
+  }
+  if (picked.length === 1) return picked[0].s;
+  // Tempos relativos ao próprio pedido (cada pedido começa em 0 s); a última cena vai até o fim do pedido.
+  const parts = picked.map(({ s, i }, k) => {
+    const from = Math.max(0, i * 5 - startSecond);
+    const to = k === picked.length - 1 ? seconds : Math.min(seconds, (i + 1) * 5 - startSecond);
+    return `${from}-${to}s: ${s}`;
+  });
+  return `One continuous shot, no cuts. ${parts.join(" ")}`;
 }

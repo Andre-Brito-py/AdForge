@@ -11,6 +11,11 @@ export const PUBLISH_TARGET_KEYS = Object.keys(PUBLISH_TARGETS) as [PublishTarge
 
 export const IG_CAPTION_LIMIT = 2200;
 
+/** Formato de vídeo que o destino espera (null = aceita o original). Reels e Stories são verticais. */
+export function videoAspectFor(target: PublishTarget): "9:16" | null {
+  return target === "INSTAGRAM_REELS" || target === "INSTAGRAM_STORY" ? "9:16" : null;
+}
+
 /**
  * Quais destinos aceitam cada criativo. O feed do Instagram só aceita imagens
  * entre 4:5 e 1.91:1, então imagens 9:16 vão para Stories ou para a Página.

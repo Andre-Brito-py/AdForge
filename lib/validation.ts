@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_REFERENCES, MAX_VARIATIONS, MEDIA_KINDS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS, VIDEO_DURATIONS } from "./catalog";
+import { ALL_VIDEO_DURATIONS, MAX_REFERENCES, MAX_VARIATIONS, MEDIA_KINDS, OBJECTIVE_KEYS, PLATFORM_KEYS, QUALITY_KEYS, STYLE_KEYS } from "./catalog";
 import { AD_LANGUAGE_KEYS, CURRENCIES, LOCALES } from "./locale";
 
 // Mensagens padrão do Zod: o idioma é escolhido por requisição em lib/api.ts (parseBody).
@@ -117,7 +117,7 @@ export const campaignSchema = z.object({
   videoDuration: z
     .number()
     .int()
-    .refine((d) => (VIDEO_DURATIONS as readonly number[]).includes(d), { message: "validation.videoDuration" })
+    .refine((d) => ALL_VIDEO_DURATIONS.includes(d), { message: "validation.videoDuration" })
     .default(5),
   variations: z.number().int().min(1).max(MAX_VARIATIONS),
 }).refine((c) => c.references.length === 0 || c.imageRights, { message: "validation.imageRights", path: ["imageRights"] });
