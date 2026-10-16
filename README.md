@@ -28,12 +28,13 @@ foto + configurações  →  campanha gerada pela IA  →  download  ou  publica
 ## Stack
 
 - **Next.js 16** (App Router, `proxy.ts`) + React 19 + Tailwind CSS 4
-- **PostgreSQL** (Supabase) com **Prisma 5** e migrations versionadas
+- **PostgreSQL** (Neon) com **Prisma 5** e migrations versionadas
 - **NextAuth** (e-mail + senha com bcrypt, Google opcional, 2FA TOTP)
 - **IA:** Google Gemini (estratégia, texto e imagem), fal.ai/Wan (vídeo), ElevenLabs ou OpenAI (locução)
 - **Pagamentos:** Mercado Pago (Pix, cartão, boleto) e Stripe, em pacotes de créditos avulsos
 - **Publicação:** Meta Graph API (Instagram + Facebook)
-- **E-mail:** Resend · **Arquivos:** S3 compatível (Supabase Storage, R2, AWS)
+- **E-mail:** Resend · **Arquivos:** S3 compatível (Cloudflare R2 em produção)
+- **Deploy:** Vercel + Neon + R2 — passo a passo em [docs/DEPLOY_VERCEL_NEON.md](docs/DEPLOY_VERCEL_NEON.md)
 
 ## Como funciona a geração
 

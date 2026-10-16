@@ -56,7 +56,7 @@ async function PrivacyPt() {
         <li>Provedores de IA: Google (Gemini), fal.ai, ElevenLabs e OpenAI, que recebem as fotos e textos necessários para cada geração;</li>
         <li>Pagamentos: Mercado Pago e Stripe;</li>
         <li>Meta Platforms (Facebook e Instagram): recebe a imagem ou o vídeo e a legenda que você decidir publicar, na conta que você escolher;</li>
-        <li>Infraestrutura: Vercel (hospedagem), Supabase (banco de dados e armazenamento) e Resend (e-mails transacionais).</li>
+        <li>Infraestrutura: Vercel (hospedagem), Neon (banco de dados, hospedado em São Paulo), Cloudflare R2 (armazenamento das fotos e vídeos) e Resend (e-mails transacionais).</li>
         <li>Monitoramento de erros: Sentry (Functional Software, EUA), que recebe apenas a mensagem técnica do erro, a página e o tipo de navegador, sem nome, e-mail, cookies ou conteúdo enviado por você.</li>
       </ul>
       <p>

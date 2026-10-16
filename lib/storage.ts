@@ -13,6 +13,9 @@ const s3 = useS3
         secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
       },
       forcePathStyle: !!process.env.S3_ENDPOINT,
+      // Cloudflare R2 (e outros S3 compatíveis): o SDK novo manda checksums que nem todos aceitam; só quando exigido.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     })
   : null;
 

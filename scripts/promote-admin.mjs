@@ -9,7 +9,9 @@ if (!email) {
   process.exit(1);
 }
 
-const db = new PrismaClient();
+// Conexão direta (sem pooler) quando houver: mais simples para um comando avulso no Neon.
+const url = process.env.DIRECT_URL || process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+const db = new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
 try {
   const user = await db.user.update({ where: { email }, data: { role: "SUPERADMIN", sessionVersion: { increment: 1 } } });
   console.log(`✔ ${user.email} agora é SUPERADMIN. Faça login novamente para ver o painel Admin.`);

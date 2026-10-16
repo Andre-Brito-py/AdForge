@@ -2,28 +2,11 @@
 
 O que já está pronto no código e o que depende de você (contas, chaves e decisões de negócio).
 
-## 1. Banco de dados (Supabase)
+## 1. Banco de dados (Neon) e deploy
 
-O projeto agora usa **migrations** (`prisma/migrations`) em vez de `db push --accept-data-loss`.
+Hospedagem na Vercel, banco no Neon e arquivos no Cloudflare R2: siga o passo a passo em [docs/DEPLOY_VERCEL_NEON.md](DEPLOY_VERCEL_NEON.md).
 
-- `0_init` corresponde ao schema que já estava no Supabase; as demais (em `prisma/migrations`) adicionam as tabelas e colunas novas e são aplicadas em ordem pelo `db:deploy`.
-
-Como o app ainda não está no ar, há dois caminhos:
-
-**A) Banco limpo (recomendado, já que não há clientes):** apague as tabelas no Supabase (ou crie um projeto novo) e rode:
-
-```bash
-npm run db:deploy
-```
-
-**B) Manter os dados atuais:** marque a migration inicial como já aplicada e rode o restante:
-
-```bash
-npx prisma migrate resolve --applied 0_init
-npm run db:deploy
-```
-
-Contas antigas não têm senha cadastrada (o login antigo aceitava qualquer senha). Esses usuários devem usar **"Esqueci a senha"**.
+O projeto usa **migrations** (`prisma/migrations`), aplicadas em ordem. No deploy de produção da Vercel elas rodam sozinhas no build (`scripts/vercel-build.mjs`); fora dele, use `npm run db:deploy`. Comece com o banco do Neon vazio: o build cria todas as tabelas.
 
 ## 2. Variáveis de ambiente na Vercel
 
@@ -32,7 +15,9 @@ Veja `.env.example`. Só estas precisam ficar na Vercel (mudá-las exige redeplo
 - `DATABASE_URL`, `DIRECT_URL`
 - `NEXT_PUBLIC_APP_URL` e `NEXTAUTH_URL` (domínio final, com https)
 - `NEXTAUTH_SECRET`, `ENCRYPTION_KEY` e `CRON_SECRET` (gere com `openssl rand -base64 32`)
-- `S3_*` (em produção não existe gravação em disco)
+- `S3_*` (Cloudflare R2; em produção não existe gravação em disco)
+
+O build de produção falha com uma mensagem clara se alguma dessas faltar.
 
 Todo o resto é configurado no painel Admin e vale em até 15 segundos, sem redeploy. Logo após o primeiro acesso de admin (seção 3), abra **Admin › Configurações gerais** e preencha:
 
@@ -47,7 +32,7 @@ Remova `ADMIN_EMAIL` e `ADMIN_PASSWORD`: o login de admin fixo no código foi el
 ## 3. Primeiro acesso de admin
 
 1. Crie sua conta pelo site.
-2. Rode localmente, apontando para o banco de produção: `npm run admin:promote -- seu@email.com`.
+2. No **SQL Editor** do Neon: `UPDATE "User" SET role = 'SUPERADMIN', "sessionVersion" = "sessionVersion" + 1 WHERE email = 'seu@email.com';` (ou `npm run admin:promote -- seu@email.com` com o `.env` apontando para o Neon).
 3. Ative o 2FA em Configurações (fortemente recomendado para a conta admin).
 
 ## 4. Provedores de IA (Admin › IA e custos)
@@ -84,14 +69,14 @@ GET https://SEU_DOMINIO/api/cron/jobs
 Authorization: Bearer <CRON_SECRET>
 ```
 
-Ela conclui vídeos de quem fechou a aba e limpa tokens e rate limits antigos. Na Vercel, o plano Hobby só permite cron diário; use o plano Pro, o GitHub Actions ou o cron-job.org.
+Ela conclui vídeos de quem fechou a aba, atualiza os resultados dos anúncios e limpa tokens e rate limits antigos. O `vercel.json` já agenda essa chamada a cada 5 minutos (Vercel Cron, plano Pro), e a Vercel envia o `CRON_SECRET` sozinha. No plano Hobby (que só permite cron diário), remova o bloco `crons` do `vercel.json` e use o cron-job.org.
 
 O `CRON_SECRET` também protege `POST /api/jobs/run`: cada variação de uma campanha é disparada numa execução separada, com o próprio limite de 300 s. Se a Vercel tiver **Deployment Protection** ligada no domínio de produção, essa chamada interna é bloqueada; nesse caso as gerações rodam na mesma execução (funciona, mas com menos folga de tempo).
 
-## 7. Armazenamento (Supabase Storage)
+## 7. Armazenamento (Cloudflare R2)
 
-- Bucket **público para leitura**, com escrita apenas pelas chaves S3.
-- Libere CORS para o seu domínio (GET), para o botão "Baixar" funcionar direto no navegador.
+- Bucket **público para leitura** (domínio próprio), com escrita apenas pelo token S3 do R2.
+- Libere CORS para o seu domínio (GET), para o botão "Baixar" funcionar direto no navegador. Detalhes em [docs/DEPLOY_VERCEL_NEON.md](DEPLOY_VERCEL_NEON.md).
 
 ## 8. Monitoramento
 
